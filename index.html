@@ -183,11 +183,10 @@ button{cursor:pointer}
 .login-status{font-size:12px;color:var(--m);margin-top:16px;min-height:18px}
 .login-note{font-size:11px;color:var(--dim);margin-top:28px;line-height:1.6;border-top:1px solid var(--b);padding-top:16px}
 
-.sidebar{transition:width .25s ease}
-.sidebar.collapsed{width:0!important;overflow:hidden;border:none}
-.sidebar-toggle{position:absolute;right:0;top:50%;transform:translateY(-50%);width:18px;height:48px;background:var(--s3);border:1px solid var(--b2);border-right:none;border-radius:6px 0 0 6px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--m);z-index:10;transition:all .2s}
-.sidebar-toggle:hover{color:var(--t);background:var(--s2)}
-.sidebar-wrap{position:relative;display:flex;flex-shrink:0}
+.sidebar{transition:width .3s ease, opacity .3s ease}
+.sidebar.collapsed{width:0!important;min-width:0!important;overflow:hidden!important;border:none!important;padding:0!important;opacity:0}
+.sb-toggle{margin-left:auto;background:transparent;border:1px solid var(--b);color:var(--m);font-size:13px;cursor:pointer;padding:1px 7px;border-radius:6px;line-height:1;transition:all .15s;flex-shrink:0}
+.sb-toggle:hover{color:var(--t);background:var(--s2)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -263,10 +262,10 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Ask Claude</span>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
       <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
     <div class="msgs" id="msgs-todo"></div>
-    <div class="cf"><div class="sugs" id="sugs-todo"></div><div class="cr"><textarea class="ci" id="inp-todo" rows="1" onkeydown="onKey(event,'todo')"></textarea><button class="csend" onclick="send('todo')">&#8593;</button></div></div>
+    <div class="cf"><div class="cr"><textarea class="ci" id="inp-todo" rows="1" onkeydown="onKey(event,'todo')"></textarea><button class="csend" onclick="send('todo')">&#8593;</button></div></div>
   </div>
 </div>
 
@@ -278,10 +277,10 @@ button{cursor:pointer}
     <div class="board" id="crm-board"></div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Ask Claude</span>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
       <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
     <div class="msgs" id="msgs-crm"></div>
-    <div class="cf"><div class="sugs" id="sugs-crm"></div><div class="cr"><textarea class="ci" id="inp-crm" rows="1" onkeydown="onKey(event,'crm')"></textarea><button class="csend" onclick="send('crm')">&#8593;</button></div></div>
+    <div class="cf"><div class="cr"><textarea class="ci" id="inp-crm" rows="1" onkeydown="onKey(event,'crm')"></textarea><button class="csend" onclick="send('crm')">&#8593;</button></div></div>
   </div>
 </div>
 
@@ -293,10 +292,10 @@ button{cursor:pointer}
     <div class="board" id="ord-board"></div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Ask Claude</span>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
       <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
     <div class="msgs" id="msgs-orders"></div>
-    <div class="cf"><div class="sugs" id="sugs-orders"></div><div class="cr"><textarea class="ci" id="inp-orders" rows="1" onkeydown="onKey(event,'orders')"></textarea><button class="csend" onclick="send('orders')">&#8593;</button></div></div>
+    <div class="cf"><div class="cr"><textarea class="ci" id="inp-orders" rows="1" onkeydown="onKey(event,'orders')"></textarea><button class="csend" onclick="send('orders')">&#8593;</button></div></div>
   </div>
 </div>
 
@@ -337,7 +336,7 @@ button{cursor:pointer}
           </div>
           <div class="qres">
             <div class="q-section-hd" data-tx="shippingParams">Shipping Parameters</div>
-            <div class="field"><label data-tx="shipping">Mode</label><select id="q-ship" onchange="calcQ()"><option value="air" data-tx="airfreight">Airfreight</option><option value="sea" data-tx="seafreight">Seafreight</option></select></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span style="font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.04em">Shipping</span><span style="font-size:11px;color:var(--grn);font-weight:500">&#9992; Airfreight only</span></div>
             <div class="field"><label data-tx="airRmb">&#9992; Airfreight rate (RMB/kg)</label><input id="q-rmb-kg" type="number" value="35" step="0.5" min="1" oninput="calcQ()" style="font-family:'JetBrains Mono',monospace"></div>
             <div class="field"><label data-tx="docCost">Documentation cost (SGD)</label><input id="q-doc" type="number" value="80" step="1" min="0" oninput="calcQ()" style="font-family:'JetBrains Mono',monospace"></div>
             <button class="btn btn-g" style="width:100%;justify-content:center;padding:9px;margin-top:4px" onclick="calcQ()"><span data-tx="calculate">Calculate</span></button>
@@ -391,10 +390,10 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Ask Claude</span>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
       <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
     <div class="msgs" id="msgs-quotes"></div>
-    <div class="cf"><div class="sugs" id="sugs-quotes"></div><div class="cr"><textarea class="ci" id="inp-quotes" rows="1" onkeydown="onKey(event,'quotes')"></textarea><button class="csend" onclick="send('quotes')">&#8593;</button></div></div>
+    <div class="cf"><div class="cr"><textarea class="ci" id="inp-quotes" rows="1" onkeydown="onKey(event,'quotes')"></textarea><button class="csend" onclick="send('quotes')">&#8593;</button></div></div>
   </div>
 </div>
 
@@ -438,10 +437,10 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Ask Claude</span>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
       <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
     <div class="msgs" id="msgs-competitors"></div>
-    <div class="cf"><div class="sugs" id="sugs-competitors"></div><div class="cr"><textarea class="ci" id="inp-competitors" rows="1" onkeydown="onKey(event,'competitors')"></textarea><button class="csend" onclick="send('competitors')">&#8593;</button></div></div>
+    <div class="cf"><div class="cr"><textarea class="ci" id="inp-competitors" rows="1" onkeydown="onKey(event,'competitors')"></textarea><button class="csend" onclick="send('competitors')">&#8593;</button></div></div>
   </div>
 </div>
 
@@ -514,7 +513,7 @@ var CMP_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835};
 // ── TRANSLATIONS ──────────────────────────────────────────────────────────
 var TX_EN={
   todoTab:'To-do & Inbox',crmTab:'Sales CRM',ordersTab:'Orders',quotesTab:'Quotes & Pricing',
-  competitorsTab:'Competitors',faqTab:'FAQ',askClaude:'Ask Claude',
+  competitorsTab:'Competitors',faqTab:'FAQ',askClaude:'Gemini Chat',
   dailyCheck:'Daily checklist',clickSection:'Click a section above',
   clientPipeline:'Client Pipeline',ordersPipeline:'Orders Pipeline',
   total:'Total',enquiries:'Enquiries',pendingQuote:'Pending Quote',
@@ -525,7 +524,7 @@ var TX_EN={
   jobDetails:'Job Details',shippingParams:'Shipping Parameters',
   client:'Client',widthMM:'Width (mm)',heightMM:'Height (mm)',
   qtyPcs:'Total Qty (pcs)',skus:'No. of SKUs',colour:'Colour',black:'1C Black',colourOpt:'Colour',
-  shipping:'Mode',airfreight:'Airfreight',seafreight:'Seafreight',destination:'Destination',
+  shipping:'Mode',airfreight:'Airfreight',destination:'Destination',
   sg:'Singapore',my:'Malaysia',cn:'China',tw:'Taiwan',hk:'Hong Kong',id:'Indonesia',jp:'Japan',th:'Thailand',
   airRmb:'\u2708 Airfreight rate (RMB/kg)',docCost:'Documentation cost (SGD)',
   calculate:'Calculate',fillForm:'Fill in the form and click Calculate',
@@ -566,7 +565,7 @@ var TX_ZH={
   jobDetails:'\u8ba2\u5355\u4fe1\u606f',shippingParams:'\u8fd0\u8f93\u53c2\u6570',
   client:'\u5ba2\u6237\u540d\u79f0',widthMM:'\u5bbd\u5ea6 (mm)',heightMM:'\u9ad8\u5ea6 (mm)',
   qtyPcs:'\u603b\u6570\u91cf (\u5f20)',skus:'SKU\u6570\u91cf',colour:'\u989c\u8272',black:'\u5355\u8272\u9ed1',colourOpt:'\u5f69\u8272',
-  shipping:'\u8fd0\u8f93\u65b9\u5f0f',airfreight:'\u7a7a\u8fd0',seafreight:'\u6d77\u8fd0',destination:'\u76ee\u7684\u5730',
+  shipping:'\u8fd0\u8f93\u65b9\u5f0f',airfreight:'\u7a7a\u8fd0',destination:'\u76ee\u7684\u5730',
   sg:'\u65b0\u52a0\u5761',my:'\u9a6c\u6765\u897f\u4e9a',cn:'\u4e2d\u56fd',tw:'\u53f0\u6e7e',hk:'\u9999\u6e2f',id:'\u5370\u5c3c',jp:'\u65e5\u672c',th:'\u6cf0\u56fd',
   airRmb:'\u2708 \u7a7a\u8fd0\u8d39\u7387 (\u4eba\u6c11\u5e01/kg)',docCost:'\u6587\u4ef6\u8d39 (SGD)',
   calculate:'\u8ba1\u7b97\u62a5\u4ef7',fillForm:'\u586b\u5199\u8868\u5355\u5e76\u70b9\u51fb\u8ba1\u7b97',
@@ -871,7 +870,7 @@ function calcQ(){
   var qty=parseInt(document.getElementById('q-qty').value)||0;
   var sku=parseInt(document.getElementById('q-sku').value)||1;
   var col=document.getElementById('q-col').value;
-  var ship=document.getElementById('q-ship').value;
+  var ship='air'; // airfreight only
   var dest=document.getElementById('q-dest').value;
   var rmbPerKg=parseFloat(document.getElementById('q-rmb-kg').value)||35;
   var _dv=document.getElementById('q-doc').value;var docCost=(_dv===''||_dv===null)?80:parseFloat(_dv)||0;
@@ -885,7 +884,7 @@ function calcQ(){
   var printCost=totalQty*rpc/SGD_RMB;
   var weightKg=(totalQty/10000)*4*(area/2250);
   var destMult=(dest==='tw'||dest==='jp'||dest==='th')?1.3:dest==='id'?1.15:(dest==='my'||dest==='hk')?1.05:1;
-  var shipCost=ship==='air'?Math.max(rmbPerKg,weightKg*rmbPerKg)*destMult/SGD_RMB:Math.max(60,weightKg*3/SGD_RMB);
+  var shipCost=Math.max(rmbPerKg,weightKg*rmbPerKg)*destMult/SGD_RMB;
   var shTotal=shipCost+docCost,totCost=printCost+shTotal;
   var sell=totCost*2.1,profit=sell-totCost,margin=profit/sell*100,ppp=sell/totalQty;
   var qtyPerSku=sku>0?Math.round(totalQty/sku):totalQty;
@@ -945,32 +944,37 @@ function calcQ(){
 }
 
 // ── CHAT ─────────────────────────────────────────────────────────────────
-var SUGS_EN={
-  todo:['What needs action today?','Which clients need follow-up?','List unpaid invoices','Any overdue shipments?'],
-  crm:['How many clients per stage?','Which enquiries are oldest?','Who are my repeat clients?','Follow-up for Harmony Foods'],
-  orders:['Which orders are unpaid?','What is in production?','Summarise this week deliveries','Orders going to China?'],
-  quotes:['Is 75x30 10k competitive vs Sato?','What margin on Hong Xin Da?','Suggest price for 50k 65x59 colour','Airfreight vs margin?'],
-  competitors:['Who are Sato\'s largest clients?','Which clients use both Sato and AYG?','Compare Sato vs Jewel sizes','Any clients we can win back?'],
-  faq:['What is the BCRS scheme?','What label sizes do we offer?','Standard lead time for orders?','Airfreight to Taiwan process?']
-};
-var SUGS_ZH={
-  todo:['\u4eca\u5929\u6709\u4ec0\u4e48\u9700\u8981\u5904\u7406\uff1f','\u54ea\u4e9b\u5ba2\u6237\u9700\u8981\u8ddf\u8fdb\uff1f','\u5217\u51fa\u672a\u4ed8\u6b3e\u8ba2\u5355','\u6709\u54ea\u4e9b\u8d27\u8fd0\u903e\u671f\uff1f'],
-  crm:['\u5404\u9636\u6bb5\u6709\u591a\u5c11\u5ba2\u6237\uff1f','\u54ea\u4e9b\u8be2\u76d8\u65f6\u95f4\u6700\u4e45\uff1f','\u6211\u6709\u54ea\u4e9b\u56de\u5934\u5ba2\uff1f','\u548c\u8c10\u98df\u54c1\u8ddf\u8fdb\u90ae\u4ef6'],
-  orders:['\u54ea\u4e9b\u8ba2\u5355\u672a\u4ed8\u6b3e\uff1f','\u73b0\u5728\u54ea\u4e9b\u5728\u751f\u4ea7\u4e2d\uff1f','\u603b\u7ed3\u672c\u5468\u9001\u8d27\u60c5\u51b5','\u53d1\u5f80\u4e2d\u56fd\u7684\u8ba2\u5355\uff1f'],
-  quotes:['75x30 \u4e00\u4e07\u5f20\u4e0eSato\u76f8\u6bd4\uff1f','Hong Xin Da\u5229\u6da6\u7387\uff1f','\u5efa\u8bae50k\u5f2065x59\u5f69\u8272\u4ef7\u683c','\u7a7a\u8fd0\u4e0e\u5229\u6da6\u5173\u7cfb\uff1f'],
-  competitors:['Sato\u7684\u6700\u5927\u5ba2\u6237\u662f\u8c01\uff1f','\u54ea\u4e9b\u5ba2\u6237\u540c\u65f6\u7528Sato\u548c\u6211\u4eec\uff1f','\u6bd4\u8f83Sato\u548cJewel\u5ba2\u6237\u89c4\u6a21','\u6709\u54ea\u4e9b\u5ba2\u6237\u53ef\u4ee5\u4e89\u53d6\u56de\uff1f'],
-  faq:['BCRS\u65b9\u6848\u662f\u4ec0\u4e48\uff1f','\u6211\u4eec\u63d0\u4f9b\u54ea\u4e9b\u6807\u7b7e\u5c3a\u5bf8\uff1f','\u8ba2\u5355\u6807\u51c6\u4ea4\u8d27\u671f\uff1f','\u8fd0\u5f80\u53f0\u6e7e\u7684\u7a7a\u8fd0\u6d41\u7a0b\uff1f']
-};
+var SUGS_EN={};
+var SUGS_ZH={};
 var CTX={
-  todo:function(){return 'You are an AI assistant for AYG, a Singapore BCRS barcode label printing company. User is on To-do tab. '+UNPAID.length+' unpaid invoices. '+PQA.length+' pending quote approvals. Reply in '+(lang==='zh'?'Chinese (Simplified)':'English')+'. Be concise.';},
-  crm:function(){return 'You are an AI assistant for AYG printing. '+CLIENTS.length+' clients. Reply in '+(lang==='zh'?'Chinese (Simplified)':'English')+'. Be concise.';},
-  orders:function(){return 'You are an AI assistant for AYG printing. '+ORDERS.length+' orders. Unpaid: '+UNPAID.length+'. Reply in '+(lang==='zh'?'Chinese (Simplified)':'English')+'. Be concise.';},
-  quotes:function(){return 'You are an AI assistant for AYG printing. BCRS labels, China factory (Mashang/Yayi), airfreight to SG/MY/CN/TW/HK/ID/JP/TH. SGD/RMB 5.3. Sell ~2.1x cost. Competitor: Sato. Reply in '+(lang==='zh'?'Chinese (Simplified)':'English')+'. Be concise.';},
-  competitors:function(){return 'You are an AI assistant for AYG printing. Competitor intelligence: Sato Asia has '+SATO_LIST.length+' known clients. Jewel Creative has '+JEWEL_LIST.length+' clients. Clients marked BOTH use both competitors and AYG. Reply in '+(lang==='zh'?'Chinese (Simplified)':'English')+'. Be concise.';},
-  faq:function(){return 'You are AYG business knowledge assistant. BCRS scheme (Singapore GS1 barcode compliance), AYG ops (China factory, Mashang/Yayi, Hong Feng/Kai Da Express), sizes (75x30, 27x17, 65x59, 75x65, 65x24mm), pricing (SGD/RMB 5.3, sell ~2.1x cost). Reply in '+(lang==='zh'?'Chinese (Simplified)':'English')+'. Be thorough.';}
+  todo:function(){
+    var unpaidList=UNPAID.slice(0,5).map(function(o){return o.name+' S$'+o.price;}).join(', ');
+    var pqaList=PQA.slice(0,5).map(function(c){return c.name;}).join(', ');
+    return 'You are an assistant for AYG Capital, a Singapore BCRS barcode label printing company. Current data: '+UNPAID.length+' unpaid invoices ('+unpaidList+'), '+PQA.length+' clients pending quote approval ('+pqaList+'). Daily tasks: '+DAILY.slice(0,5).join('; ')+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
+  },
+  crm:function(){
+    var stageSum=CRM_STAGES.map(function(s){return s.id+':'+CLIENTS.filter(function(c){return c.stage===s.id;}).length;}).join(', ');
+    var recent=CLIENTS.filter(function(c){return c.lastContact;}).slice(0,3).map(function(c){return c.name+'('+c.stage+')';}).join(', ');
+    return 'You are an assistant for AYG Capital CRM. '+CLIENTS.length+' clients by stage: '+stageSum+'. Recent contacts: '+recent+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
+  },
+  orders:function(){
+    var inProd=ORDERS.filter(function(o){return o.status==='In Production';}).map(function(o){return o.name;}).slice(0,5).join(', ');
+    var unpaidList=UNPAID.slice(0,5).map(function(o){return o.name+' S$'+o.price;}).join(', ');
+    return 'You are an assistant for AYG Capital orders. '+ORDERS.length+' total orders. In Production: '+inProd+'. Unpaid: '+unpaidList+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
+  },
+  quotes:function(){
+    return 'You are an assistant for AYG Capital quotes. BCRS barcode label printing. SGD/RMB rate: 5.3. Sell price = ~2.1x total cost. Airfreight: 10,000pcs of 2250mm2 = 4kg, RMB35/kg. Standard sizes: 75x30(2250mm2), 65x24(1560mm2), 75x65(4875mm2), 65x59(3835mm2). Competitor: Sato. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
+  },
+  competitors:function(){
+    var bothList=SATO_LIST.filter(function(s){return s.comment&&s.comment.toUpperCase().indexOf('BOTH')>-1;}).map(function(s){return s.name||s.company;}).join(', ');
+    return 'You are an assistant for AYG Capital competitor analysis. Sato Asia has '+SATO_LIST.length+' known clients. Jewel Creative has '+JEWEL_LIST.length+' clients. Clients using both AYG and competitors: '+bothList+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
+  },
+  faq:function(){
+    return 'You are a knowledge assistant for AYG Capital Pte Ltd, Singapore BCRS barcode label printing company. Key facts: Factory in China (Mashang, Yayi printers). Ships via Hong Feng Express and Kai Da Express airfreight to SG/MY/CN/TW/HK/ID/JP/TH. Standard label sizes: 75x30, 27x17, 65x59, 75x65, 65x24mm. SGD/RMB rate 5.3. Sell price ~2.1x total cost. Main competitor: Sato. BCRS = Singapore GS1 barcode compliance scheme. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be thorough.';
+  }
 };
-function renderSugs(tab){var sections=tab?[tab]:['todo','crm','orders','quotes','competitors','faq'];var sugsMap=lang==='zh'?SUGS_ZH:SUGS_EN;sections.forEach(function(s){var el=document.getElementById('sugs-'+s);if(!el)return;var sugs=sugsMap[s]||[];el.innerHTML=sugs.map(function(sg){return '<button class="sug" onclick="quickSend(\''+s+'\',this.textContent)">'+sg+'</button>';}).join('');});}
-function quickSend(s,txt){document.getElementById('inp-'+s).value=txt;send(s);}
+function renderSugs(tab){}
+function quickSend(s,txt){}
 function onKey(e,s){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(s);}}
 function appendMsg(s,role,txt){var c=document.getElementById('msgs-'+s);var d=document.createElement('div');d.className='msg msg-'+role;d.textContent=txt;c.appendChild(d);c.scrollTop=c.scrollHeight;return d;}
 async function send(s){var inp=document.getElementById('inp-'+s);var txt=inp.value.trim();if(!txt)return;inp.value='';appendMsg(s,'u',txt);var th=appendMsg(s,'a',TX.thinking);th.classList.add('msg-th');chatHistory[s].push({role:'user',content:txt});try{var res=await fetch('https://aygops-proxy.ayg.workers.dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:CTX[s](),messages:chatHistory[s]})});var data=await res.json();var reply=(data.content&&data.content[0]&&data.content[0].text)||'Error';th.textContent=reply;th.classList.remove('msg-th');chatHistory[s].push({role:'assistant',content:reply});if(chatHistory[s].length>20)chatHistory[s]=chatHistory[s].slice(-20);}catch(e){th.textContent=lang==='zh'?'\u8fde\u63a5\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5\u3002':'Connection error.';th.classList.remove('msg-th');}}
@@ -1187,11 +1191,20 @@ async function initApp() {
 }
 
 function toggleSidebar(btn) {
-  var sidebar = btn.closest('.page').querySelector('.sidebar');
+  var page = btn.closest('.page');
+  if (!page) return;
+  var sidebar = page.querySelector('.sidebar');
   if (!sidebar) return;
-  var collapsed = sidebar.classList.toggle('collapsed');
-  btn.innerHTML = collapsed ? '&#8249;&#8249;' : '&#8250;&#8250;';
-  btn.title = collapsed ? 'Expand chat' : 'Minimise chat';
+  var isCollapsed = sidebar.classList.contains('collapsed');
+  if (isCollapsed) {
+    sidebar.classList.remove('collapsed');
+    btn.innerHTML = '&#8250;&#8250;';
+    btn.title = 'Minimise chat';
+  } else {
+    sidebar.classList.add('collapsed');
+    btn.innerHTML = '&#8249;&#8249;';
+    btn.title = 'Expand chat';
+  }
 }
 
 setLang('en');
