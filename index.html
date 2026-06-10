@@ -883,6 +883,17 @@ function calcQ(){
 ;
 
 // ── PKCE helpers ──────────────────────────────────────────────────
+
+// ── SharePoint OAuth Config ─────────────────────────────────────
+var SP = {
+  tenantId:    '1edff858-9d81-44cb-b7d1-48274bf5bd2f',
+  clientId:    'edc1642b-80a6-450a-9b81-82cfe32bb2a3',
+  hostname:    'aygprinting3.sharepoint.com',
+  sitePath:    '/sites/AYGManagement',
+  fileName:    'BCRS Scheme Management Excel.xlsx',
+  scopes:      'https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Sites.Read.All offline_access',
+  redirectUri: 'https://aygprinting.github.io/aygops/'
+};
 function b64url(buf) {
   return btoa(String.fromCharCode(...new Uint8Array(buf)))
     .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
