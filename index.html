@@ -183,10 +183,10 @@ button{cursor:pointer}
 .login-status{font-size:12px;color:var(--m);margin-top:16px;min-height:18px}
 .login-note{font-size:11px;color:var(--dim);margin-top:28px;line-height:1.6;border-top:1px solid var(--b);padding-top:16px}
 
-.sidebar{transition:width .3s ease, opacity .3s ease}
+.sidebar{transition:width .3s ease, opacity .3s ease;position:relative}
 .sidebar.collapsed{width:0!important;min-width:0!important;overflow:hidden!important;border:none!important;padding:0!important;opacity:0}
-.sb-toggle{margin-left:auto;background:transparent;border:1px solid var(--b);color:var(--m);font-size:13px;cursor:pointer;padding:1px 7px;border-radius:6px;line-height:1;transition:all .15s;flex-shrink:0}
-.sb-toggle:hover{color:var(--t);background:var(--s2)}
+.sb-tab{position:absolute;left:-22px;top:50%;transform:translateY(-50%);width:22px;height:52px;background:var(--s3);border:1px solid var(--b2);border-right:none;border-radius:8px 0 0 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--m);font-size:13px;z-index:20;transition:all .15s;writing-mode:horizontal-tb}
+.sb-tab:hover{color:var(--t);background:var(--s2)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -262,8 +262,7 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
-      <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
     <div class="msgs" id="msgs-todo"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-todo" rows="1" onkeydown="onKey(event,'todo')"></textarea><button class="csend" onclick="send('todo')">&#8593;</button></div></div>
   </div>
@@ -277,8 +276,7 @@ button{cursor:pointer}
     <div class="board" id="crm-board"></div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
-      <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
     <div class="msgs" id="msgs-crm"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-crm" rows="1" onkeydown="onKey(event,'crm')"></textarea><button class="csend" onclick="send('crm')">&#8593;</button></div></div>
   </div>
@@ -292,8 +290,7 @@ button{cursor:pointer}
     <div class="board" id="ord-board"></div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
-      <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
     <div class="msgs" id="msgs-orders"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-orders" rows="1" onkeydown="onKey(event,'orders')"></textarea><button class="csend" onclick="send('orders')">&#8593;</button></div></div>
   </div>
@@ -390,8 +387,7 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
-      <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
     <div class="msgs" id="msgs-quotes"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-quotes" rows="1" onkeydown="onKey(event,'quotes')"></textarea><button class="csend" onclick="send('quotes')">&#8593;</button></div></div>
   </div>
@@ -437,8 +433,7 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span>
-      <button onclick="toggleSidebar(this)" title="Minimise chat" style="margin-left:auto;background:transparent;border:none;color:var(--m);font-size:14px;cursor:pointer;padding:2px 6px;border-radius:4px" class="sb-toggle">&#8250;&#8250;</button></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
     <div class="msgs" id="msgs-competitors"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-competitors" rows="1" onkeydown="onKey(event,'competitors')"></textarea><button class="csend" onclick="send('competitors')">&#8593;</button></div></div>
   </div>
@@ -1191,24 +1186,35 @@ async function initApp() {
 }
 
 function toggleSidebar(btn) {
-  var page = btn.closest('.page');
-  if (!page) return;
-  var sidebar = page.querySelector('.sidebar');
+  var sidebar = btn.closest('.sidebar') || btn.closest('.page').querySelector('.sidebar');
   if (!sidebar) return;
   var isCollapsed = sidebar.classList.contains('collapsed');
   if (isCollapsed) {
     sidebar.classList.remove('collapsed');
-    btn.innerHTML = '&#8250;&#8250;';
+    btn.innerHTML = '&#8250;';
     btn.title = 'Minimise chat';
   } else {
     sidebar.classList.add('collapsed');
-    btn.innerHTML = '&#8249;&#8249;';
+    btn.innerHTML = '&#8249;';
     btn.title = 'Expand chat';
   }
 }
 
+function initSidebarTabs() {
+  document.querySelectorAll('.sidebar').forEach(function(sb) {
+    if (sb.style.display === 'none') return; // skip hidden sidebars (FAQ)
+    if (sb.querySelector('.sb-tab')) return; // already added
+    var tab = document.createElement('button');
+    tab.className = 'sb-tab';
+    tab.innerHTML = '&#8250;';
+    tab.title = 'Minimise chat';
+    tab.onclick = function() { toggleSidebar(tab); };
+    sb.appendChild(tab);
+  });
+}
+
 setLang('en');
-window.addEventListener('load', function(){ initApp(); });
+window.addEventListener('load', function(){ initApp(); setTimeout(initSidebarTabs, 1000); });
 </script>
 </body>
 </html>
