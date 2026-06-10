@@ -198,7 +198,7 @@ button{cursor:pointer}
   <div class="login-card">
     <div class="login-logo">AYG<em>Ops</em></div>
     <div class="login-tagline">AYG Capital Operations Dashboard</div>
-    <button class="login-btn" onclick="spLogin()">
+    <button class="login-btn" onclick="triggerLogin()">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <rect width="9.5" height="9.5" fill="#F25022"/>
         <rect x="10.5" width="9.5" height="9.5" fill="#7FBA00"/>
@@ -1024,6 +1024,18 @@ async function genPkce() {
   var d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
   return { verifier:v, challenge:b64url(d) };
 }
+// Synchronous login trigger — avoids async button click issues
+function triggerLogin() {
+  var loginStatus = document.getElementById('login-status');
+  if (loginStatus) loginStatus.textContent = 'Preparing login...';
+  // Small timeout to let UI update, then fire async login
+  setTimeout(function() {
+    spLogin().catch(function(e) {
+      console.error('Login error:', e);
+      if (loginStatus) loginStatus.textContent = 'Login error: ' + e.message;
+    });
+  }, 50);
+}
 
 // Token storage
 function saveTok(t) {
@@ -1204,9 +1216,10 @@ async function initApp() {
     hideLoginScreen();
     await fetchExcelFromSharePoint();
   } else {
-    // Show login screen — just wait for user to click
-    document.getElementById('login-status').textContent = 'Sign in with your AYG Microsoft account';
-    renderAll(); // render empty state
+    // Show login screen — wait for user to click
+    var ls = document.getElementById('login-status');
+    if (ls) ls.textContent = 'Sign in with your AYG Microsoft account';
+    renderAll();
   }
 }
 
