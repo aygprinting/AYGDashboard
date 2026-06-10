@@ -172,43 +172,38 @@ button{cursor:pointer}
 .q-divider{border-top:1px solid var(--b2);margin:6px 0 4px}
 .q-section-hd{font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
 
-/* Login overlay */
-#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0}
-.login-card{background:var(--sur);border:1px solid var(--b2);border-radius:20px;padding:44px 48px;width:380px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.5)}
+.sidebar{transition:width .3s ease,opacity .3s ease;position:relative}
+.sidebar.collapsed{width:0!important;min-width:0!important;overflow:hidden!important;border:none!important;padding:0!important;opacity:0}
+.sb-tab{position:absolute;left:-20px;top:50%;transform:translateY(-50%);width:20px;height:48px;background:var(--s3);border:1px solid var(--b2);border-right:none;border-radius:6px 0 0 6px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--m);font-size:12px;z-index:20;transition:all .15s}
+.sb-tab:hover{color:var(--t);background:var(--s2)}
+
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+.login-card{background:var(--sur);border:1px solid var(--b2);border-radius:20px;padding:44px 48px;width:360px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.5)}
 .login-logo{font-size:32px;font-weight:700;margin-bottom:6px}.login-logo em{color:var(--grn);font-style:normal}
 .login-tagline{font-size:13px;color:var(--m);margin-bottom:32px}
-.login-btn{width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;color:#0c0c0e;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:opacity .15s;font-family:Sora,sans-serif}
-.login-btn:hover{opacity:.88}
-.login-btn svg{flex-shrink:0}
+.login-btn{width:100%;padding:13px;background:var(--grn);border:none;border-radius:12px;color:#0c0c0e;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-family:Sora,sans-serif;transition:opacity .15s}
+.login-btn:hover{opacity:.85}
 .login-status{font-size:12px;color:var(--m);margin-top:16px;min-height:18px}
-.login-note{font-size:11px;color:var(--dim);margin-top:28px;line-height:1.6;border-top:1px solid var(--b);padding-top:16px}
-
-.sidebar{transition:width .3s ease, opacity .3s ease;position:relative}
-.sidebar.collapsed{width:0!important;min-width:0!important;overflow:hidden!important;border:none!important;padding:0!important;opacity:0}
-.sb-tab{position:absolute;left:-22px;top:50%;transform:translateY(-50%);width:22px;height:52px;background:var(--s3);border:1px solid var(--b2);border-right:none;border-radius:8px 0 0 8px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--m);font-size:13px;z-index:20;transition:all .15s;writing-mode:horizontal-tb}
-.sb-tab:hover{color:var(--t);background:var(--s2)}
+.login-note{font-size:11px;color:var(--dim);margin-top:24px;line-height:1.6;border-top:1px solid var(--b);padding-top:16px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
 
-<!-- LOGIN SCREEN -->
 <div id="login-screen">
   <div class="login-card">
     <div class="login-logo">AYG<em>Ops</em></div>
     <div class="login-tagline">AYG Capital Operations Dashboard</div>
     <button class="login-btn" onclick="triggerLogin()">
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect width="9.5" height="9.5" fill="#F25022"/>
-        <rect x="10.5" width="9.5" height="9.5" fill="#7FBA00"/>
-        <rect y="10.5" width="9.5" height="9.5" fill="#00A4EF"/>
-        <rect x="10.5" y="10.5" width="9.5" height="9.5" fill="#FFB900"/>
+        <rect width="9.5" height="9.5" fill="#F25022"/><rect x="10.5" width="9.5" height="9.5" fill="#7FBA00"/>
+        <rect y="10.5" width="9.5" height="9.5" fill="#00A4EF"/><rect x="10.5" y="10.5" width="9.5" height="9.5" fill="#FFB900"/>
       </svg>
       Sign in with Microsoft
     </button>
     <div class="login-status" id="login-status">Sign in with your AYG Microsoft account</div>
-    <div class="login-note">&#128274; Access restricted to authorised AYG staff only.<br>Your data is loaded live from SharePoint.</div>
+    <div class="login-note">&#128274; Access restricted to authorised AYG staff only.<br>Data loaded live from SharePoint.</div>
   </div>
 </div>
 
@@ -234,10 +229,10 @@ button{cursor:pointer}
     </div>
     <div class="sync-box">
       <div class="pulse"></div>
-      <button id="sync-btn" onclick="fetchExcelFromSharePoint()" style="display:none;background:var(--grn);border:none;border-radius:var(--r);padding:2px 9px;color:#0c0c0e;font-size:11px;font-weight:600;cursor:pointer;margin-right:2px">&#8635; Sync</button>
+      <button id="sync-btn" onclick="fetchExcelFromSharePoint()" style="display:none;background:var(--grn);border:none;border-radius:var(--r);padding:2px 9px;color:#0c0c0e;font-size:11px;font-weight:600;cursor:pointer">&#8635; Sync</button>
       <div>
-        <div id="sync-status" style="font-size:10px;color:var(--m)">Not synced</div>
-        <div style="font-size:10px;color:var(--t);font-weight:500"><span id="sync-time">09 Jun 2026 19:27 (GMT+8)</span></div>
+        <div id="sync-status" style="font-size:10px;color:var(--m)" data-tx="synced">Synced</div>
+        <div id="sync-time" style="font-size:10px;color:var(--t);font-weight:500">09 Jun 2026 18:40 (GMT+8)</div>
       </div>
     </div>
   </div>
@@ -262,7 +257,7 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span></div>
     <div class="msgs" id="msgs-todo"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-todo" rows="1" onkeydown="onKey(event,'todo')"></textarea><button class="csend" onclick="send('todo')">&#8593;</button></div></div>
   </div>
@@ -276,7 +271,7 @@ button{cursor:pointer}
     <div class="board" id="crm-board"></div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span></div>
     <div class="msgs" id="msgs-crm"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-crm" rows="1" onkeydown="onKey(event,'crm')"></textarea><button class="csend" onclick="send('crm')">&#8593;</button></div></div>
   </div>
@@ -290,7 +285,7 @@ button{cursor:pointer}
     <div class="board" id="ord-board"></div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span></div>
     <div class="msgs" id="msgs-orders"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-orders" rows="1" onkeydown="onKey(event,'orders')"></textarea><button class="csend" onclick="send('orders')">&#8593;</button></div></div>
   </div>
@@ -333,7 +328,7 @@ button{cursor:pointer}
           </div>
           <div class="qres">
             <div class="q-section-hd" data-tx="shippingParams">Shipping Parameters</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><span style="font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.04em">Shipping</span><span style="font-size:11px;color:var(--grn);font-weight:500">&#9992; Airfreight only</span></div>
+            <div class="field"><label data-tx="shipping">Mode</label><select id="q-ship" onchange="calcQ()"><option value="air" data-tx="airfreight">Airfreight</option></select></div>
             <div class="field"><label data-tx="airRmb">&#9992; Airfreight rate (RMB/kg)</label><input id="q-rmb-kg" type="number" value="35" step="0.5" min="1" oninput="calcQ()" style="font-family:'JetBrains Mono',monospace"></div>
             <div class="field"><label data-tx="docCost">Documentation cost (SGD)</label><input id="q-doc" type="number" value="80" step="1" min="0" oninput="calcQ()" style="font-family:'JetBrains Mono',monospace"></div>
             <button class="btn btn-g" style="width:100%;justify-content:center;padding:9px;margin-top:4px" onclick="calcQ()"><span data-tx="calculate">Calculate</span></button>
@@ -387,7 +382,7 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span></div>
     <div class="msgs" id="msgs-quotes"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-quotes" rows="1" onkeydown="onKey(event,'quotes')"></textarea><button class="csend" onclick="send('quotes')">&#8593;</button></div></div>
   </div>
@@ -433,7 +428,7 @@ button{cursor:pointer}
     </div>
   </div>
   <div class="sidebar">
-    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span><span style="font-size:9px;color:var(--dim);margin-left:5px">Free</span></div>
+    <div class="ch"><div class="ai-dot"></div><span data-tx="askClaude">Gemini Chat</span></div>
     <div class="msgs" id="msgs-competitors"></div>
     <div class="cf"><div class="cr"><textarea class="ci" id="inp-competitors" rows="1" onkeydown="onKey(event,'competitors')"></textarea><button class="csend" onclick="send('competitors')">&#8593;</button></div></div>
   </div>
@@ -485,16 +480,16 @@ button{cursor:pointer}
 
 <script>
 'use strict';
-var DAILY=[];
-var TASKS={'general':[],'enquiries':[],'quotations':[],'orders':[],'invoicing':[],'unpaid':[],'shipping':[]};
-var CLIENTS=[];
-var ORDERS=[];
-var ORDER_HIST=[];
-var STD={'75x30':[],'65x24':[],'75x65':[]};
-var COMP_PRICING={'75x30':[],'65x24':[],'75x65':[],'65x59':[]};
-var SATO_LIST=[];
-var JEWEL_LIST=[];
-var ORDER_COMPANIES=[];
+var DAILY=["1. WhatsApp","2. BCRS Scheme Management Sharepoint Excel","3. AYG Operations Sharepoint Excel","4. feier@ayg-cap.com","5. orders@ayg-cap.com","6. admin@ayg-cap.com","7. BCRS Portal - Check Clients","8. Check Shipping","9. Check Payment - Deliver Status","Monthly Accounts 每月做账","1. Google Suite - 电邮","2. Microsoft 365 - 电邮","3. JustCo - 电邮","4. Xero - 电邮","5. Gojek Statements - 电邮","6. Grab Statements - APP","7. CM Link Mobile Plan - 网站","Annual Accounts 报账","1. Excel incoming and outgoing sheet","2. Or use Xero?","3. Check previous year how we send to FM Accounting","4. Download March bank statement attach and send","5. FM Accounting takes about 2 to 3 weeks to do up accounts","6. They will email back documents to sign","7. AGM to sign, Financial statements to sign, Tax to sign","8. Fill & Sign send back to FM Accounting","9. Pay tax if needed"];
+var TASKS={"general":["1. Monthly Accounts","2. English enquiries","3. Key into excel here","Xero update and touch up - add POs, reorganize finance docs","•⁠  ⁠Shipping provider and SOP","Exclusive Supplier Contract Review","discuss invoice number n reference","discuss accounts","script update","Last Updated Time:"],"enquiries":["8/6/2026 1800"],"quotations":["U stars quote 55x55 - design pending BCRS approval","Sheng Sheng F&B pending","Scarlett - pending","Fresh n Natural - pending testing","Lubritrade trading - pending quote approval","Harmony foods - sample 44 sku","Fook sang tong 7 sku 1k"],"orders":["Gryphon Tea - to order via BCRS portal, need's BCRS help","Rotiboy - to accept quote","Imex market - 2 SKUs","Muji Singapore - 7 SKUs","Chi Forest"],"invoicing":["HXD"],"unpaid":["Interbev - 19/06","Atlas Vending - 20/05","Hong Xin Da x4 - 06/06","Chung Hwa - 12/06","Chuan Hong Seng - 07/06","Monster Energy - 29/05","Enterprise Go - 18/06","Yeos - 05/07","Market Singapore - 05/07"],"shipping":[]};
+var CLIENTS=[{"id":1,"name":"Yakin Distribution","stage":"Enquiry","lastContact":"04 Jun 2026","pasting":"","comment":"Called in, no email, 6k monthly, quite big importer, wanted 1k special printing, didn’t get it. Quoted 550, Christina may take over from Cindy, 15000 ","language":"","contact":"Cindy","pic2":"Christina","position":"","mobile":"91668157","office":"","email":"","website":"www.yakin.com.sg","address":"2 Gambas Crescent #02-10 Nordcom 2 Singapore 757044","notes":"Called in, no email, 6k monthly, quite big importer, wanted 1k special printing, didn’t get it. Quoted 550, Christina may take over from Cindy, 15000 "},{"id":2,"name":"Imex markets","stage":"1st print","lastContact":"08 Jun 2026","pasting":"","comment":"10k monthly, heard cocowater, also ordered from sato","language":"","contact":"Tan Tze Wei","pic2":"","position":"","mobile":"96479668","office":"","email":"tzewei@imexmarkets.com","website":"www.imexmarkets.com","address":"1 Ubi View #04-18 Focus One Singapore 408555","notes":"10k monthly, heard cocowater, also ordered from sato"},{"id":3,"name":"Etika Pte Ltd","stage":"1st print","lastContact":"13 May 2026","pasting":"","comment":"10k annually Pepsi distributor, did 4 SKU For them one of the SKU say 200k, Together with Asahi, did mocks up design for them","language":"Chinese/ English","contact":"Florence","pic2":"","position":"Senior Manager, Trade Marketing","mobile":"86139435","office":"68650335","email":"florence.ng@etikaholdings.com","website":"www.etikaholdings.com","address":"41 Kaki Bukit View, Kaki Bukit Techpark 2, 4th Floor, Singapore 415969","notes":"10k annually Pepsi distributor, did 4 SKU For them one of the SKU say 200k, Together with Asahi, did mocks up design for them"},{"id":4,"name":"Healthworkz","stage":"Lost","lastContact":"26 Nov 2025","pasting":"","comment":"","language":"","contact":"Karen","pic2":"","position":"","mobile":"","office":"63980719","email":"kyam@healthworkz.biz","website":"www.healthworkz.biz","address":"222 Tagore Ln, TG Building, Singapore 787603","notes":""},{"id":5,"name":"Yeo's YHS (Singapore)","stage":"1st print","lastContact":"05 Jun 2026","pasting":"Y","comment":"waiting for their own designers and confirm volumes again","language":"","contact":"Joanne/Qing Hui","pic2":"","position":"Procurement Department / Project Lead","mobile":"","office":"","email":"joanneleely@yeos.com","website":"www.yeos.com.sg","address":"3 Senoko Way, Singapore 758057","notes":"waiting for their own designers and confirm volumes again"},{"id":6,"name":"Suntory","stage":"Lost","lastContact":"06 Jan 2026","pasting":"","comment":"Jap Alcohol Drinks and Ribena, sample given","language":"Chinese/ English","contact":"Clarice Huang","pic2":"","position":"Marketing","mobile":"96547417","office":"","email":"clarice.huang@suntory.com","website":"www.sbfapac.com","address":"128 Beach Road, #12-01 Guoco Midtown Office, Singapore 189773","notes":"Jap Alcohol Drinks and Ribena, sample given"},{"id":7,"name":"Interchamp","stage":"Enquiry","lastContact":"12 Nov 2026","pasting":"","comment":"","language":"","contact":"Chin Wee","pic2":"","position":"","mobile":"","office":"63550111","email":"sales@interchamp.biz","website":"interchampgroup.wixsite.co/interchamp","address":"","notes":""},{"id":8,"name":"Associate & United Distributors","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"Ovaltine drinks, chocolate drinks, cadbury, skittles","language":"","contact":"Audrey","pic2":"","position":"","mobile":"","office":"","email":"audrey@aud.com.sg","website":"www.aud.com.sg","address":"","notes":"Ovaltine drinks, chocolate drinks, cadbury, skittles"},{"id":9,"name":"JiaJia Singapore Manufacturing","stage":"Enquiry","lastContact":"19 May 2026","pasting":"Y","comment":"1000 to 10000 qty 75x30, ask for pasting services, said no need pasting services now will update again","language":"English","contact":"Vivien Pendel","pic2":"","position":"Production Planner","mobile":"","office":"68977662","email":"vivien_pendel@jjdrinks.com.sg","website":"www.jjdrinks.com.sg","address":"95 Tuas Ave 1, Singapore 639523","notes":"1000 to 10000 qty 75x30, ask for pasting services, said no need pasting services now will update again"},{"id":10,"name":"Herbalife","stage":"Lost","lastContact":"18 Nov 2026","pasting":"","comment":"Ask for credit card payment and bank transfer best","language":"","contact":"Lim Wei Ping","pic2":"","position":"","mobile":"","office":"","email":"weipingl@herbalife.com","website":"","address":"","notes":"Ask for credit card payment and bank transfer best"},{"id":11,"name":"Boncafe International","stage":"Enquiry","lastContact":"06 Jan 2026","pasting":"","comment":"3 SKU, volume small maybe can ask for special case of 27x17","language":"English","contact":"Yu Tai Onn","pic2":"","position":"Factory Operations Manager","mobile":"","office":"66810585","email":"opsmanager@boncafe.com","website":"www.boncafe.com","address":"208 Pandan Loop S128401","notes":"3 SKU, volume small maybe can ask for special case of 27x17"},{"id":12,"name":"Pokka","stage":"Lost","lastContact":"20 Apr 2026","pasting":"Y","comment":"Did not reply after sending our initial price list, after that received a call from Sue-Zanne may want to look for pasting services, sent to Radiant","language":"English","contact":"Melissa Yeak / Sue-Zanne","pic2":"","position":"Brand Executive","mobile":"","office":"64103942","email":"MelissaYeak@pokka.com.sg / suezannekuah@pokka.com.sg","website":"www.pokka.com.sg","address":"33 Quality Road, Singapore 618810 / 4 Benoi Crescent Singapore 629970","notes":"Did not reply after sending our initial price list, after that received a call from Sue-Zanne may want to look for pasting services, sent to Radiant"},{"id":13,"name":"Asahi / Capital F&B","stage":"Lost","lastContact":"04 Jan 2026","pasting":"","comment":"Problem","language":"","contact":"Lyla Li","pic2":"","position":"","mobile":"","office":"","email":"lyla.li@asahibeerasia.com","website":"www.asahibeerasia.com","address":"","notes":"Problem"},{"id":14,"name":"Hong Xin Da","stage":"Repeat print","lastContact":"08 Jun 2026","pasting":"","comment":"Given Sample, must secure, COL33 Pte Ltd distribuor name","language":"Chinese","contact":"Yan Hong Lim","pic2":"","position":"","mobile":"","office":"","email":"yanhong@hxd.sg","website":"www.hxd.sg","address":"15 Fishery Port Road S619735 - COL33 Pte Ltd","notes":"Given Sample, must secure, COL33 Pte Ltd distribuor name"},{"id":15,"name":"Meng Chong","stage":"Repeat print","lastContact":"03 Jun 2026","pasting":"","comment":"if Coconut, Mogu Mogu, pocari sweat pre packaged drinks distributor","language":"","contact":"Lee Xiao Fen","pic2":"","position":"","mobile":"","office":"","email":"xiaofen@mengchong.com.sg","website":"","address":"19 Tuas View Square Singapore 637564","notes":"if Coconut, Mogu Mogu, pocari sweat pre packaged drinks distributor"},{"id":16,"name":"Xiang Refreshment","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"Coconut husk? recently followed up","language":"","contact":"Ang Beng Ho","pic2":"","position":"","mobile":"","office":"","email":"ang@xiangrefreshment.com","website":"www.xiangrefreshment.com","address":"1550 Bedok North Ave 4, #05-24, Bedok Food City Singapore 489950","notes":"Coconut husk? recently followed up"},{"id":17,"name":"Octopus Distribution","stage":"Enquiry","lastContact":"20 May 2026","pasting":"Y","comment":"4million a year, Voss water, no answer in follow up","language":"","contact":"Hana Chiam","pic2":"","position":"Procurement","mobile":"","office":"","email":"","website":"","address":"","notes":"4million a year, Voss water, no answer in follow up"},{"id":18,"name":"F&N","stage":"Lost","lastContact":"23 Mar 2026","pasting":"Y","comment":"17k a year, 3.4k per sku 5 sku , pasting services, own design don’t look like for bcrs, unable to fulfill their orders in 1 week","language":"","contact":"Vivien Lau","pic2":"","position":"Procurement Department","mobile":"","office":"","email":"vivien.lau@fnnfoods.com","website":"www.fnnfoods.com","address":"","notes":"17k a year, 3.4k per sku 5 sku , pasting services, own design don’t look like for bcrs, unable to fulfill their orders in 1 week"},{"id":19,"name":"Nissim Foods","stage":"1st print","lastContact":"27 Feb 2026","pasting":"","comment":"6 SKU, did 6 barcodes and design for them twice , samples given did mock up design for them","language":"English","contact":"Emily Koh","pic2":"","position":"","mobile":"88629123","office":"","email":"emily.koh@nissin.com","website":"www.nissinfoods.com.sg","address":"73 Tuas South Ave 1 Singapore 637600","notes":"6 SKU, did 6 barcodes and design for them twice , samples given did mock up design for them"},{"id":20,"name":"Absolute Liquor Pte Ltd","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"3500 monthly and above","language":"","contact":"Yukky Chang","pic2":"","position":"Executive Officer","mobile":"","office":"65150158","email":"absolute.yuki@yahoo.com","website":"","address":"","notes":"3500 monthly and above"},{"id":21,"name":"Cold Storage","stage":"Lost","lastContact":"12 Oct 2026","pasting":"","comment":"moq 100, 500, 1000; 7 variants custom, annual 120k","language":"","contact":"Choo Lee Kheng","pic2":"","position":"Demand and Supply Planning","mobile":"","office":"","email":"leekheng.choo@coldstorage.com.sg","website":"www.coldstorage.com.sg","address":"21 Tampines North Drive 2 / Buroh Lane area","notes":"moq 100, 500, 1000; 7 variants custom, annual 120k"},{"id":22,"name":"Chi Forest","stage":"1st print","lastContact":"01 Jun 2026","pasting":"","comment":"Sent very early but email went to junk mail","language":"Chinese","contact":"","pic2":"","position":"","mobile":"","office":"","email":"shopservice.sg@chiforest.com","website":"","address":"","notes":"Sent very early but email went to junk mail"},{"id":23,"name":"Fresh & Natural Foods","stage":"1st print","lastContact":"05 Jun 2026","pasting":"","comment":"Quoted - 80000 pieces for 1400","language":"","contact":"Levina","pic2":"","position":"","mobile":"87426659","office":"","email":"","website":"","address":"","notes":"Quoted - 80000 pieces for 1400"},{"id":24,"name":"Zen-noh International","stage":"1st print","lastContact":"17 Apr 2026","pasting":"","comment":"also printed with Sato","language":"","contact":"Lim Jia Hui","pic2":"","position":"","mobile":"","office":"","email":"jiahui-lim@zennoh-intl.com","website":"www.zennoh-intl.com","address":"160 Robinson Road, SBF Center, #25-08, Singapore 068914","notes":"also printed with Sato"},{"id":25,"name":"Lao Ban Soya Beancurd","stage":"Enquiry","lastContact":"20 May 2026","pasting":"","comment":"Whatsapp in, waiting for 27x17","language":"","contact":"Yan","pic2":"","position":"","mobile":"86862826","office":"","email":"","website":"","address":"","notes":"Whatsapp in, waiting for 27x17"},{"id":26,"name":"U Stars Pte Ltd","stage":"Pending Quote Approval","lastContact":"03 Jun 2026","pasting":"","comment":"22 small supermarket chains 24hours","language":"Chinese - Msia","contact":"Long Siang","pic2":"","position":"","mobile":"93744426","office":"","email":"","website":"","address":"","notes":"22 small supermarket chains 24hours"},{"id":27,"name":"Radha Exports (Value shop)","stage":"Pending Quote Approval","lastContact":"19 May 2026","pasting":"","comment":"Waiting for 27x17, we give a custom plan instead, samples given","language":"English","contact":"Sanjay","pic2":"","position":"","mobile":"","office":"","email":"","website":"","address":"","notes":"Waiting for 27x17, we give a custom plan instead, samples given"},{"id":28,"name":"Ito En Singapore Pte Ltd","stage":"Repeat print","lastContact":"21 May 2026","pasting":"","comment":"asked for custom 65x20mm","language":"","contact":"Tina Cheng","pic2":"","position":"","mobile":"","office":"68176383","email":"salesassistant@itoen.com.sg;inquiry@itoen.com.sg","website":"www.itoen.com.sg","address":"20 Anson Road, Twenty Anson #11-01, Singapore 079912","notes":"asked for custom 65x20mm"},{"id":29,"name":"UCC Coffee","stage":"Lost","lastContact":"05 Jun 2026","pasting":"","comment":"Email in for 40x45; 10k pcs","language":"","contact":"Clarice","pic2":"","position":"","mobile":"","office":"","email":"clarice.tan@ucc-coffee.com","website":"https://ucc-apac.com/sg/","address":"1 Senoko Avenue, #05-08 FoodAxis@Senoko, Singapore 758297","notes":"Email in for 40x45; 10k pcs"},{"id":30,"name":"Sakuraya","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"Small Volume, not sure what's going on, called in","language":"Chinese","contact":"Siew Kim","pic2":"","position":"","mobile":"83633918","office":"67748216","email":"","website":"https://www.sakuraya.com.sg/","address":"","notes":"Small Volume, not sure what's going on, called in"},{"id":31,"name":"Really Addictive Drinks (RAD)","stage":"Lost","lastContact":"06 Jan 2026","pasting":"","comment":"120x54, 120x85, 175x80, 80x22","language":"English","contact":"Daryl Ang","pic2":"","position":"","mobile":"90683042","office":"","email":"daryl@reallyaddictivedrinks.com","website":"","address":"","notes":"120x54, 120x85, 175x80, 80x22"},{"id":32,"name":"Singapore Casket","stage":"Enquiry","lastContact":"23 Mar 2026","pasting":"","comment":"310ml need barcode not. Ask for MOQ and pricing. 30,000 to 50,000 volume, followed up no reply","language":"","contact":"Kek Wai Yeen","pic2":"","position":"Assistant Marcom Manger","mobile":"","office":"63909732","email":"waiyeen.kek@singaporecasket.com.sg","website":"https://www.singaporecasket.com.sg/","address":"131 Lavender street Singapore 338737","notes":"310ml need barcode not. Ask for MOQ and pricing. 30,000 to 50,000 volume, followed up no reply"},{"id":33,"name":"Chuan Grp","stage":"1st print","lastContact":"08 Jun 2026","pasting":"","comment":"Ean13 and EAN8 , 60,000 volume","language":"English","contact":"Ismail","pic2":"","position":"","mobile":"98060844","office":"","email":"ismail@chuangrp.com","website":"","address":"","notes":"Ean13 and EAN8 , 60,000 volume"},{"id":34,"name":"Market Singapore","stage":"1st print","lastContact":"05 Jun 2026","pasting":"","comment":"Called to ask about 75x30 for EAN13, asked about MOQ 5000 per 3 barcode total 15000, said our lead time highest","language":"English","contact":"Wilfred","pic2":"","position":"","mobile":"65682662","office":"65682678","email":"wilfredl@marketsingapore.com.sg","website":"sg.marketamercia.com","address":"","notes":"Called to ask about 75x30 for EAN13, asked about MOQ 5000 per 3 barcode total 15000, said our lead time highest"},{"id":35,"name":"Lactalis Singapore (OakPlus)","stage":"1st print","lastContact":"05 Jun 2026","pasting":"","comment":"100000 stickers required on 75x30","language":"English","contact":"Giulia Casstelli","pic2":"","position":"Trade Marketing & E-Commerce Executive","mobile":"80796526 / +39 3427691045","office":"","email":"giulia.castelli@sg.lactalis.com","website":"sg.lactalis.com","address":"","notes":"100000 stickers required on 75x30"},{"id":36,"name":"Top Taste","stage":"Enquiry","lastContact":"12 Mar 2026","pasting":"","comment":"replied to their enquiry but didn’t reply us, finally said do not need any assist","language":"","contact":"","pic2":"","position":"","mobile":"","office":"","email":"sharonchang@toptaste.com.sg","website":"","address":"","notes":"replied to their enquiry but didn’t reply us, finally said do not need any assist"},{"id":37,"name":"Koryo Trading Pte Ltd","stage":"Lost","lastContact":"30 Jan 2026","pasting":"","comment":"They are able to change artwork , no need sticker but ask to print whole artwork, smal lvolume maybe 11k","language":"English","contact":"Jung Daegyum","pic2":"","position":"","mobile":"83949774","office":"","email":"daegyumkoryo@gmail.com","website":"","address":"","notes":"They are able to change artwork , no need sticker but ask to print whole artwork, smal lvolume maybe 11k"},{"id":38,"name":"SodaStream Singapore - Komo Pte Ltd","stage":"Enquiry","lastContact":"23 Mar 2026","pasting":"Y","comment":"6 to 10 SKU, total 11k order, ask for pasting","language":"English","contact":"Bernie Ong","pic2":"","position":"Business Support Asst Manager","mobile":"90090488","office":"69091002","email":"bernadine.ong@komoinc.com","website":"sodastream.sg","address":"65 UBI ROAD 1 #03-67 OXLEY BIZHUB SINGAPORE 408729","notes":"6 to 10 SKU, total 11k order, ask for pasting"},{"id":39,"name":"Pacific Beverages Pte Ltd","stage":"Lost","lastContact":"20 May 2026","pasting":"Y","comment":"first 6 months, 65x24 - 44k , 75x30 - 96k, mia no reply","language":"English","contact":"Aaron Tay","pic2":"","position":"Operations Manager","mobile":"96956600","office":"","email":"AaronTay@pacbev.sg","website":"https://pacbev.sg/","address":"9, Fourth Lok Yang Road Singapore 629706","notes":"first 6 months, 65x24 - 44k , 75x30 - 96k, mia no reply"},{"id":40,"name":"Maybev Pte Ltd","stage":"Repeat print","lastContact":"30 Apr 2026","pasting":"","comment":"Orderd 5000 pieces of 75 x 30","language":"English","contact":"Sarah Chia","pic2":"","position":"","mobile":"","office":"","email":"sarah.chia@maybev.com.sg","website":"www.maybev.com.sg","address":"","notes":"Orderd 5000 pieces of 75 x 30"},{"id":41,"name":"Enterprise Go Pte Ltd","stage":"1st print","lastContact":"05 Jun 2026","pasting":"","comment":"Ask for 5000 pieces 90x30, or 75x65 but change ingredient to importer info","language":"English","contact":"Sophie Sea","pic2":"","position":"Director","mobile":"91529215","office":"","email":"info@enterprisego.com.sg","website":"www.enterprisego.com.sg","address":"3 Pioneer Sector 3 #02-09 S628342","notes":"Ask for 5000 pieces 90x30, or 75x65 but change ingredient to importer info"},{"id":42,"name":"Platinum Pws","stage":"Enquiry","lastContact":"19 May 2026","pasting":"","comment":"ask 1million pieces for 75x30, 75x65, 27x17 and 130x30? Quote 75x30 for 580k","language":"English","contact":"Mei Yuan Sng","pic2":"","position":"","mobile":"","office":"","email":"meiyuan.sng@platinumpws.com","website":"www.platinumpws.com","address":"","notes":"ask 1million pieces for 75x30, 75x65, 27x17 and 130x30? Quote 75x30 for 580k"},{"id":43,"name":"APB","stage":"Lost","lastContact":"26 Feb 2026","pasting":"","comment":"Called in ask 5000 pieces or smaller ones , lead time all","language":"","contact":"","pic2":"","position":"","mobile":"68606372","office":"","email":"","website":"","address":"","notes":"Called in ask 5000 pieces or smaller ones , lead time all"},{"id":44,"name":"Sansesan Global","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"2 SKU, 40x60mm , 100x40mm from Japan and Indon. Need 5000 or 10000 in total","language":"English","contact":"Hurley","pic2":"","position":"","mobile":"","office":"","email":"","website":"www.sansesan.com","address":"","notes":"2 SKU, 40x60mm , 100x40mm from Japan and Indon. Need 5000 or 10000 in total"},{"id":45,"name":"IKEA ikano pte ltd","stage":"Enquiry","lastContact":"02 Mar 2026","pasting":"","comment":"Teams call","language":"English","contact":"Violet Lim","pic2":"Gary","position":"Public Affairs & Product requirements & compliance specialist","mobile":"91263242","office":"","email":"","website":"www.ikea.sg","address":"60 Tampines North Drive 2 Tampines Retail Park Singapore 528764","notes":"Teams call"},{"id":46,"name":"Trejoy Pte Ltd","stage":"Pending Quote Approval","lastContact":"20 May 2026","pasting":"","comment":"asked for data matrix to print and send sample","language":"Chinese","contact":"Agnes","pic2":"","position":"","mobile":"","office":"","email":"","website":"","address":"","notes":"asked for data matrix to print and send sample"},{"id":47,"name":"SY Foodstuffs & Trading Pte Ltd","stage":"Pending Quote Approval","lastContact":"21 May 2026","pasting":"","comment":"","language":"Chinese","contact":"Aalex Fan","pic2":"","position":"","mobile":"88236918","office":"","email":"aalexfanmh@syfoodstuffs.com","website":"https://syfoodstuffs.com/index.html","address":"31 Jurong Port Road #05-29/30 Jurong Logistics Hub Singapore 619115","notes":""},{"id":48,"name":"Culina Pte Ltd (part of COMO)","stage":"Enquiry","lastContact":"17 Mar 2026","pasting":"","comment":"27x17, behind barcode number,","language":"English","contact":"Natalie","pic2":"","position":"Assistant Brand Manager","mobile":"81291702","office":"67536966","email":"natalie.tan@culina.com.sg","website":"www.culina.com.sg","address":"24 Senoko Way, Singapore 758046","notes":"27x17, behind barcode number,"},{"id":49,"name":"Nestle Singapore","stage":"Lost","lastContact":"06 Mar 2026","pasting":"","comment":"Requires 90 day credit term, need financial assessment, reject","language":"English","contact":"Vanessa","pic2":"","position":"","mobile":"","office":"","email":"","website":"","address":"","notes":"Requires 90 day credit term, need financial assessment, reject"},{"id":50,"name":"Prefer Pte Ltd","stage":"Lost","lastContact":"05 Jun 2026","pasting":"","comment":"3 SKU, 75x65","language":"English","contact":"Tetiana Vynokurova","pic2":"","position":"","mobile":"89505562","office":"","email":"tetiana@prefer.bio","website":"https://prefer.coffee/","address":"","notes":"3 SKU, 75x65"},{"id":51,"name":"Chia Khim Lee","stage":"Pending Quote Approval","lastContact":"30 Apr 2026","pasting":"","comment":"Custom size 89x60 15 SKU, 25000 per SKU, at first called BCRS ceo say we didn’t respond.. But miscomm.","language":"English","contact":"Ching Wen","pic2":"","position":"","mobile":"","office":"","email":"ckl.ops@cklfi.com.sg","website":"","address":"","notes":"Custom size 89x60 15 SKU, 25000 per SKU, at first called BCRS ceo say we didn’t respond.. But miscomm."},{"id":52,"name":"AGPG Asia","stage":"Registering with BCRS","lastContact":"02 Jun 2026","pasting":"Y","comment":"10k to 20k - 100 SKU. Best not to do, pasting 20,000 pcs per month","language":"English","contact":"Shaalini","pic2":"","position":"HR Executive","mobile":"8222 1006","office":"67533414","email":"hr@agpgasia.com","website":"","address":"8B, Admiralty Street, #02-21 8B@ADMIRALTY, Singapore 757440","notes":"10k to 20k - 100 SKU. Best not to do, pasting 20,000 pcs per month"},{"id":53,"name":"Yen Investments","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"4 SKU maybe 40k, did 4 mock ups samplef or them 3 x 75x65 , 1 x 85 x 30","language":"English","contact":"Thahara","pic2":"","position":"","mobile":"96432673","office":"","email":"","website":"","address":"","notes":"4 SKU maybe 40k, did 4 mock ups samplef or them 3 x 75x65 , 1 x 85 x 30"},{"id":54,"name":"Made Brands Pte Ltd","stage":"1st print","lastContact":"05 Jun 2026","pasting":"","comment":"MADE Connect Pte Ltd 4 DEFU SOUTH STREET 1 #06-16 JTC DEFU INDUSTRIAL CITY S 533756","language":"English","contact":"Khyiel","pic2":"","position":"Business Development Director","mobile":"97667774","office":"","email":"Khyiel.Chua@madegroup.com","website":"madegroup.com","address":"","notes":"MADE Connect Pte Ltd 4 DEFU SOUTH STREET 1 #06-16 JTC DEFU INDUSTRIAL CITY S 533756"},{"id":55,"name":"Skyline Catering","stage":"Enquiry","lastContact":"17 Mar 2026","pasting":"","comment":"total 4000, abit confused","language":"English","contact":"Wei Qi","pic2":"","position":"","mobile":"86988273","office":"","email":"","website":"","address":"","notes":"total 4000, abit confused"},{"id":56,"name":"Gourmet Supplies Pte Ltd","stage":"Pending Quote Approval","lastContact":"08 May 2026","pasting":"","comment":"initially wanted 65x55 , we convinced them to use 65x59, pending contract","language":"English","contact":"Alicia","pic2":"Gordon","position":"","mobile":"96256453","office":"91916089","email":"gordon@gourmetsupplies.com.sg","website":"www.gourmetsupplies.com.sg","address":"16 Senoko Crescent Singapore 758270","notes":"initially wanted 65x55 , we convinced them to use 65x59, pending contract"},{"id":57,"name":"Meidi-Ya Singapore Co Ltd","stage":"Lost","lastContact":"05 Jun 2026","pasting":"","comment":"40x40 4skus  one for 25000 Total100000","language":"English","contact":"Alawn Koh","pic2":"","position":"","mobile":"90075254","office":"","email":"alawnkoh@rongyao.com.sg","website":"","address":"14 Chin Bee Road Singapore 619824","notes":"40x40 4skus  one for 25000 Total100000"},{"id":58,"name":"HH Global","stage":"Lost","lastContact":"15 May 2026","pasting":"","comment":"Related to Coca cola, may have pasting, related to BCRS CEO","language":"English","contact":"U Han","pic2":"","position":"Account Manager","mobile":"83321642","office":"","email":"UHan.Loh@hhglobal.com","website":"www.hhglobal.com","address":"61 Robinson Road, #12-02 Singapore 068893 Singapore","notes":"Related to Coca cola, may have pasting, related to BCRS CEO"},{"id":59,"name":"Chung Hwa","stage":"Repeat print","lastContact":"05 Jun 2026","pasting":"","comment":"30000 want to ship to taiwan","language":"English","contact":"Liu Jia Ming","pic2":"","position":"E-Commerce Executive","mobile":"81203800","office":"'","email":"liujiaming@chunghwa.com.sg","website":"","address":"10F NO.99, SEC.3, CHONG-YANG ROAD, SAN-CHONG DISTRICT, NEW TAIPEI CITY 24145, TAIWAN","notes":"30000 want to ship to taiwan"},{"id":60,"name":"Monster Energy Singapore","stage":"1st print","lastContact":"02 Jun 2026","pasting":"","comment":"400,000 pieces looking to ship to Malaysia asked about DHL","language":"English","contact":"Wai (Siamporn Chitprawat)","pic2":"","position":"","mobile":"","office":"","email":"Siamporn.Chitprawat@monsterenergy.com","website":"www.monsterenergy.com","address":"","notes":"400,000 pieces looking to ship to Malaysia asked about DHL"},{"id":61,"name":"Interbev (Singapore) limited","stage":"Repeat print","lastContact":"04 Jun 2026","pasting":"","comment":"Related to yen investment, small qty 4800 to 5000 custom x 2 sizes, also ordered from sato","language":"English","contact":"Sebastian Loh","pic2":"","position":"","mobile":"96865170","office":"","email":"sloh@interbevgroup.com","website":"https://www.interbevgroup.com/","address":"438 Alexandra Road | #05-01 Alexandra Point | Singapore 119958","notes":"Related to yen investment, small qty 4800 to 5000 custom x 2 sizes, also ordered from sato"},{"id":62,"name":"Field Catering","stage":"Lost","lastContact":"16 Apr 2026","pasting":"","comment":"famously said they have 3 million a month pasting, end up is 3 million a year, send quote but said did not receive, end up took from sato","language":"English","contact":"Tze Yu Chan","pic2":"","position":"Brand Executive","mobile":"69398070 . Ext 132","office":"","email":"tzeyu@field.com.sg","website":"www.field.com.sg","address":"17 Senoko South Road (S)758077","notes":"famously said they have 3 million a month pasting, end up is 3 million a year, send quote but said did not receive, end up took from sato"},{"id":63,"name":"Trade-Pro Food Distribution Pte Ltd","stage":"Lost","lastContact":"30 Apr 2026","pasting":"","comment":"3 SKU  300,000 quoted already , went mia","language":"English","contact":"Shiew Teng","pic2":"","position":"QA/QC Executive","mobile":"84066966","office":"","email":"shiewteng.phoon@tradeprofd.com.sg","website":"www.trade-progroup.com","address":"1 Tuas Bay Close, #01-01 singapore 636997","notes":"3 SKU  300,000 quoted already , went mia"},{"id":64,"name":"Nongfu Spring","stage":"Enquiry","lastContact":"02 Apr 2026","pasting":"","comment":"asked printing sample without data matrix.. Confused at what they need, didn’t reply","language":"English","contact":"Jamie","pic2":"","position":"","mobile":"97687574","office":"","email":"","website":"","address":"","notes":"asked printing sample without data matrix.. Confused at what they need, didn’t reply"},{"id":65,"name":"CYF Enterprise","stage":"1st print","lastContact":"05 May 2026","pasting":"","comment":"custom size square size, whatsapp in quoted in email 100k","language":"English","contact":"Chloe","pic2":"","position":"","mobile":"94827982","office":"","email":"","website":"","address":"","notes":"custom size square size, whatsapp in quoted in email 100k"},{"id":66,"name":"Atlas Asia","stage":"1st print","lastContact":"22 May 2026","pasting":"","comment":"Together with Etika group , florence etc","language":"English","contact":"Jason lee","pic2":"","position":"","mobile":"60127116043","office":"","email":"jason.lee@atlasasia.co","website":"www.atlasasia.co","address":"Etika Beverages Sdn Bhd LOT 5 & 7, JLN P/5 & P/6, SEKSYEN 13, KAWASAN PERUSAHAAN BANDAR BARU BANGI, 43650, BANGI SELANGOR","notes":"Together with Etika group , florence etc"},{"id":67,"name":"Redmart","stage":"Enquiry","lastContact":"20 May 2026","pasting":"","comment":"asked if can add nutrigrade","language":"English","contact":"Vincent Nguyen Kim","pic2":"","position":"International sourcing","mobile":"84082898","office":"","email":"vincent.kim@lazada.sg","website":"","address":"Lazada One: 51 Bras Basah Rd, Singapore 189554","notes":"asked if can add nutrigrade"},{"id":68,"name":"Goodmen global","stage":"Enquiry","lastContact":"02 Jun 2026","pasting":"","comment":"asked about pasting","language":"English","contact":"Clement","pic2":"","position":"Managing director of accounts","mobile":"","office":"","email":"clement@goodmenglobal.com","website":"","address":"7 Kaki Bukit Road 1, Eunos Technolink #02-12, Singapore 415937","notes":"asked about pasting"},{"id":69,"name":"WXN Distro pte ltd","stage":"1st print","lastContact":"05 May 2026","pasting":"","comment":"","language":"English","contact":"Wan Shah","pic2":"","position":"","mobile":"91890070","office":"","email":"Wan.shah@gmail.com","website":"","address":"66 Tannery Lane,Sindo Buiding #01-03D,S347805","notes":""},{"id":70,"name":"Ken Hong Seng Pte Ltd (Same home town pte ltd)","stage":"1st print","lastContact":"18 May 2026","pasting":"","comment":"Gladys called and whatsapp first, lee peng took over for ordering","language":"English","contact":"Gladys","pic2":"Lee Peng","position":"Boss / Admin Support","mobile":"91555733","office":"","email":"gladys@3eagle.com / leepeng@3eagle.com","website":"","address":"15 Woodlands loop #01-58/60,SG 738322","notes":"Gladys called and whatsapp first, lee peng took over for ordering"},{"id":71,"name":"Home Town Pte Ltd (Same ken hong seng)","stage":"1st print","lastContact":"18 May 2026","pasting":"","comment":"Gladys called and whatsapp first, lee peng took over for ordering","language":"English","contact":"Gladys","pic2":"Lee Peng","position":"Boss / Admin Support","mobile":"91555733","office":"","email":"gladys@3eagle.com / leepeng@3eagle.com","website":"","address":"15 Woodlands loop #01-58/60,SG 738322","notes":"Gladys called and whatsapp first, lee peng took over for ordering"},{"id":72,"name":"Allswell Trading Pte Ltd","stage":"Lost","lastContact":"27 Apr 2026","pasting":"","comment":"Emailed in for weird size 61.71 , 30.84 mm","language":"English","contact":"Keira Tan","pic2":"","position":"Assistant Marketing Manager","mobile":"97721388","office":"","email":"keira.tan@allswelltrading.com.sg","website":"","address":"41 Sunset Way #02-05 Clementi Arcade Singapore 597071","notes":"Emailed in for weird size 61.71 , 30.84 mm"},{"id":73,"name":"N&N Pte Ltd","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"Emailed in","language":"English","contact":"Stacey Tan","pic2":"","position":"","mobile":"","office":"","email":"nnherbal@gmail.com","website":"","address":"","notes":"Emailed in"},{"id":74,"name":"H.L.Yong Company (Pte) Ltd","stage":"Pending info","lastContact":"05 Jun 2026","pasting":"Y","comment":"printed with sato also","language":"English","contact":"Christopher Chua","pic2":"","position":"Business Development & Brand Management Executive","mobile":"94509128","office":"","email":"christopher@hlyong.com","website":"https://summerlarder.com/   www.hlyong.com","address":"7 Toh Tuck Link, Singapore 596227","notes":"printed with sato also"},{"id":75,"name":"Sheng Sheng F&B","stage":"Pending info","lastContact":"29 May 2026","pasting":"","comment":"Whatsapp in and ask quote 22,000 for 5 sku","language":"English","contact":"Lena Koo","pic2":"","position":"","mobile":"82888705","office":"","email":"","website":"","address":"","notes":"Whatsapp in and ask quote 22,000 for 5 sku"},{"id":76,"name":"Thirsty.com.sg","stage":"Enquiry","lastContact":"05 Jun 2026","pasting":"","comment":"Looks like craft beer ppl, asked for custom size.","language":"English","contact":"JR Tan","pic2":"","position":"Operations manager","mobile":"92347216","office":"","email":"jianrui@thirsty.com.sg","website":"www.thirsty.com.sg","address":"","notes":"Looks like craft beer ppl, asked for custom size."},{"id":77,"name":"Fook Sang Tong Trading Pte Ltd","stage":"Enquiry","lastContact":"24 Apr 2026","pasting":"","comment":"Email asked for 7 SKU 3000 each","language":"","contact":"Li Yuen","pic2":"","position":"","mobile":"","office":"","email":"fooksangtong@yahoo.com.sg","website":"www.fooksangtong.com.sg","address":"Blk 3017 Bedok North St 5, #04-15, Singapore 486121","notes":"Email asked for 7 SKU 3000 each"},{"id":78,"name":"Koong Woh Tong","stage":"Enquiry","lastContact":"20 May 2026","pasting":"","comment":"Whatsapp in and ask quote 60k for 5, mailed them sample","language":"English","contact":"Casey","pic2":"","position":"","mobile":"+60126724098","office":"","email":"","website":"","address":"","notes":"Whatsapp in and ask quote 60k for 5, mailed them sample"},{"id":79,"name":"Moet Hennessy Diageo Singapore (MHDS)","stage":"Enquiry","lastContact":"29 Apr 2026","pasting":"Y","comment":"Email in asked for pasting too","language":"English","contact":"Hui Min","pic2":"","position":"Supply Chain Executive","mobile":"98233905","office":"","email":"hoh@mhdsg.com","website":"","address":"128 BEACH ROAD #23-01 GUOCO MIDTOWN SINGAPORE 189773","notes":"Email in asked for pasting too"},{"id":80,"name":"Shang Signature Pte Ltd","stage":"Enquiry","lastContact":"29 Apr 2026","pasting":"Y","comment":"900x24 bottles currently. may need paste may not","language":"","contact":"Kenneth","pic2":"","position":"","mobile":"","office":"","email":"kenneth.shangsignature@gmail.com","website":"","address":"","notes":"900x24 bottles currently. may need paste may not"},{"id":81,"name":"Specialist Dental Group","stage":"Enquiry","lastContact":"06 May 2026","pasting":"","comment":"current bottle has no barcodes, told them to reprint with manufacturer cheaper than getting stickers","language":"English","contact":"Jo","pic2":"","position":"","mobile":"96490209","office":"","email":"","website":"","address":"","notes":"current bottle has no barcodes, told them to reprint with manufacturer cheaper than getting stickers"},{"id":82,"name":"Newsyn Biotech Pte Ltd","stage":"Enquiry","lastContact":"07 May 2026","pasting":"","comment":"likely will change artwork on label so no need sticker in future","language":"English","contact":"Hui Min","pic2":"","position":"","mobile":"8267 1368","office":"","email":"","website":"","address":"","notes":"likely will change artwork on label so no need sticker in future"},{"id":83,"name":"Gryphon Tea","stage":"Registering with BCRS","lastContact":"03 Jun 2026","pasting":"Y","comment":"Quote requested - pending more details before quoting","language":"English","contact":"Lina Yacob","pic2":"","position":"Key Account & Trade Marketing Manager","mobile":"91885285","office":"","email":"lina@gryphontea.com","website":"","address":"251 Pandan Loop Singapore 128431","notes":"Quote requested - pending more details before quoting"},{"id":84,"name":"V Medical Group","stage":"Enquiry","lastContact":"19 May 2026","pasting":"","comment":"300k balance stock of mineral water that are free gift, but currently no barcode is QR code. told them to reprint with manufacturer cheaper than getti","language":"English","contact":"Kelvin","pic2":"","position":"","mobile":"93894656","office":"","email":"","website":"","address":"","notes":"300k balance stock of mineral water that are free gift, but currently no barcode is QR code. told them to reprint with manufacturer cheaper than getti"},{"id":85,"name":"UE Park Avenue International Pte Ltd","stage":"Enquiry","lastContact":"21 May 2026","pasting":"","comment":"emailed in, standard reply","language":"English","contact":"Serene Tan","pic2":"","position":"Senior Admin Executive","mobile":"","office":"","email":"serene.tan@uel.sg","website":"","address":"","notes":"emailed in, standard reply"},{"id":86,"name":"Kirei Japanese Food Supply Pte Ltd","stage":"Enquiry","lastContact":"06 Jun 2026","pasting":"","comment":"Whatsapp in","language":"Chinese","contact":"Sammi","pic2":"","position":"?","mobile":"89090299","office":"","email":"","website":"","address":"","notes":"Whatsapp in"},{"id":87,"name":"Gelmax","stage":"Enquiry","lastContact":"26 May 2026","pasting":"","comment":"Email in, standard reply, followed up no reply","language":"English","contact":"Grace, Maximiliano Loi","pic2":"","position":"","mobile":"62215891","office":"","email":"accounts@gelmax.com\nfinance@gelmax.com\nmax@gelmax.com","website":"https://ordersgelmax.com/","address":"63 Hillview Ave, #08.10 | Lam Soon Building, Singapore 669569","notes":"Email in, standard reply, followed up no reply"},{"id":88,"name":"Scarlett","stage":"Enquiry","lastContact":"03 Jun 2026","pasting":"","comment":"Pending group chat discussion","language":"English","contact":"Lawrence Ong","pic2":"","position":"","mobile":"84993278","office":"","email":"lawrence.ong@greenolivegroup.com.sg","website":"","address":"","notes":"Pending group chat discussion"},{"id":89,"name":"Towkay Grocery Pte Ltd","stage":"Enquiry","lastContact":"06 Jun 2026","pasting":"Y","comment":"Whatsapp in, pending pasting discussion","language":"English","contact":"Kwek","pic2":"","position":"","mobile":"96460654","office":"","email":"towkaygrocery82@gmail.com","website":"","address":"","notes":"Whatsapp in, pending pasting discussion"},{"id":90,"name":"Foodieland SG","stage":"Registering with BCRS","lastContact":"03 Jun 2026","pasting":"","comment":"write in via website, standard reply","language":"English","contact":"Sin Chi Fai","pic2":"","position":"","mobile":"","office":"","email":"sin@foodieland.sg","website":"","address":"","notes":"write in via website, standard reply"},{"id":91,"name":"Harmony Foods Pte Ltd","stage":"Enquiry","lastContact":"29 May 2026","pasting":"","comment":"emailed in 44 SKUs for BCRS testing, standard reply","language":"English","contact":"Thiri","pic2":"","position":"","mobile":"87210803","office":"","email":"admin@harmonyfoods.com.sg","website":"","address":"15 Woodlands Loop #02-19, Singapore 738322","notes":"emailed in 44 SKUs for BCRS testing, standard reply"},{"id":92,"name":"ROTIBOY BAKESHOPPE PTE. LTD.","stage":"Pending Quote Approval","lastContact":"05 Jun 2026","pasting":"","comment":"Whatsapp in","language":"English","contact":"YUKE LIN YEE","pic2":"","position":"","mobile":"96255838","office":"","email":"yeeyukelin@gmail.com","website":"","address":"100 JALAN SULTAN #09-14, SG 199001","notes":"Whatsapp in"},{"id":93,"name":"Lubritrade Trading","stage":"Pending Quote Approval","lastContact":"08 Jun 2026","pasting":"Y","comment":"Called in first, then looking for Pasting services, 4 SKU 30 to 40k","language":"English","contact":"Jackie","pic2":"","position":"","mobile":"93372950","office":"","email":"","website":"","address":"408 N Bridge Rd, #04-01 Lubritrade Building, Singapore 188725","notes":"Called in first, then looking for Pasting services, 4 SKU 30 to 40k"},{"id":94,"name":"MUJI (SINGAPORE) PTE. LTD.","stage":"Pending Quote Approval","lastContact":"08 Jun 2026","pasting":"Y","comment":"Placed order via email, no previous contact","language":"English","contact":"Sabrin Chua","pic2":"","position":"","mobile":"","office":"","email":"sabrin_chua@muji.com.sg\nAi.tan@mitsui.com","website":"","address":"20 Gul Way, #02-06, 629196","notes":"Placed order via email, no previous contact"}];
+var ORDERS=[{"id":1,"name":"Nissin Foods","size":"30x55","qty":100000,"loc":"Singapore","price":2400.0,"profit":1765.38,"status":"Delivered","received":"06 Feb 2026","delivery":"19 Mar 2026","tracking":"LX22200011760","contact":"Emily Koh","mobile":"88629123","invoice":"P000174/030326/BCRS/0001","payment":"Paid","printer":"Mashang","shipper":"Hong Feng Express","days":"41","comment":"Had changes after submitting"},{"id":2,"name":"Maybev Pte Ltd","size":"75x30","qty":5000,"loc":"Singapore","price":260.0,"profit":112.69,"status":"Delivered","received":"19 Feb 2026","delivery":"26 Mar 2026","tracking":"LX22200011925","contact":"Jeremy Han","mobile":"91827117","invoice":"P000256/020326/BCRS/0001","payment":"Paid","printer":"Mashang","shipper":"Hong Feng Express","days":"35","comment":"Had changes after submitting"},{"id":3,"name":"Etika Pte Ltd","size":"75x30","qty":240000,"loc":"Malaysia","price":5159.0,"profit":3418.62,"status":"Delivered","received":"05 Mar 2026","delivery":"06 Apr 2026","tracking":"11102250110","contact":"Noriezan Abdullah","mobile":"60127116043","invoice":"P000026-190326-BCRS-0001","payment":"Paid","printer":"Mashang","shipper":"Hong Feng Express","days":"32","comment":"Had changes after submitting"},{"id":4,"name":"Ito En","size":"75x30","qty":170000,"loc":"Thailand","price":3000.0,"profit":1642.31,"status":"Delivered","received":"16 Mar 2026","delivery":"12 May 2026","tracking":"DX52004030246 / DX52004030235","contact":"Ms. Vipada Kraisuth","mobile":"66 (0) 92-265-2723/ ","invoice":"P000130-170326-BCRS-0001","payment":"Paid","printer":"Yayi","shipper":"Hong Feng Express","days":"57","comment":"Shipping lost for awhile"},{"id":5,"name":"Lactalis Oak Plus","size":"75x30","qty":165000,"loc":"Singapore","price":3787.0,"profit":2594.69,"status":"Delivered","received":"19 Mar 2026","delivery":"06 Apr 2026","tracking":"LX22200012103 / LX22200012125","contact":"Mei Ping","mobile":"+65 9750 7059","invoice":"P000209-230326-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Hong Feng Express","days":"18","comment":""},{"id":6,"name":"Maybev Pte Ltd","size":"75x30","qty":20000,"loc":"Singapore","price":599.0,"profit":371.69,"status":"Delivered","received":"24 Mar 2026","delivery":"06 Apr 2026","tracking":"LX222000121114","contact":"Jeremy Han","mobile":"91827117","invoice":"P000256-250326-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Hong Feng Express","days":"13","comment":""},{"id":7,"name":"Meng Chong","size":"110x40","qty":150000,"loc":"Singapore","price":4299.0,"profit":2506.01,"status":"Delivered","received":"25 Mar 2026","delivery":"20 Apr 2026","tracking":"1ZC222810402040873","contact":"Sean Yeo","mobile":"91701197","invoice":"P000031-300326-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Kai Da Express","days":"26","comment":""},{"id":8,"name":"Meng Chong","size":"35x35","qty":10000,"loc":"Singapore","price":618.0,"profit":458.85,"status":"Delivered","received":"26 Mar 2026","delivery":"20 Apr 2026","tracking":"1ZC222810402040873","contact":"Sean Yeo","mobile":"91701197","invoice":"P000031-300326-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Kai Da Express","days":"25","comment":""},{"id":9,"name":"Meng Chong","size":"56x40","qty":30000,"loc":"Singapore","price":1100.0,"profit":853.33,"status":"Delivered","received":"27 Mar 2026","delivery":"20 Apr 2026","tracking":"1ZC222810402040873","contact":"Sean Yeo","mobile":"91701197","invoice":"P000031-300326-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Kai Da Express","days":"24","comment":""},{"id":10,"name":"Ito En","size":"75x30","qty":500000,"loc":"Japan","price":11000.0,"profit":6590.58,"status":"Delivered","received":"12 Mar 2026","delivery":"22 Apr 2026","tracking":"4521-8617-0063","contact":"Mr. Kondo","mobile":"81523981661","invoice":"P000130-310326-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Kai Da Express","days":"41","comment":"Added orders behind"},{"id":11,"name":"Chi Forest SG","size":"35x43","qty":200000,"loc":"China","price":3099.0,"profit":1637.46,"status":"Delivered","received":"30 Mar 2026","delivery":"21 Apr 2026","tracking":"ZY202456793009","contact":"Doris Liu","mobile":"8613233213125","invoice":"P000219-070326-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"中通","days":"22","comment":""},{"id":12,"name":"Hong Xin Da Pte Ltd","size":"75x30","qty":95000,"loc":"China","price":2199.0,"profit":1638.23,"status":"Delivered","received":"02 Apr 2026","delivery":"17 Apr 2026","tracking":"SF1558857968633","contact":"Yan Hong","mobile":"81833868","invoice":"P000032-070426-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Kai Da Express","days":"15","comment":""},{"id":13,"name":"Zen-Noh International Asia Pte Ltd","size":"75x65","qty":50000,"loc":"Singapore","price":3400.0,"profit":2458.46,"status":"Delivered","received":"02 Apr 2026","delivery":"23 Apr 2026","tracking":"1ZC222810433755712","contact":"Lim Jia Hui","mobile":"97686765","invoice":"P000177-070426-BCRS-001","payment":"Paid","printer":"Yaiyi","shipper":"Kai Da Express","days":"21","comment":""},{"id":14,"name":"Maybev Pte Ltd","size":"75x30","qty":45000,"loc":"Singapore","price":1069.0,"profit":665.15,"status":"Delivered","received":"07 Apr 2026","delivery":"17 Apr 2026","tracking":"1ZC222810424379342","contact":"Jeremy Han","mobile":"91827117","invoice":"P000256-070426-BCRS-001","payment":"Paid","printer":"Mashang","shipper":"Kai Da Express","days":"10","comment":""},{"id":15,"name":"WXN Distro Pte Ltd","size":"75x30","qty":10000,"loc":"Singapore","price":379.0,"profit":84.77,"status":"Delivered","received":"09 Apr 2026","delivery":"29 Apr 2026","tracking":"1ZC222810402705262","contact":"Wan Shah","mobile":"91890070","invoice":"P000361-21042026-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"","days":"20","comment":""},{"id":16,"name":"Ken Hong Seng Pte Ltd/Home Town","size":"75x30","qty":15000,"loc":"Singapore","price":680.0,"profit":359.81,"status":"Delivered","received":"15 Apr 2026","delivery":"29 Apr 2026","tracking":"1ZC222810429292088","contact":"Gladys Yong","mobile":"91555733","invoice":"P000350-16042026-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"","days":"14","comment":""},{"id":17,"name":"Ken Hong Seng Pte Ltd/Home Town","size":"75x30","qty":22500,"loc":"Singapore","price":1020.0,"profit":786.35,"status":"Delivered","received":"15 Apr 2026","delivery":"29 Apr 2026","tracking":"1ZC222810429292088","contact":"Gladys Yong","mobile":"91555733","invoice":"P000351-16042026-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"","days":"14","comment":""},{"id":18,"name":"Hong Xin Da Pte Ltd","size":"43x35","qty":1107800,"loc":"China","price":18800.0,"profit":14858.79,"status":"Delivered","received":"14 Apr 2026","delivery":"11 May 2026","tracking":"SF1561289020790/ZY202457480931","contact":"Yan Hong","mobile":"81833868","invoice":"P000032-220426-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Shun feng/zhongtong","days":"27","comment":""},{"id":19,"name":"ATLAS VENDING SOLUTIONS PTE. LTD.","size":"75x30","qty":700000,"loc":"Malaysia","price":14500.0,"profit":8849.04,"status":"Delivered","received":"16 Apr 2026","delivery":"11 May 2026","tracking":"SR26050640179","contact":"Noriezan Abdullah","mobile":"60127116043","invoice":"P000025-20042026-BCRS-001","payment":"","printer":"Mashang","shipper":"Kai Da Express","days":"25","comment":"Split invoice into 2"},{"id":20,"name":"Made Brands Pte Ltd","size":"75x65","qty":80000,"loc":"Singapore","price":6800.0,"profit":5388.46,"status":"Delivered","received":"20 Apr 2026","delivery":"11 May 2026","tracking":"1ZC222810425601278","contact":"Khyiel Chua","mobile":"97667774","invoice":"P000204-21042026-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Kai Da Express","days":"21","comment":""},{"id":21,"name":"Made Brands Pte Ltd","size":"75x30","qty":20000,"loc":"Singapore","price":2200.0,"profit":1911.54,"status":"Delivered","received":"20 Apr 2026","delivery":"11 May 2026","tracking":"1ZC222810425601278","contact":"Khyiel Chua","mobile":"97667774","invoice":"P000204-21042026-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Kai Da Express","days":"21","comment":""},{"id":22,"name":"Fresh n Natural","size":"35x35","qty":54000,"loc":"Singapore","price":1199.0,"profit":880.54,"status":"Delivered","received":"16 Mar 2026","delivery":"08 May 2026","tracking":"1ZC222810430512051","contact":"Edwin Chan","mobile":"97629211","invoice":"P000121-280426-BCRS-001","payment":"","printer":"Mashang","shipper":"Kai Da Express","days":"53","comment":"only confirmed on 28/04/2026"},{"id":23,"name":"BCRS","size":"27x17","qty":500,"loc":"Singapore","price":0.0,"profit":-130.77,"status":"Delivered","received":"16 Apr 2026","delivery":"12 May 2026","tracking":"NA","contact":"NA","mobile":"NA","invoice":"NA","payment":"NA","printer":"","shipper":"","days":"26","comment":"Free sample for BCRS"},{"id":24,"name":"Monster Energy Singapore","size":"55x30","qty":485894,"loc":"Malaysia","price":10900.0,"profit":7888.35,"status":"Delivered","received":"20 Apr 2026","delivery":"18 May 2026","tracking":"SR26051340207","contact":"Jeff Lau","mobile":"60127476143","invoice":"P000161-21042026-BCRS-001","payment":"","printer":"Mashang","shipper":"Kai Da Express","days":"28","comment":""},{"id":25,"name":"CYF Enterprise (S) Pte Ltd","size":"40x40","qty":100000,"loc":"Singapore","price":1900.0,"profit":1306.15,"status":"Delivered","received":"28 Apr 2026","delivery":"11 May 2026","tracking":"1ZC222810431457717","contact":"Chloe Ng","mobile":"62949800","invoice":"P000216-280426-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Kai Da Express","days":"13","comment":""},{"id":26,"name":"CYF Enterprise (S) Pte Ltd","size":"40x70","qty":1255,"loc":"Singapore","price":240.0,"profit":143.85,"status":"Delivered","received":"28 Apr 2026","delivery":"11 May 2026","tracking":"1ZC222810431457717","contact":"Chloe Ng","mobile":"62949800","invoice":"P000216-280426-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Kai Da Express","days":"13","comment":""},{"id":27,"name":"CHUNG HWA FOOD INDUSTRIES PRIVATE LIMITED","size":"75x65","qty":50000,"loc":"Taiwan","price":3400.0,"profit":2485.0,"status":"Delivered","received":"17 Apr 2026","delivery":"27 May 2026","tracking":"TW12605181710289","contact":"Henry Hong","mobile":"‘0229820061","invoice":"P000243-200426-BCRS-001","payment":"Paid","printer":"Yayi","shipper":"Kai Da Express","days":"40","comment":"only confirmed on 30/04/2026"},{"id":28,"name":"Hong Xin Da Pte Ltd","size":"43x35","qty":64050,"loc":"China","price":1400.0,"profit":1073.08,"status":"Delivered","received":"11 May 2026","delivery":"17 May 2026","tracking":"SF1561289020815 ZY202457430684","contact":"Yan Hong","mobile":"81833868","invoice":"P000032-070526-BCRS-001","payment":"","printer":"Yayi","shipper":"中通 顺丰","days":"6","comment":""},{"id":29,"name":"Chuan Hong Seng","size":"75x30","qty":60000,"loc":"Singapore","price":1800.0,"profit":1228.85,"status":"Delivered","received":"07 May 2026","delivery":"27 May 2026","tracking":"UPS:1ZC222810437311407","contact":"Edwin Chia","mobile":"98554641","invoice":"P000205-070526-BCRS-001","payment":"","printer":"Yayi","shipper":"Kai Da Express","days":"20","comment":""},{"id":30,"name":"HONG XIN DA PTE LTD","size":"75x30","qty":831700,"loc":"China","price":16800.0,"profit":12801.44,"status":"Delivered","received":"10 May 2026","delivery":"23 May 2026","tracking":"ZY202465474358 ZY202465474362 ","contact":"Yan Hong","mobile":"81833868","invoice":"P000032-110526-BCRS-001 | P000032-1","payment":"","printer":"Yayi","shipper":"中通 顺丰","days":"13","comment":""},{"id":31,"name":"CHUNG HWA FOOD INDUSTRIES PRIVATE LIMITED","size":"75x65","qty":30000,"loc":"Taiwan","price":2300.0,"profit":1731.54,"status":"Out for Delivery","received":"13/5/2026","delivery":"03 Jun 2026","tracking":"TW12605271510202","contact":"Michelle","mobile":"","invoice":"P000243-130526-BCRS-001","payment":"","printer":"Yayi","shipper":"Kai Da Express","days":"21","comment":""},{"id":32,"name":"INTERBEV (SINGAPORE) LIMITED","size":"112X27","qty":5000,"loc":"Singapore","price":790.0,"profit":478.46,"status":"Delivered","received":"15/5/2026","delivery":"02 Jun 2026","tracking":"UPS:1ZC222810400404920","contact":"Sebastian Loh","mobile":"96865170","invoice":"P000353-180526-BCRS-001","payment":"","printer":"Yayi","shipper":"Kai Da Express","days":"18","comment":""},{"id":33,"name":"Made Brands Pte Ltd","size":"75x65","qty":10,"loc":"Singapore","price":0.0,"profit":-130.77,"status":"Delivered","received":"15 May 2026","delivery":"02 Jun 2026","tracking":"FEDEX:871875438710","contact":"Khyiel Chua","mobile":"97667774","invoice":"NA","payment":"NA","printer":"Yayi","shipper":"Kai Da Express","days":"18","comment":"Free sample for Made brands"},{"id":34,"name":"Meng Chong","size":"40x40","qty":10000,"loc":"Singapore","price":690.0,"profit":407.31,"status":"Delivered","received":"21 May 2026","delivery":"02 Jun 2026","tracking":"UPS:1ZC222810433435504","contact":"Sean Yeo","mobile":"91701197","invoice":"P000031-210526-BCRS-001","payment":"","printer":"Yayi","shipper":"Kai Da Express","days":"12","comment":""},{"id":35,"name":"Made Brands Pte Ltd 样品","size":"75x45","qty":10,"loc":"Singapore","price":0.0,"profit":-136.54,"status":"Delivered","received":"21 May 2026","delivery":"02 Jun 2026","tracking":"FEDEX:872328537838","contact":"","mobile":"","invoice":"NA","payment":"NA","printer":"Yayi","shipper":"Kai Da Express","days":"12","comment":"Free sample for Made brands"},{"id":36,"name":"HONG XIN DA PTE. LTD.","size":"75x30","qty":159600,"loc":"China","price":3300.0,"profit":2409.92,"status":"Delivered","received":"22/5/2026","delivery":"03 Jun 2026","tracking":"ZY202465422130","contact":"Yan Hong","mobile":"81833868","invoice":"P000032-250526-BCRS-001","payment":"","printer":"Yayi","shipper":"中通 顺丰","days":"12","comment":""},{"id":37,"name":"LIM LAM THYE (PRIVATE) LIMITED","size":"122.1X28","qty":4608,"loc":"Singapore","price":810.0,"profit":810.0,"status":"In Production","received":"22/5/2026","delivery":"21/6/2026","tracking":"","contact":"Tian Wee Lim","mobile":"67792948","invoice":"P000200-260526-BCRS-001","payment":"","printer":"","shipper":"","days":"30","comment":""},{"id":38,"name":"HONG XIN DA PTE. LTD.","size":"75x30","qty":54120,"loc":"China","price":1288.0,"profit":892.51,"status":"Delivered","received":"28 May 2026","delivery":"05 Jun 2026","tracking":"ZY202465422546","contact":"","mobile":"","invoice":"P000032-280526-BCRS-001","payment":"","printer":"Yayi","shipper":"","days":"8","comment":""},{"id":39,"name":"I-MEX MARKETS PTE. LTD.","size":"75x65","qty":40000,"loc":"Singapore","price":1800.0,"profit":1113.46,"status":"Out for Delivery","received":"29/5/2026","delivery":"06 Sep 2026","tracking":"1ZC222810422480511","contact":"Tzewei Tan","mobile":"96479668","invoice":"P000057-290526-BCRS-001","payment":"","printer":"Yayi","shipper":"","days":"100","comment":""},{"id":40,"name":"YHS (SINGAPORE) PTE LTD","size":"73.5X47.5","qty":90000,"loc":"Taiwan","price":3000.0,"profit":0,"status":"In Production","received":"26/5/2026","delivery":"25/6/2026","tracking":"","contact":"Qing Hui Er","mobile":"98352026","invoice":"P000167-290526-BCRS-001","payment":"","printer":"Yayi","shipper":"","days":"30","comment":"统编 73251209"},{"id":41,"name":"ENTERPRISE GO PTE. LTD.","size":"65x59","qty":5000,"loc":"Singapore","price":290.0,"profit":0,"status":"In Production","received":"03 Jun 2026","delivery":"03 Jul 2026","tracking":"","contact":"Sophie Sea","mobile":"91529215","invoice":"P000179-030626-BCRS-001","payment":"","printer":"Yayi","shipper":"","days":"30","comment":""},{"id":42,"name":"ROTIBOY BAKESHOPPE PTE. LTD.","size":"36.5x56.5","qty":10000,"loc":"Singapore","price":490.0,"profit":0,"status":"In Production","received":"03 Jun 2026","delivery":"03 Jul 2026","tracking":"","contact":"YUKE LIN YEE","mobile":"96255838","invoice":"P000169-030626-BCRS-001","payment":"","printer":"","shipper":"","days":"30","comment":""},{"id":43,"name":"MARKET_SINGAPORE PTE. LTD.","size":"75X30","qty":5000,"loc":"Singapore","price":500.0,"profit":0,"status":"In Production","received":"05 Jun 2026","delivery":"05 Jul 2026","tracking":"","contact":"Wilfred Lim","mobile":"65682678 | 65692678","invoice":"P000265-050626-BCRS-001","payment":"","printer":"Yayi","shipper":"","days":"30","comment":""},{"id":44,"name":"I-MEX MARKETS PTE. LTD.","size":"75x65","qty":30000,"loc":"Singapore","price":1169.0,"profit":0,"status":"In Production","received":"08 Jun 2026","delivery":"08 Jul 2026","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":45,"name":"HONG XIN DA PTE. LTD.","size":"43x40","qty":15300,"loc":"China","price":490.0,"profit":0,"status":"In Production","received":"04 Jun 2026","delivery":"07 Aug 2026","tracking":"","contact":"Yan Hong","mobile":"81833868","invoice":"P000032-040626-BCRS-001","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":55,"name":"50000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":56,"name":"80000","size":"","qty":0,"loc":"rejected","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":57,"name":"84000","size":"","qty":0,"loc":"lost","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":58,"name":"518200","size":"","qty":0,"loc":"no reply","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":60,"name":"732200","size":"","qty":0,"loc":"","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":63,"name":"216000","size":"","qty":0,"loc":"no choice","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":64,"name":"90000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":65,"name":"40000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":66,"name":"90000","size":"","qty":0,"loc":"buay gum","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":67,"name":"400000","size":"","qty":0,"loc":"no answer","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":68,"name":"1677000","size":"","qty":0,"loc":"no answer","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":69,"name":"814020","size":"","qty":0,"loc":"no answer","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":70,"name":"50000","size":"","qty":0,"loc":"check","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":71,"name":"501000","size":"","qty":0,"loc":"check","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":72,"name":"235000","size":"","qty":0,"loc":"no choice moq","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":73,"name":"40000","size":"","qty":0,"loc":"no choice moq","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":74,"name":"24000","size":"","qty":0,"loc":"pending","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":75,"name":"1000","size":"","qty":0,"loc":"no choice moq","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":76,"name":"40000","size":"","qty":0,"loc":"check","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":77,"name":"120000","size":"","qty":0,"loc":"maybe jap","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":78,"name":"2000","size":"","qty":0,"loc":"no choice moq","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":79,"name":"300000","size":"","qty":0,"loc":"check","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":80,"name":"240000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":81,"name":"31000","size":"","qty":0,"loc":"no choice moq","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":82,"name":"183500","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":83,"name":"11000","size":"","qty":0,"loc":"maybe jap","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":84,"name":"150000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":85,"name":"15000","size":"","qty":0,"loc":"maybe jap","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":86,"name":"47000","size":"","qty":0,"loc":"maybe jap","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":87,"name":"1000","size":"","qty":0,"loc":"no choice moq","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":88,"name":"80000","size":"","qty":0,"loc":"rejected","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":89,"name":"30000","size":"","qty":0,"loc":"sent sample","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":90,"name":"100000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":91,"name":"164998","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":92,"name":"165500","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":93,"name":"80000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":94,"name":"119000","size":"","qty":0,"loc":"lost","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":95,"name":"150000","size":"","qty":0,"loc":"hh global","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":96,"name":"150000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":97,"name":"4000","size":"","qty":0,"loc":"lost","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":98,"name":"1000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":99,"name":"40000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":100,"name":"50000","size":"","qty":0,"loc":"no contact","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":102,"name":"6453018","size":"","qty":0,"loc":"","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":104,"name":"5/6/2026 1640","size":"","qty":0,"loc":"","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""},{"id":105,"name":"pokka 000113","size":"","qty":0,"loc":"","price":0,"profit":0,"status":"In Production","received":"","delivery":"","tracking":"","contact":"","mobile":"","invoice":"","payment":"","printer":"","shipper":"","days":"","comment":""}];
+var ORDER_HIST=[{"company":"Nissin Foods","size":"30x55","w":30.0,"h":55.0,"area":1650,"qty":100000,"sku":6,"colour":"1C Black","sell":2400.0,"ppp":0.00509},{"company":"Maybev Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":5000,"sku":1,"colour":"1C Black","sell":260.0,"ppp":0.02642},{"company":"Etika Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":240000,"sku":4,"colour":"1C Black","sell":5159.0,"ppp":0.00566},{"company":"Ito En","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":170000,"sku":4,"colour":"1C Black","sell":3000.0,"ppp":0.00623},{"company":"Lactalis Oak Plus","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":165000,"sku":1,"colour":"1C Black","sell":3787.0,"ppp":0.00566},{"company":"Maybev Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":20000,"sku":1,"colour":"1C Black","sell":599.0,"ppp":0.00943},{"company":"Meng Chong","size":"110x40","w":110.0,"h":40.0,"area":4400,"qty":150000,"sku":1,"colour":"1C Black","sell":4299.0,"ppp":0.00736},{"company":"Meng Chong","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":10000,"sku":2,"colour":"1C Black","sell":618.0,"ppp":0.01509},{"company":"Meng Chong","size":"56x40","w":56.0,"h":40.0,"area":2240,"qty":30000,"sku":1,"colour":"Colour","sell":1100.0,"ppp":0.00755},{"company":"Ito En","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":500000,"sku":11,"colour":"1C Black","sell":11000.0,"ppp":0.00604},{"company":"Chi Forest SG","size":"35x43","w":35.0,"h":43.0,"area":1505,"qty":200000,"sku":31,"colour":"1C Black","sell":3099.0,"ppp":0.00717},{"company":"Hong Xin Da Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":95000,"sku":6,"colour":"1C Black","sell":2199.0,"ppp":0.00566},{"company":"Zen-Noh International Asia Pte Ltd","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":50000,"sku":10,"colour":"1C Black","sell":3400.0,"ppp":0.01358},{"company":"Maybev Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":45000,"sku":1,"colour":"1C Black","sell":1069.0,"ppp":0.00566},{"company":"WXN Distro Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":10000,"sku":1,"colour":"1C Black","sell":379.0,"ppp":0.02547},{"company":"Ken Hong Seng Pte Ltd/Home Town","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":15000,"sku":10,"colour":"1C Black","sell":680.0,"ppp":0.01019},{"company":"Ken Hong Seng Pte Ltd/Home Town","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":22500,"sku":10,"colour":"1C Black","sell":1020.0,"ppp":0.01019},{"company":"Hong Xin Da Pte Ltd","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":1107800,"sku":27,"colour":"1C Black","sell":18800.0,"ppp":0.00349},{"company":"ATLAS VENDING SOLUTIONS PTE. LTD.","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":700000,"sku":4,"colour":"1C Black","sell":14500.0,"ppp":0.00566},{"company":"Made Brands Pte Ltd","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":80000,"sku":2,"colour":"Colour","sell":6800.0,"ppp":0.01179},{"company":"Made Brands Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":20000,"sku":1,"colour":"Colour","sell":2200.0,"ppp":0.01415},{"company":"Fresh n Natural","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":54000,"sku":5,"colour":"1C Black","sell":1199.0,"ppp":0.00358},{"company":"Monster Energy Singapore","size":"55x30","w":55.0,"h":30.0,"area":1650,"qty":485894,"sku":5,"colour":"1C Black","sell":10900.0,"ppp":0.00434},{"company":"CYF Enterprise (S) Pte Ltd","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":100000,"sku":1,"colour":"1C Black","sell":1900.0,"ppp":0.00396},{"company":"CYF Enterprise (S) Pte Ltd","size":"40x70","w":40.0,"h":70.0,"area":2800,"qty":1255,"sku":1,"colour":"1C Black","sell":240.0,"ppp":0.07517},{"company":"CHUNG HWA FOOD INDUSTRIES PRIVATE LIMITED","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":50000,"sku":1,"colour":"Colour","sell":3400.0,"ppp":0.01208},{"company":"Hong Xin Da Pte Ltd","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":64050,"sku":3,"colour":"1C Black","sell":1400.0,"ppp":0.00501},{"company":"Chuan Hong Seng","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":60000,"sku":6,"colour":"1C Black","sell":1800.0,"ppp":0.0066},{"company":"HONG XIN DA PTE LTD","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":831700,"sku":7,"colour":"1C Black","sell":16800.0,"ppp":0.00472},{"company":"CHUNG HWA FOOD INDUSTRIES PRIVATE LIMITED","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":30000,"sku":3,"colour":"Colour","sell":2300.0,"ppp":0.01264},{"company":"INTERBEV (SINGAPORE) LIMITED","size":"112X27","w":112.0,"h":27.0,"area":3024,"qty":5000,"sku":1,"colour":"Colour","sell":790.0,"ppp":0.04906},{"company":"Meng Chong","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":10000,"sku":1,"colour":"1C Black","sell":690.0,"ppp":0.0217},{"company":"HONG XIN DA PTE. LTD.","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":159600,"sku":8,"colour":"1C Black","sell":3300.0,"ppp":0.00547},{"company":"LIM LAM THYE (PRIVATE) LIMITED","size":"122.1X28","w":122.1,"h":28.0,"area":3419,"qty":4608,"sku":1,"colour":"1C Black","sell":810.0,"ppp":0.0},{"company":"HONG XIN DA PTE. LTD.","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":54120,"sku":8,"colour":"1C Black","sell":1288.0,"ppp":0.00717},{"company":"I-MEX MARKETS PTE. LTD.","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":40000,"sku":4,"colour":"1C Black","sell":1800.0,"ppp":0.01132},{"company":"YHS (SINGAPORE) PTE LTD","size":"73.5X47.5","w":73.5,"h":47.5,"area":3491,"qty":90000,"sku":1,"colour":"1C Black","sell":3000.0,"ppp":0.00792},{"company":"ENTERPRISE GO PTE. LTD.","size":"65x59","w":65.0,"h":59.0,"area":3835,"qty":5000,"sku":1,"colour":"1C Black","sell":290.0,"ppp":0.02642},{"company":"ROTIBOY BAKESHOPPE PTE. LTD.","size":"36.5x56.5","w":36.5,"h":56.5,"area":2062,"qty":10000,"sku":1,"colour":"1C Black","sell":490.0,"ppp":0.01698},{"company":"MARKET_SINGAPORE PTE. LTD.","size":"75X30","w":75.0,"h":30.0,"area":2250,"qty":5000,"sku":3,"colour":"1C Black","sell":500.0,"ppp":0.02642},{"company":"I-MEX MARKETS PTE. LTD.","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":30000,"sku":2,"colour":"1C Black","sell":1169.0,"ppp":0.0},{"company":"HONG XIN DA PTE. LTD.","size":"43x40","w":43.0,"h":40.0,"area":1720,"qty":15300,"sku":1,"colour":"1C Black","sell":490.0,"ppp":0.0},{"company":"Fresh & Natural","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":70000,"sku":8,"colour":"1C Black","sell":1389.0,"ppp":0.00302},{"company":"Fresh & Natural","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":54000,"sku":5,"colour":"1C Black","sell":1199.0,"ppp":0.00358},{"company":"Fresh & Natural","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":80000,"sku":8,"colour":"1C Black","sell":1400.0,"ppp":0.00302},{"company":"Nissin Food","size":"30x55","w":30.0,"h":55.0,"area":1650,"qty":100000,"sku":6,"colour":"1C Black","sell":2400.0,"ppp":0.00491},{"company":"UCC Coffee","size":"40x45","w":40.0,"h":45.0,"area":1800,"qty":10000,"sku":0,"colour":"1C Black","sell":1000.0,"ppp":0.0},{"company":"Asahi","size":"80x40","w":80.0,"h":40.0,"area":3200,"qty":3459,"sku":1,"colour":"1C Black","sell":800.0,"ppp":0.04364},{"company":"Asahi","size":"75x45","w":75.0,"h":45.0,"area":3375,"qty":470000,"sku":1,"colour":"1C Black","sell":8930.0,"ppp":0.00642},{"company":"Asahi","size":"70x45","w":70.0,"h":45.0,"area":3150,"qty":3459,"sku":1,"colour":"1C Black","sell":800.0,"ppp":0.04364},{"company":"Asahi","size":"70x52","w":70.0,"h":52.0,"area":3640,"qty":378528,"sku":1,"colour":"1C Black","sell":9084.67,"ppp":0.00689},{"company":"Asahi","size":"40x25","w":40.0,"h":25.0,"area":1000,"qty":138712,"sku":1,"colour":"1C Black","sell":2635.53,"ppp":0.00242},{"company":"Asahi","size":"30x50","w":30.0,"h":50.0,"area":1500,"qty":209568,"sku":1,"colour":"1C Black","sell":4191.36,"ppp":0.0034},{"company":"Asahi","size":"40x80","w":40.0,"h":80.0,"area":3200,"qty":257184,"sku":1,"colour":"1C Black","sell":7715.52,"ppp":0.0066},{"company":"Asahi","size":"127x50","w":127.0,"h":50.0,"area":6350,"qty":11499,"sku":1,"colour":"1C Black","sell":1100.0,"ppp":0.01641},{"company":"Asahi","size":"60x45","w":60.0,"h":45.0,"area":2700,"qty":11499,"sku":1,"colour":"1C Black","sell":800.0,"ppp":0.01313},{"company":"Asahi","size":"38x28","w":38.0,"h":28.0,"area":1064,"qty":30664,"sku":1,"colour":"1C Black","sell":858.59,"ppp":0.00492},{"company":"Asahi","size":"67x50","w":67.0,"h":50.0,"area":3350,"qty":20709,"sku":1,"colour":"1C Black","sell":745.52,"ppp":0.00792},{"company":"Asahi","size":"40x28","w":40.0,"h":28.0,"area":1120,"qty":55224,"sku":1,"colour":"1C Black","sell":1159.7,"ppp":0.00274},{"company":"YuanQi","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":10000,"sku":1,"colour":"1C Black","sell":700.0,"ppp":0.0},{"company":"YuanQi","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":180000,"sku":30,"colour":"1C Black","sell":2799.0,"ppp":0.0},{"company":"YuanQi","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":200000,"sku":30,"colour":"1C Black","sell":3099.0,"ppp":0.00717},{"company":"Etika Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":160000,"sku":3,"colour":"1C Black","sell":3400.0,"ppp":0.0},{"company":"Etika Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":80000,"sku":1,"colour":"1C Black","sell":1759.0,"ppp":0.0},{"company":"Market Singapore","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":15000,"sku":3,"colour":"1C Black","sell":589.0,"ppp":0.01415},{"company":"Hong Xin Da","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":500000,"sku":40,"colour":"1C Black","sell":8500.0,"ppp":0.00491},{"company":"Meng Chong","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":5000,"sku":1,"colour":"1C Black","sell":309.0,"ppp":0.02642},{"company":"Meng Chong","size":"35x35","w":35.0,"h":35.0,"area":1225,"qty":10000,"sku":1,"colour":"1C Black","sell":550.0,"ppp":0.01321},{"company":"Meng Chong","size":"110x40","w":110.0,"h":40.0,"area":4400,"qty":150000,"sku":1,"colour":"1C Black","sell":4299.0,"ppp":0.00736},{"company":"CKL","size":"89x60","w":89.0,"h":60.0,"area":5340,"qty":375000,"sku":15,"colour":"Colour","sell":13900.0,"ppp":0.00996},{"company":"CKL","size":"89x60","w":89.0,"h":60.0,"area":5340,"qty":150000,"sku":15,"colour":"Colour","sell":7200.0,"ppp":0.00906},{"company":"CKL","size":"89x60","w":89.0,"h":60.0,"area":5340,"qty":10000,"sku":1,"colour":"Colour","sell":1500.0,"ppp":0.03321},{"company":"CKL","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":375000,"sku":15,"colour":"1C Black","sell":8099.0,"ppp":0.00623},{"company":"CKL","size":"89x60","w":89.0,"h":60.0,"area":5340,"qty":100000,"sku":10,"colour":"Colour","sell":5000.0,"ppp":0.01226},{"company":"CKL","size":"89x60","w":89.0,"h":60.0,"area":5340,"qty":100000,"sku":4,"colour":"Colour","sell":4900.0,"ppp":0.01226},{"company":"Meidi-Ya Singapore Co Ltd","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":100000,"sku":4,"colour":"1C Black","sell":2400.0,"ppp":0.00491},{"company":"ENTERPRISE GO PTE. LTD.","size":"90x30","w":90.0,"h":30.0,"area":2700,"qty":5000,"sku":1,"colour":"1C Black","sell":800.0,"ppp":0.0},{"company":"ENTERPRISE GO PTE. LTD.","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":5000,"sku":1,"colour":"Colour","sell":699.0,"ppp":0.03019},{"company":"ENTERPRISE GO PTE. LTD.","size":"65x59","w":65.0,"h":59.0,"area":3835,"qty":5000,"sku":1,"colour":"Colour","sell":679.0,"ppp":0.03019},{"company":"ENTERPRISE GO PTE. LTD.","size":"65x59","w":65.0,"h":59.0,"area":3835,"qty":5000,"sku":1,"colour":"1C Black","sell":290.0,"ppp":0.02642},{"company":"Ito En","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":150000,"sku":2,"colour":"Black","sell":3100.0,"ppp":0.0},{"company":"Ito En","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":168000,"sku":3,"colour":"Black","sell":3400.0,"ppp":0.0},{"company":"Ito En","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":170000,"sku":3,"colour":"Black","sell":3430.0,"ppp":0.0},{"company":"Ito En","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":500000,"sku":11,"colour":"1C Black","sell":11000.0,"ppp":0.00623},{"company":"Culina","size":"27x17","w":27.0,"h":17.0,"area":459,"qty":63000,"sku":6,"colour":"1C Black","sell":939.0,"ppp":0.0},{"company":"Chung Hwa","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":30000,"sku":3,"colour":"1C Black","sell":1099.0,"ppp":0.01415},{"company":"SY Food Stuffs & Trading","size":"65x59","w":65.0,"h":59.0,"area":3835,"qty":1000000,"sku":14,"colour":"Colour","sell":27000.0,"ppp":0.00943},{"company":"Monster Energy Singapore","size":"30x55","w":30.0,"h":55.0,"area":1650,"qty":400000,"sku":7,"colour":"1C Black","sell":9000.0,"ppp":0.00472},{"company":"Monster Energy Singapore","size":"30x55","w":30.0,"h":55.0,"area":1650,"qty":485894,"sku":5,"colour":"1C Black","sell":10900.0,"ppp":0.00472},{"company":"Meng Chong","size":"40x56","w":40.0,"h":56.0,"area":2240,"qty":30000,"sku":1,"colour":"Colour","sell":1100.0,"ppp":0.00755},{"company":"3eagle Ken Hong Seng Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":40000,"sku":11,"colour":"1C Black","sell":1800.0,"ppp":0.0},{"company":"3eagle Ken Hong Seng Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":37500,"sku":11,"colour":"1C Black","sell":1700.0,"ppp":0.0},{"company":"Trade-pro Food Distribution","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":300000,"sku":3,"colour":"1C Black","sell":6300.0,"ppp":0.00679},{"company":"Interbev","size":"25x112","w":25.0,"h":112.0,"area":2800,"qty":5000,"sku":1,"colour":"Colour","sell":790.0,"ppp":0.03396},{"company":"Interbev","size":"25x115","w":25.0,"h":115.0,"area":2875,"qty":5000,"sku":1,"colour":"Colour","sell":790.0,"ppp":0.03396},{"company":"Fields Catering","size":"26x65","w":26.0,"h":65.0,"area":1690,"qty":75000,"sku":3,"colour":"1C Black","sell":1600.0,"ppp":0.00528},{"company":"Fields Catering","size":"26x80","w":26.0,"h":80.0,"area":2080,"qty":164000,"sku":2,"colour":"1C Black","sell":3600.0,"ppp":0.00632},{"company":"Fields Catering","size":"26x83","w":26.0,"h":83.0,"area":2158,"qty":10000,"sku":1,"colour":"1C Black","sell":900.0,"ppp":0.02264},{"company":"Fields Catering","size":"28x80","w":28.0,"h":80.0,"area":2240,"qty":60000,"sku":2,"colour":"1C Black","sell":1700.0,"ppp":0.00698},{"company":"Fields Catering","size":"41x47","w":41.0,"h":47.0,"area":1927,"qty":90000,"sku":2,"colour":"1C Black","sell":2100.0,"ppp":0.00604},{"company":"Fields Catering","size":"41x55","w":41.0,"h":55.0,"area":2255,"qty":35000,"sku":1,"colour":"1C Black","sell":1300.0,"ppp":0.00998},{"company":"Fields Catering","size":"42x60","w":42.0,"h":60.0,"area":2520,"qty":20000,"sku":2,"colour":"1C Black","sell":1200.0,"ppp":0.01274},{"company":"Fields Catering","size":"45x38","w":45.0,"h":38.0,"area":1710,"qty":100000,"sku":1,"colour":"1C Black","sell":2100.0,"ppp":0.00528},{"company":"Fields Catering","size":"55x48","w":55.0,"h":48.0,"area":2640,"qty":40000,"sku":1,"colour":"1C Black","sell":1700.0,"ppp":0.01085},{"company":"Fields Catering","size":"60x37","w":60.0,"h":37.0,"area":2220,"qty":16000,"sku":3,"colour":"1C Black","sell":1000.0,"ppp":0.01534},{"company":"Fields Catering","size":"61x48","w":61.0,"h":48.0,"area":2928,"qty":50000,"sku":1,"colour":"1C Black","sell":1800.0,"ppp":0.00925},{"company":"Fields Catering","size":"65x37","w":65.0,"h":37.0,"area":2405,"qty":40000,"sku":3,"colour":"1C Black","sell":1500.0,"ppp":0.00874},{"company":"Fields Catering","size":"26x65","w":26.0,"h":65.0,"area":1690,"qty":150000,"sku":3,"colour":"1C Black","sell":3000.0,"ppp":0.00509},{"company":"Fields Catering","size":"26x80","w":26.0,"h":80.0,"area":2080,"qty":328000,"sku":2,"colour":"1C Black","sell":6800.0,"ppp":0.00604},{"company":"Fields Catering","size":"26x83","w":26.0,"h":83.0,"area":2158,"qty":20000,"sku":1,"colour":"1C Black","sell":1300.0,"ppp":0.01226},{"company":"Fields Catering","size":"28x80","w":28.0,"h":80.0,"area":2240,"qty":120000,"sku":2,"colour":"1C Black","sell":3000.0,"ppp":0.0066},{"company":"Fields Catering","size":"41x47","w":41.0,"h":47.0,"area":1927,"qty":180000,"sku":2,"colour":"1C Black","sell":3700.0,"ppp":0.00547},{"company":"Fields Catering","size":"41x55","w":41.0,"h":55.0,"area":2255,"qty":70000,"sku":1,"colour":"1C Black","sell":2000.0,"ppp":0.00736},{"company":"Fields Catering","size":"42x60","w":42.0,"h":60.0,"area":2520,"qty":40000,"sku":2,"colour":"1C Black","sell":1900.0,"ppp":0.01019},{"company":"Fields Catering","size":"45x38","w":45.0,"h":38.0,"area":1710,"qty":200000,"sku":1,"colour":"1C Black","sell":3700.0,"ppp":0.00472},{"company":"Fields Catering","size":"55x48","w":55.0,"h":48.0,"area":2640,"qty":80000,"sku":1,"colour":"1C Black","sell":3100.0,"ppp":0.00981},{"company":"Fields Catering","size":"60x37","w":60.0,"h":37.0,"area":2220,"qty":32000,"sku":3,"colour":"1C Black","sell":1500.0,"ppp":0.01019},{"company":"Fields Catering","size":"61x48","w":61.0,"h":48.0,"area":2928,"qty":100000,"sku":1,"colour":"1C Black","sell":3300.0,"ppp":0.00868},{"company":"Fields Catering","size":"65x37","w":65.0,"h":37.0,"area":2405,"qty":80000,"sku":3,"colour":"1C Black","sell":2400.0,"ppp":0.00755},{"company":"HH Global","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":20000,"sku":5,"colour":"1C Black","sell":699.0,"ppp":0.0},{"company":"HH Global","size":"120x60","w":120.0,"h":60.0,"area":7200,"qty":20000,"sku":5,"colour":"1C Black","sell":1700.0,"ppp":0.01509},{"company":"Radha Exports","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":2000000,"sku":80,"colour":"1C Black","sell":40000.0,"ppp":0.00594},{"company":"Radha Exports","size":"27x17","w":27.0,"h":17.0,"area":459,"qty":2000000,"sku":80,"colour":"1C Black","sell":17600.0,"ppp":0.00123},{"company":"Hong Xin Da","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":95000,"sku":6,"colour":"1C Black","sell":2199.0,"ppp":0.00566},{"company":"Hong Xin Da","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":1185400,"sku":33,"colour":"1C Black","sell":19800.0,"ppp":0.00396},{"company":"Gourmet Supplies","size":"65x59","w":65.0,"h":59.0,"area":3835,"qty":2000000,"sku":1,"colour":"Colour","sell":60000.0,"ppp":0.00604},{"company":"Gourmet Supplies","size":"65x59","w":65.0,"h":59.0,"area":3835,"qty":2000000,"sku":1,"colour":"Colour","sell":31000.0,"ppp":0.00604},{"company":"U Stars Pte Ltd","size":"48x40","w":48.0,"h":40.0,"area":1920,"qty":250000,"sku":1,"colour":"Colour","sell":5999.0,"ppp":0.00443},{"company":"HH Global","size":"45x45","w":45.0,"h":45.0,"area":2025,"qty":165600,"sku":3,"colour":"1C Black","sell":4472.0,"ppp":0.00604},{"company":"HH Global","size":"120x90","w":120.0,"h":90.0,"area":10800,"qty":28300,"sku":4,"colour":"1C Black","sell":11000.0,"ppp":0.0283},{"company":"HH Global","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":38400,"sku":1,"colour":"1C Black","sell":1264.0,"ppp":0.00604},{"company":"HH Global","size":"120x60","w":120.0,"h":60.0,"area":7200,"qty":3200,"sku":1,"colour":"1C Black","sell":980.0,"ppp":0.04127},{"company":"Hong Xin Da","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":1107800,"sku":27,"colour":"1C Black","sell":18800.0,"ppp":0.00396},{"company":"Made Brand","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":10000,"sku":1,"colour":"Colour","sell":1200.0,"ppp":0.02547},{"company":"Made Brand","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":20000,"sku":2,"colour":"Colour","sell":2000.0,"ppp":0.01887},{"company":"Atlas Asia","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":700000,"sku":4,"colour":"1C Black","sell":14200.0,"ppp":0.00566},{"company":"Allswell","size":"62x31","w":62.0,"h":31.0,"area":1922,"qty":120000,"sku":2,"colour":"1C Black","sell":2900.0,"ppp":0.00547},{"company":"Chung Hwa","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":50000,"sku":1,"colour":"Colour","sell":3400.0,"ppp":0.01208},{"company":"Platinum PWS","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":580750,"sku":3,"colour":"1C Black","sell":11900.0,"ppp":0.00566},{"company":"Sheng Sheng F&B","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":22000,"sku":5,"colour":"1C Black","sell":1100.0,"ppp":0.01415},{"company":"Thirsty","size":"26x63","w":26.0,"h":63.0,"area":1638,"qty":24000,"sku":2,"colour":"1C Black","sell":960.0,"ppp":0.01226},{"company":"Fook Sang Tong","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":21000,"sku":7,"colour":"1C Black","sell":990.0,"ppp":0.01415},{"company":"CYF Enterprise (S) Pte Ltd","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":100000,"sku":1,"colour":"1C Black","sell":1900.0,"ppp":0.00472},{"company":"CYF Enterprise (S) Pte Ltd","size":"70x40","w":70.0,"h":40.0,"area":2800,"qty":1255,"sku":1,"colour":"1C Black","sell":251.0,"ppp":0.09434},{"company":"Koong Woh Tong","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":60000,"sku":5,"colour":"1C Black","sell":2000.0,"ppp":0.01415},{"company":"Koong Woh Tong","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":240000,"sku":5,"colour":"1C Black","sell":5800.0,"ppp":0.00623},{"company":"Hong Xin Da","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":831700,"sku":7,"colour":"1C Black","sell":16800.0,"ppp":0.00557},{"company":"Market Singapore","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":15800,"sku":3,"colour":"1C Black","sell":620.0,"ppp":0.01415},{"company":"Chung Hwa","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":30000,"sku":3,"colour":"Colour","sell":2300.0,"ppp":0.01264},{"company":"Hong Xin Da","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":64050,"sku":3,"colour":"1C Black","sell":1400.0,"ppp":0.00501},{"company":"U Stars Pte Ltd","size":"48x40","w":48.0,"h":40.0,"area":1920,"qty":185000,"sku":1,"colour":"Colour","sell":1012.26,"ppp":0.00547},{"company":"Chuan Hong Seng","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":60000,"sku":6,"colour":"1C Black","sell":1800.0,"ppp":0.0066},{"company":"Market Singapore","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":5000,"sku":3,"colour":"1C Black","sell":500.0,"ppp":0.0434},{"company":"U Stars Pte Ltd","size":"54x45","w":54.0,"h":45.0,"area":2430,"qty":160000,"sku":32,"colour":"Colour","sell":5500.0,"ppp":0.00717},{"company":"Meng Chong","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":5000,"sku":1,"colour":"1C Black","sell":600.0,"ppp":0.03774},{"company":"Meng Chong","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":10000,"sku":1,"colour":"1C Black","sell":690.0,"ppp":0.0217},{"company":"Hong Xin Da","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":159600,"sku":7,"colour":"1C Black","sell":3300.0,"ppp":0.00566},{"company":"Scarlett Supermarket","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":3000000,"sku":150,"colour":"1C Black","sell":49000.0,"ppp":0.00302},{"company":"Scarlett Supermarket","size":"56x28","w":56.0,"h":28.0,"area":1568,"qty":3000000,"sku":150,"colour":"1C Black","sell":49000.0,"ppp":0.00302},{"company":"Fresh & Natural","size":"40x40","w":40.0,"h":40.0,"area":1600,"qty":19900,"sku":3,"colour":"1C Black","sell":800.0,"ppp":0.01233},{"company":"Hong Xin Da","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":54120,"sku":8,"colour":"1C Black","sell":1288.0,"ppp":0.00717},{"company":"YuanQi","size":"43x35","w":43.0,"h":35.0,"area":1505,"qty":200000,"sku":31,"colour":"1C Black","sell":3888.0,"ppp":0.00642},{"company":"Yeos","size":"73.5x47.5","w":73.5,"h":47.5,"area":3491,"qty":90000,"sku":1,"colour":"1C Black","sell":3000.0,"ppp":0.00792},{"company":"I-MEX MARKETS PTE. LTD.","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":40000,"sku":4,"colour":"1C Black","sell":1800.0,"ppp":0.01132},{"company":"Gryphon Tea","size":"105.5x91.3","w":105.5,"h":91.3,"area":9632,"qty":576,"sku":1,"colour":"1C Black","sell":240.0,"ppp":0.19654},{"company":"Gryphon Tea","size":"60.6x23","w":60.6,"h":23.0,"area":1394,"qty":1152,"sku":1,"colour":"1C Black","sell":240.0,"ppp":0.09827},{"company":"Gryphon Tea","size":"122.1x28","w":122.1,"h":28.0,"area":3419,"qty":4608,"sku":1,"colour":"1C Black","sell":330.0,"ppp":0.03276},{"company":"Gryphon Tea","size":"105.5x91.3","w":105.5,"h":91.3,"area":9632,"qty":1152,"sku":1,"colour":"1C Black","sell":400.0,"ppp":0.10646},{"company":"Gryphon Tea","size":"60.6x23","w":60.6,"h":23.0,"area":1394,"qty":2304,"sku":1,"colour":"1C Black","sell":400.0,"ppp":0.05323},{"company":"Gryphon Tea","size":"122.1x28","w":122.1,"h":28.0,"area":3419,"qty":9126,"sku":1,"colour":"1C Black","sell":570.0,"ppp":0.01861},{"company":"Lubritrade","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":30000,"sku":4,"colour":"1C Black","sell":1099.0,"ppp":0.01038},{"company":"Lubritrade","size":"150x40","w":150.0,"h":40.0,"area":6000,"qty":30000,"sku":4,"colour":"1C Black","sell":1800.0,"ppp":0.01472},{"company":"Hong Xin Da","size":"40x43","w":40.0,"h":43.0,"area":1720,"qty":15300,"sku":1,"colour":"1C Black","sell":490.0,"ppp":0.01226},{"company":"ROTIBOY BAKESHOPPE PTE. LTD.","size":"36.5x56.5","w":36.5,"h":56.5,"area":2062,"qty":10000,"sku":1,"colour":"1C Black","sell":490.0,"ppp":0.01698},{"company":"I-MEX MARKETS PTE. LTD.","size":"75x65","w":75.0,"h":65.0,"area":4875,"qty":30000,"sku":2,"colour":"1C Black","sell":1169.0,"ppp":0.01245},{"company":"YuanQi","size":"43x40","w":43.0,"h":40.0,"area":1720,"qty":200000,"sku":35,"colour":"1C Black","sell":3888.0,"ppp":0.00528},{"company":"Fook Sang Tong","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":7000,"sku":7,"colour":"1C Black","sell":450.0,"ppp":0.02156},{"company":"Harmony Foods Pte Ltd","size":"75x30","w":75.0,"h":30.0,"area":2250,"qty":880,"sku":44,"colour":"1C Black","sell":150.0,"ppp":0.15009}];
+var STD={"75x30":[{"qty":5000,"price":260.0,"ppp":0.052},{"qty":10000,"price":379.0,"ppp":0.0379},{"qty":15000,"price":489.0,"ppp":0.0326},{"qty":20000,"price":599.0,"ppp":0.02995},{"qty":25000,"price":709.0,"ppp":0.02836},{"qty":30000,"price":829.0,"ppp":0.027633},{"qty":35000,"price":939.0,"ppp":0.026829},{"qty":40000,"price":969.0,"ppp":0.024225},{"qty":45000,"price":1069.0,"ppp":0.023756},{"qty":50000,"price":1149.0,"ppp":0.02298},{"qty":55000,"price":1249.0,"ppp":0.022709},{"qty":60000,"price":1359.0,"ppp":0.02265},{"qty":65000,"price":1459.0,"ppp":0.022446},{"qty":70000,"price":1559.0,"ppp":0.022271},{"qty":75000,"price":1659.0,"ppp":0.02212},{"qty":80000,"price":1759.0,"ppp":0.021988},{"qty":85000,"price":1859.0,"ppp":0.021871},{"qty":90000,"price":1959.0,"ppp":0.021767},{"qty":95000,"price":2059.0,"ppp":0.021674},{"qty":100000,"price":2149.0,"ppp":0.02149},{"qty":1000000,"price":19000.0,"ppp":0.019}],"65x24":[{"qty":5000,"price":240.0,"ppp":0.048},{"qty":10000,"price":349.0,"ppp":0.0349},{"qty":15000,"price":449.0,"ppp":0.029933},{"qty":20000,"price":549.0,"ppp":0.02745},{"qty":25000,"price":649.0,"ppp":0.02596},{"qty":30000,"price":749.0,"ppp":0.024967},{"qty":35000,"price":789.0,"ppp":0.022543},{"qty":40000,"price":859.0,"ppp":0.021475},{"qty":45000,"price":959.0,"ppp":0.021311},{"qty":50000,"price":1019.0,"ppp":0.02038},{"qty":55000,"price":1129.0,"ppp":0.020527},{"qty":60000,"price":1219.0,"ppp":0.020317},{"qty":65000,"price":1299.0,"ppp":0.019985},{"qty":70000,"price":1389.0,"ppp":0.019843},{"qty":75000,"price":1479.0,"ppp":0.01972},{"qty":80000,"price":1569.0,"ppp":0.019613},{"qty":85000,"price":1659.0,"ppp":0.019518},{"qty":90000,"price":1749.0,"ppp":0.019433},{"qty":95000,"price":1839.0,"ppp":0.019358},{"qty":100000,"price":1909.0,"ppp":0.01909},{"qty":1000000,"price":17000.0,"ppp":0.017}],"75x65":[{"qty":5000,"price":340.0,"ppp":0.068},{"qty":10000,"price":539.0,"ppp":0.0539},{"qty":15000,"price":619.0,"ppp":0.041267},{"qty":20000,"price":779.0,"ppp":0.03895},{"qty":25000,"price":939.0,"ppp":0.03756},{"qty":30000,"price":1099.0,"ppp":0.036633},{"qty":35000,"price":1259.0,"ppp":0.035971},{"qty":40000,"price":1419.0,"ppp":0.035475},{"qty":45000,"price":1579.0,"ppp":0.035089},{"qty":50000,"price":1729.0,"ppp":0.03458},{"qty":55000,"price":1879.0,"ppp":0.034164},{"qty":60000,"price":2029.0,"ppp":0.033817},{"qty":65000,"price":2179.0,"ppp":0.033523},{"qty":70000,"price":2329.0,"ppp":0.033271},{"qty":75000,"price":2509.0,"ppp":0.033453},{"qty":80000,"price":2669.0,"ppp":0.033363},{"qty":85000,"price":2829.0,"ppp":0.033282},{"qty":90000,"price":2979.0,"ppp":0.0331},{"qty":95000,"price":3129.0,"ppp":0.032937},{"qty":100000,"price":3229.0,"ppp":0.03229},{"qty":1000000,"price":30500.0,"ppp":0.0305}]};
+var COMP_PRICING={"75x30":[{"packs":1,"pcs":1000,"ppp":0.17371},{"packs":5,"pcs":5000,"ppp":0.0532},{"packs":10,"pcs":10000,"ppp":0.03814},{"packs":15,"pcs":15000,"ppp":0.03312},{"packs":20,"pcs":20000,"ppp":0.03061},{"packs":25,"pcs":25000,"ppp":0.0291},{"packs":30,"pcs":30000,"ppp":0.0281},{"packs":35,"pcs":35000,"ppp":0.02738},{"packs":40,"pcs":40000,"ppp":0.02403},{"packs":45,"pcs":45000,"ppp":0.02361},{"packs":50,"pcs":50000,"ppp":0.02328},{"packs":55,"pcs":55000,"ppp":0.023},{"packs":60,"pcs":60000,"ppp":0.02278},{"packs":65,"pcs":65000,"ppp":0.02259},{"packs":70,"pcs":70000,"ppp":0.02241},{"packs":75,"pcs":75000,"ppp":0.02228},{"packs":80,"pcs":80000,"ppp":0.02215},{"packs":85,"pcs":85000,"ppp":0.02204}],"65x24":[{"packs":1,"pcs":1000,"ppp":0.16436},{"packs":5,"pcs":5000,"ppp":0.04984},{"packs":10,"pcs":10000,"ppp":0.03553},{"packs":15,"pcs":15000,"ppp":0.03075},{"packs":20,"pcs":20000,"ppp":0.02836},{"packs":25,"pcs":25000,"ppp":0.02694},{"packs":30,"pcs":30000,"ppp":0.02598},{"packs":35,"pcs":35000,"ppp":0.02226},{"packs":40,"pcs":40000,"ppp":0.02176},{"packs":45,"pcs":45000,"ppp":0.02136},{"packs":50,"pcs":50000,"ppp":0.02104},{"packs":55,"pcs":55000,"ppp":0.02078},{"packs":60,"pcs":60000,"ppp":0.02056},{"packs":65,"pcs":65000,"ppp":0.02038},{"packs":70,"pcs":70000,"ppp":0.02023},{"packs":75,"pcs":75000,"ppp":0.02009},{"packs":80,"pcs":80000,"ppp":0.01996},{"packs":85,"pcs":85000,"ppp":0.01986}],"75x65":[{"packs":1,"pcs":1000,"ppp":0.18351},{"packs":5,"pcs":5000,"ppp":0.06899},{"packs":10,"pcs":10000,"ppp":0.05468},{"packs":15,"pcs":15000,"ppp":0.04146},{"packs":20,"pcs":20000,"ppp":0.03909},{"packs":25,"pcs":25000,"ppp":0.03765},{"packs":30,"pcs":30000,"ppp":0.0367},{"packs":35,"pcs":35000,"ppp":0.03601},{"packs":40,"pcs":40000,"ppp":0.0355},{"packs":45,"pcs":45000,"ppp":0.0351},{"packs":50,"pcs":50000,"ppp":0.03479},{"packs":55,"pcs":55000,"ppp":0.03453},{"packs":60,"pcs":60000,"ppp":0.03431},{"packs":65,"pcs":65000,"ppp":0.03413},{"packs":70,"pcs":70000,"ppp":0.03398},{"packs":75,"pcs":75000,"ppp":0.03384},{"packs":80,"pcs":80000,"ppp":0.03371},{"packs":85,"pcs":85000,"ppp":0.03361}],"65x59":[{"packs":1,"pcs":1000,"ppp":0.17734},{"packs":5,"pcs":5000,"ppp":0.05881},{"packs":10,"pcs":10000,"ppp":0.044},{"packs":15,"pcs":15000,"ppp":0.03906},{"packs":20,"pcs":20000,"ppp":0.0366},{"packs":25,"pcs":25000,"ppp":0.03029},{"packs":30,"pcs":30000,"ppp":0.0293},{"packs":35,"pcs":35000,"ppp":0.0286},{"packs":40,"pcs":40000,"ppp":0.02806},{"packs":45,"pcs":45000,"ppp":0.02765},{"packs":50,"pcs":50000,"ppp":0.02733},{"packs":55,"pcs":55000,"ppp":0.02705},{"packs":60,"pcs":60000,"ppp":0.02683},{"packs":65,"pcs":65000,"ppp":0.02676},{"packs":70,"pcs":70000,"ppp":0.02648},{"packs":75,"pcs":75000,"ppp":0.02634},{"packs":80,"pcs":80000,"ppp":0.02621},{"packs":85,"pcs":85000,"ppp":0.0261}]};
+var SATO_LIST=[{"company":"Cold Storage","qty":216000,"comment":"no choice"},{"company":"Gan Teck Kar Investments","qty":90000,"comment":"no contact"},{"company":"Frosts Food & Beverage","qty":40000,"comment":"no contact"},{"company":"Healthworkz","qty":90000,"comment":"buay gum"},{"company":"APB","qty":400000,"comment":"no answer"},{"company":"field catering","qty":1677000,"comment":"no answer"},{"company":"Pokka","qty":814020,"comment":"no answer"},{"company":"UCC Coffee","qty":50000,"comment":"check"},{"company":"Allswell Trading Pte Ltd","qty":501000,"comment":"check"},{"company":"DFI retail singapore pte ltd","qty":235000,"comment":"no choice moq"},{"company":"Nutrition asia group","qty":40000,"comment":"no choice moq"},{"company":"H.L. Yong","qty":24000,"comment":"pending"},{"company":"moo tong medical manufacturing","qty":1000,"comment":"no choice moq"},{"company":"prefer pte ltd","qty":40000,"comment":"check"},{"company":"Makoto-ya","qty":159000,"comment":"maybe jap"},{"company":"aureo asia pte ltd","qty":2000,"comment":"no choice moq"},{"company":"trade-pro food distribution","qty":300000,"comment":"check"},{"company":"URC foods singapore pte ltd","qty":240000,"comment":"no contact"},{"company":"Herbalife","qty":31000,"comment":"no choice moq"},{"company":"Carlsberg","qty":183500,"comment":"no contact"},{"company":"Watson","qty":11000,"comment":"maybe jap"},{"company":"The better food distribution","qty":150000,"comment":"no contact"},{"company":"Eastern green marketing","qty":15000,"comment":"maybe jap"},{"company":"imei (exim) Pte Ltd","qty":47000,"comment":"maybe jap"},{"company":"I-O & YT pte ltd","qty":1000,"comment":"no choice moq"},{"company":"Nestle","qty":80000,"comment":"rejected"},{"company":"i-mex markets","qty":30000,"comment":"BOTH"},{"company":"The drinkery","qty":100000,"comment":"no contact"},{"company":"Greenfield","qty":164998,"comment":"no contact"},{"company":"Matrix Star marketing","qty":165500,"comment":"no contact"},{"company":"Kokonoe","qty":80000,"comment":"no contact"},{"company":"Coke","qty":119000,"comment":"lost"},{"company":"monster","qty":150000,"comment":"BOTH - hh global"},{"company":"Kaimay trading","qty":150000,"comment":"no contact"},{"company":"Meidi-ya","qty":4000,"comment":"lost"},{"company":"Keiyaki Kikaku","qty":1000,"comment":"no contact"},{"company":"Kaiser Foods","qty":40000,"comment":"no contact"},{"company":"Drink Free Co Pte Ltd","qty":50000,"comment":"no contact"},{"company":"Time","qty":0,"comment":""}];
+var JEWEL_LIST=[{"company":"Naspac Marketing Pte Ltd","qty":50000,"comment":"no contact"},{"company":"Nestle","qty":80000,"comment":"rejected"},{"company":"Pacific Beverage","qty":84000,"comment":"lost"},{"company":"Capital F&B","qty":518200,"comment":"no reply"}];
+var ORDER_COMPANIES=["ATLAS VENDING SOLUTIONS PTE. LTD.","BCRS","CHUNG HWA FOOD INDUSTRIES PRIVATE LIMITED","CYF Enterprise (S) Pte Ltd","Chi Forest SG","Chuan Hong Seng","ENTERPRISE GO PTE. LTD.","Etika Pte Ltd","Fresh n Natural","HONG XIN DA PTE LTD","HONG XIN DA PTE. LTD.","Hong Xin Da Pte Ltd","I-MEX MARKETS PTE. LTD.","INTERBEV (SINGAPORE) LIMITED","Ito En","Ken Hong Seng Pte Ltd/Home Town","LIM LAM THYE (PRIVATE) LIMITED","Lactalis Oak Plus","MARKET_SINGAPORE PTE. LTD.","Made Brands Pte Ltd","Made Brands Pte Ltd 样品","Maybev Pte Ltd","Meng Chong","Monster Energy Singapore","Nissin Foods","ROTIBOY BAKESHOPPE PTE. LTD.","WXN Distro Pte Ltd","YHS (SINGAPORE) PTE LTD","Zen-Noh International Asia Pte Ltd","pokka 000113"];
 
 var CRM_STAGES=[{id:'Enquiry',zh:'\u8be2\u76d8',color:'#60a5fa'},{id:'Registering with BCRS',zh:'\u6ce8\u518cBCRS',color:'#a78bfa'},{id:'Pending info',zh:'\u5f85\u4fe1\u606f',color:'#fbbf24'},{id:'Pending Quote Approval',zh:'\u5f85\u62a5\u4ef7',color:'#f472b6'},{id:'1st print',zh:'\u9996\u6b21\u5370\u5237',color:'#2dd4bf'},{id:'Repeat print',zh:'\u91cd\u590d\u5370\u5237',color:'#6ee7b7'},{id:'Lost',zh:'\u5df2\u6d41\u5931',color:'#45454f'}];
 var ORD_STAGES=[{id:'In Production',zh:'\u751f\u4ea7\u4e2d',color:'#a78bfa'},{id:'Out for Delivery',zh:'\u8fd0\u8f93\u4e2d',color:'#2dd4bf'},{id:'Delivered',zh:'\u5df2\u4ea4\u8d27',color:'#6ee7b7'},{id:'Paid',zh:'\u5df2\u4ed8\u6b3e',color:'#45454f'}];
@@ -519,7 +514,7 @@ var TX_EN={
   jobDetails:'Job Details',shippingParams:'Shipping Parameters',
   client:'Client',widthMM:'Width (mm)',heightMM:'Height (mm)',
   qtyPcs:'Total Qty (pcs)',skus:'No. of SKUs',colour:'Colour',black:'1C Black',colourOpt:'Colour',
-  shipping:'Mode',airfreight:'Airfreight',destination:'Destination',
+  shipping:'Mode',airfreight:'Airfreight',seafreight:'Seafreight',destination:'Destination',
   sg:'Singapore',my:'Malaysia',cn:'China',tw:'Taiwan',hk:'Hong Kong',id:'Indonesia',jp:'Japan',th:'Thailand',
   airRmb:'\u2708 Airfreight rate (RMB/kg)',docCost:'Documentation cost (SGD)',
   calculate:'Calculate',fillForm:'Fill in the form and click Calculate',
@@ -560,7 +555,7 @@ var TX_ZH={
   jobDetails:'\u8ba2\u5355\u4fe1\u606f',shippingParams:'\u8fd0\u8f93\u53c2\u6570',
   client:'\u5ba2\u6237\u540d\u79f0',widthMM:'\u5bbd\u5ea6 (mm)',heightMM:'\u9ad8\u5ea6 (mm)',
   qtyPcs:'\u603b\u6570\u91cf (\u5f20)',skus:'SKU\u6570\u91cf',colour:'\u989c\u8272',black:'\u5355\u8272\u9ed1',colourOpt:'\u5f69\u8272',
-  shipping:'\u8fd0\u8f93\u65b9\u5f0f',airfreight:'\u7a7a\u8fd0',destination:'\u76ee\u7684\u5730',
+  shipping:'\u8fd0\u8f93\u65b9\u5f0f',airfreight:'\u7a7a\u8fd0',seafreight:'\u6d77\u8fd0',destination:'\u76ee\u7684\u5730',
   sg:'\u65b0\u52a0\u5761',my:'\u9a6c\u6765\u897f\u4e9a',cn:'\u4e2d\u56fd',tw:'\u53f0\u6e7e',hk:'\u9999\u6e2f',id:'\u5370\u5c3c',jp:'\u65e5\u672c',th:'\u6cf0\u56fd',
   airRmb:'\u2708 \u7a7a\u8fd0\u8d39\u7387 (\u4eba\u6c11\u5e01/kg)',docCost:'\u6587\u4ef6\u8d39 (SGD)',
   calculate:'\u8ba1\u7b97\u62a5\u4ef7',fillForm:'\u586b\u5199\u8868\u5355\u5e76\u70b9\u51fb\u8ba1\u7b97',
@@ -865,7 +860,7 @@ function calcQ(){
   var qty=parseInt(document.getElementById('q-qty').value)||0;
   var sku=parseInt(document.getElementById('q-sku').value)||1;
   var col=document.getElementById('q-col').value;
-  var ship='air'; // airfreight only
+  var ship='air';
   var dest=document.getElementById('q-dest').value;
   var rmbPerKg=parseFloat(document.getElementById('q-rmb-kg').value)||35;
   var _dv=document.getElementById('q-doc').value;var docCost=(_dv===''||_dv===null)?80:parseFloat(_dv)||0;
@@ -942,192 +937,312 @@ function calcQ(){
 var SUGS_EN={};
 var SUGS_ZH={};
 var CTX={
-  todo:function(){
-    var unpaidList=UNPAID.slice(0,5).map(function(o){return o.name+' S$'+o.price;}).join(', ');
-    var pqaList=PQA.slice(0,5).map(function(c){return c.name;}).join(', ');
-    return 'You are an assistant for AYG Capital, a Singapore BCRS barcode label printing company. Current data: '+UNPAID.length+' unpaid invoices ('+unpaidList+'), '+PQA.length+' clients pending quote approval ('+pqaList+'). Daily tasks: '+DAILY.slice(0,5).join('; ')+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
-  },
-  crm:function(){
-    var stageSum=CRM_STAGES.map(function(s){return s.id+':'+CLIENTS.filter(function(c){return c.stage===s.id;}).length;}).join(', ');
-    var recent=CLIENTS.filter(function(c){return c.lastContact;}).slice(0,3).map(function(c){return c.name+'('+c.stage+')';}).join(', ');
-    return 'You are an assistant for AYG Capital CRM. '+CLIENTS.length+' clients by stage: '+stageSum+'. Recent contacts: '+recent+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
-  },
-  orders:function(){
-    var inProd=ORDERS.filter(function(o){return o.status==='In Production';}).map(function(o){return o.name;}).slice(0,5).join(', ');
-    var unpaidList=UNPAID.slice(0,5).map(function(o){return o.name+' S$'+o.price;}).join(', ');
-    return 'You are an assistant for AYG Capital orders. '+ORDERS.length+' total orders. In Production: '+inProd+'. Unpaid: '+unpaidList+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
-  },
-  quotes:function(){
-    return 'You are an assistant for AYG Capital quotes. BCRS barcode label printing. SGD/RMB rate: 5.3. Sell price = ~2.1x total cost. Airfreight: 10,000pcs of 2250mm2 = 4kg, RMB35/kg. Standard sizes: 75x30(2250mm2), 65x24(1560mm2), 75x65(4875mm2), 65x59(3835mm2). Competitor: Sato. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
-  },
-  competitors:function(){
-    var bothList=SATO_LIST.filter(function(s){return s.comment&&s.comment.toUpperCase().indexOf('BOTH')>-1;}).map(function(s){return s.name||s.company;}).join(', ');
-    return 'You are an assistant for AYG Capital competitor analysis. Sato Asia has '+SATO_LIST.length+' known clients. Jewel Creative has '+JEWEL_LIST.length+' clients. Clients using both AYG and competitors: '+bothList+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';
-  },
-  faq:function(){
-    return 'You are a knowledge assistant for AYG Capital Pte Ltd, Singapore BCRS barcode label printing company. Key facts: Factory in China (Mashang, Yayi printers). Ships via Hong Feng Express and Kai Da Express airfreight to SG/MY/CN/TW/HK/ID/JP/TH. Standard label sizes: 75x30, 27x17, 65x59, 75x65, 65x24mm. SGD/RMB rate 5.3. Sell price ~2.1x total cost. Main competitor: Sato. BCRS = Singapore GS1 barcode compliance scheme. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be thorough.';
-  }
+  todo:function(){var ul=UNPAID.slice(0,5).map(function(o){return o.name+' S$'+o.price;}).join(', ');var pl=PQA.slice(0,5).map(function(c){return c.name;}).join(', ');return 'AYG Capital Singapore BCRS barcode label printing. Unpaid invoices ('+UNPAID.length+'): '+ul+'. Pending quotes ('+PQA.length+'): '+pl+'. Tasks: '+DAILY.slice(0,5).join('; ')+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';},
+  crm:function(){var ss=CRM_STAGES.map(function(s){return s.id+':'+CLIENTS.filter(function(c){return c.stage===s.id;}).length;}).join(', ');return 'AYG CRM. '+CLIENTS.length+' clients. Stages: '+ss+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';},
+  orders:function(){var ip=ORDERS.filter(function(o){return o.status==='In Production';}).map(function(o){return o.name;}).slice(0,5).join(', ');var ul=UNPAID.slice(0,5).map(function(o){return o.name+' S$'+o.price;}).join(', ');return 'AYG orders. '+ORDERS.length+' total. In Production: '+ip+'. Unpaid: '+ul+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';},
+  quotes:function(){return 'AYG BCRS label printing quotes. SGD/RMB 5.3. Sell=2.1x cost. Airfreight: 10k pcs 2250mm2=4kg, RMB35/kg. Sizes: 75x30(2250mm2),65x24(1560mm2),75x65(4875mm2),65x59(3835mm2). Competitor: Sato. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';},
+  competitors:function(){var bl=SATO_LIST.filter(function(s){return s.comment&&s.comment.toUpperCase().indexOf('BOTH')>-1;}).map(function(s){return s.company;}).join(', ');return 'AYG competitor data. Sato Asia: '+SATO_LIST.length+' clients. Jewel Creative: '+JEWEL_LIST.length+' clients. Both AYG+competitor: '+bl+'. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be concise.';},
+  faq:function(){return 'AYG Capital Pte Ltd, Singapore. BCRS barcode label printing. China factory (Mashang, Yayi printers). Airfreight via Hong Feng Express, Kai Da Express to SG/MY/CN/TW/HK/ID/JP/TH. Sizes: 75x30,27x17,65x59,75x65,65x24mm. SGD/RMB 5.3. Sell ~2.1x cost. Competitor: Sato. Reply in '+(lang==='zh'?'Chinese':'English')+'. Be thorough.';}
 };
 function renderSugs(tab){}
 function quickSend(s,txt){}
 function onKey(e,s){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send(s);}}
 function appendMsg(s,role,txt){var c=document.getElementById('msgs-'+s);var d=document.createElement('div');d.className='msg msg-'+role;d.textContent=txt;c.appendChild(d);c.scrollTop=c.scrollHeight;return d;}
-var _lastSend = 0;
+var _lastSend=0;
 async function send(s){
-  // Rate limit: 1 message per 5 seconds
-  var now = Date.now();
-  if (now - _lastSend < 5000) {
-    var wait = Math.ceil((5000 - (now - _lastSend)) / 1000);
-    var inp2 = document.getElementById('inp-'+s);
-    var oldPh = inp2.placeholder;
-    inp2.placeholder = 'Please wait ' + wait + 's...';
-    setTimeout(function(){ inp2.placeholder = oldPh; }, 5000 - (now - _lastSend));
+  var now=Date.now();
+  if(now-_lastSend<5000){
+    var inp2=document.getElementById('inp-'+s);
+    if(inp2){var w=Math.ceil((5000-(now-_lastSend))/1000);inp2.placeholder='Wait '+w+'s...';setTimeout(function(){inp2.placeholder='';},5000-(now-_lastSend));}
     return;
   }
-  _lastSend = now;
-  var inp=document.getElementById('inp-'+s);
-  var txt=inp.value.trim();if(!txt)return;
-  inp.value='';
-  appendMsg(s,'u',txt);
-  var th=appendMsg(s,'a',TX.thinking);
-  th.classList.add('msg-th');
-  chatHistory[s].push({role:'user',content:txt});
-  try{
-    var res=await fetch('https://aygops-proxy.ayg.workers.dev',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:CTX[s](),messages:chatHistory[s]})
-    });
-    var data=await res.json();
-    var reply=(data.content&&data.content[0]&&data.content[0].text)||'Error';
-    // Check for rate limit error in reply
-    if(reply.indexOf('TooManyRequests')>-1||reply.indexOf('429')>-1||reply.indexOf('quota')>-1){
-      th.textContent=lang==='zh'?'\u8bf7\u7a0d\u5019\u518d\u8bd5\uff08\u6bcf\u5206\u949f\u965015\u6761\uff09':'Rate limit hit. Please wait a moment and try again.';
-    } else {
-      th.textContent=reply;
-    }
-    th.classList.remove('msg-th');
-    chatHistory[s].push({role:'assistant',content:reply});
-    if(chatHistory[s].length>8)chatHistory[s]=chatHistory[s].slice(-8);
-  }catch(e){
-    th.textContent=lang==='zh'?'\u8fde\u63a5\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5\u3002':'Connection error. Please try again.';
-    th.classList.remove('msg-th');
-  }
+  _lastSend=now;var inp=document.getElementById('inp-'+s);var txt=inp.value.trim();if(!txt)return;inp.value='';appendMsg(s,'u',txt);var th=appendMsg(s,'a',TX.thinking);th.classList.add('msg-th');chatHistory[s].push({role:'user',content:txt});try{var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,system:CTX[s](),messages:chatHistory[s]})});var data=await res.json();var reply=(data.content&&data.content[0]&&data.content[0].text)||'Error';th.textContent=reply;th.classList.remove('msg-th');chatHistory[s].push({role:'assistant',content:reply});if(chatHistory[s].length>20)chatHistory[s]=chatHistory[s].slice(-20);}catch(e){th.textContent=lang==='zh'?'\u8fde\u63a5\u9519\u8bef\uff0c\u8bf7\u91cd\u8bd5\u3002':'Connection error.';th.classList.remove('msg-th');}}
+
+function renderAll(){renderTodo();renderCRM();renderOrders();renderSugs(null);renderSato();renderJewel();}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// SHAREPOINT LIVE SYNC — Pure OAuth2 PKCE + Microsoft Graph
+// No external auth library needed. Uses browser's built-in fetch + crypto.
+// ═══════════════════════════════════════════════════════════════════
+var SP = {
+  tenantId:  '1edff858-9d81-44cb-b7d1-48274bf5bd2f',
+  clientId:  'edc1642b-80a6-450a-9b81-82cfe32bb2a3',
+  hostname:  'aygprinting3.sharepoint.com',
+  sitePath:  '/sites/AYGManagement',
+  fileName:  'BCRS Scheme Management Excel.xlsx',
+  scopes:    'https://graph.microsoft.com/Files.Read.All https://graph.microsoft.com/Sites.Read.All offline_access',
+  redirectUri: 'https://aygprinting3.sharepoint.com/sites/AYGManagement/Shared%20Documents/AYGOps.html'
 };
 
-// PKCE helpers
+// ── PKCE helpers ──────────────────────────────────────────────────
 function b64url(buf) {
-  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
-async function genPkce() {
-  var v = b64url(crypto.getRandomValues(new Uint8Array(32)));
-  var d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(v));
-  return { verifier:v, challenge:b64url(d) };
+async function pkce() {
+  var verifier = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  var enc = new TextEncoder();
+  var digest = await crypto.subtle.digest('SHA-256', enc.encode(verifier));
+  return { verifier: verifier, challenge: b64url(digest) };
 }
-// Synchronous login trigger — avoids async button click issues
-function triggerLogin() {
-  var loginStatus = document.getElementById('login-status');
-  if (loginStatus) loginStatus.textContent = 'Preparing login...';
-  // Small timeout to let UI update, then fire async login
-  setTimeout(function() {
-    spLogin().catch(function(e) {
-      console.error('Login error:', e);
-      if (loginStatus) loginStatus.textContent = 'Login error: ' + e.message;
-    });
-  }, 50);
-}
+var genPkce = pkce; // alias
 
-// Token storage
-function saveTok(t) {
+// ── Token storage ─────────────────────────────────────────────────
+function saveTokens(t) {
   try {
-    sessionStorage.setItem('sp_at', t.access_token);
-    if(t.refresh_token) sessionStorage.setItem('sp_rt', t.refresh_token);
-    sessionStorage.setItem('sp_exp', Date.now()+(t.expires_in-60)*1000);
-  } catch(e){}
+    sessionStorage.setItem('sp_access', t.access_token);
+    if (t.refresh_token) sessionStorage.setItem('sp_refresh', t.refresh_token);
+    var exp = Date.now() + (t.expires_in - 60) * 1000;
+    sessionStorage.setItem('sp_exp', exp);
+  } catch(e) {}
 }
-function getAT() {
-  var t=sessionStorage.getItem('sp_at'), exp=parseInt(sessionStorage.getItem('sp_exp')||'0');
-  return (t && Date.now()<exp) ? t : null;
+function getAccessToken() {
+  var t = sessionStorage.getItem('sp_access');
+  var exp = parseInt(sessionStorage.getItem('sp_exp') || '0');
+  if (t && Date.now() < exp) return t;
+  return null;
 }
 
-// Login — redirect to Microsoft
+// ── Auth Code Flow with PKCE ──────────────────────────────────────
 async function spLogin() {
-  document.getElementById('login-status').textContent = 'Redirecting to Microsoft login...';
-  var p = await genPkce();
-  sessionStorage.setItem('sp_v', p.verifier);
+  var pkcePair = await genPkce();
+  sessionStorage.setItem('sp_v', pkcePair.verifier);
+  sessionStorage.setItem('sp_redirect', 'https://aygprinting.github.io/aygops/');
   var params = new URLSearchParams({
-    client_id: SP.clientId, response_type:'code',
-    redirect_uri: SP.redirectUri, scope: SP.scopes,
-    code_challenge: p.challenge, code_challenge_method:'S256',
-    response_mode:'query', prompt:'select_account'
+    client_id:             SP.clientId,
+    response_type:         'code',
+    redirect_uri:  SP.redirectUri,
+    scope:                 SP.scopes,
+    code_challenge:        pkcePair.challenge,
+    code_challenge_method: 'S256',
+    response_mode:         'query',
+    prompt:                'select_account'
   });
-  window.location.href = 'https://login.microsoftonline.com/'+SP.tenantId+'/oauth2/v2.0/authorize?'+params;
+  window.location.href = 'https://login.microsoftonline.com/' + SP.tenantId + '/oauth2/v2.0/authorize?' + params;
 }
 
-// Handle callback after Microsoft login
-async function handleCallback() {
+async function handleAuthCallback() {
   var params = new URLSearchParams(window.location.search);
   var code = params.get('code');
-  var err  = params.get('error');
-  if (err) {
-    setLoginStatus('Login failed: ' + (params.get('error_description')||err), true);
+  var error = params.get('error');
+  if (error) {
+    showSyncStatus('Login error: ' + params.get('error_description'), 'error');
     return false;
   }
   if (!code) return false;
+  // Exchange code for token
   var verifier = sessionStorage.getItem('sp_v');
   if (!verifier) return false;
-  setLoginStatus('Authenticating...');
+  showSyncStatus('Exchanging auth code...', 'loading');
   var body = new URLSearchParams({
-    client_id:SP.clientId, grant_type:'authorization_code',
-    code:code, redirect_uri:SP.redirectUri,
-    code_verifier:verifier, scope:SP.scopes
+    client_id:     SP.clientId,
+    grant_type:    'authorization_code',
+    code:          code,
+    redirect_uri:  SP.redirectUri,
+    code_verifier: verifier,
+    scope:         SP.scopes
   });
-  var resp = await fetch('https://login.microsoftonline.com/'+SP.tenantId+'/oauth2/v2.0/token',
-    {method:'POST', body:body, headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+  var resp = await fetch(
+    'https://login.microsoftonline.com/' + SP.tenantId + '/oauth2/v2.0/token',
+    { method: 'POST', body: body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+  );
   var data = await resp.json();
   if (data.access_token) {
-    saveTok(data);
-    window.history.replaceState({}, '', SP.redirectUri);
+    saveTokens(data);
+    // Clean URL
+    window.history.replaceState({}, '', 'https://aygprinting3.sharepoint.com/sites/AYGManagement/Shared%20Documents/AYGOps.html');
     return true;
+  } else {
+    showSyncStatus('Token error: ' + (data.error_description || data.error), 'error');
+    return false;
   }
-  setLoginStatus('Auth error: '+(data.error_description||data.error), true);
-  return false;
 }
 
-// Graph helpers
-async function gFetch(path, token) {
-  var r = await fetch('https://graph.microsoft.com/v1.0'+path, {headers:{Authorization:'Bearer '+token}});
-  if (r.status===401) { sessionStorage.removeItem('sp_at'); throw new Error('Session expired — please sign in again'); }
-  return r;
+// ── Graph API fetch ───────────────────────────────────────────────
+async function graphFetch(url, token) {
+  var resp = await fetch('https://graph.microsoft.com/v1.0' + url, {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if (resp.status === 401) {
+    sessionStorage.removeItem('sp_access');
+    throw new Error('Token expired — please re-authenticate');
+  }
+  return resp;
 }
 
-// Fetch and parse Excel
+// ── Fetch Excel file ──────────────────────────────────────────────
 async function fetchExcelFromSharePoint() {
-  showSyncStatus('Connecting...','loading');
+  showSyncStatus('Connecting...', 'loading');
+  document.getElementById('sync-btn').style.display = 'none';
   try {
-    var token = getAT();
-    if (!token) { await spLogin(); return; }
-    showSyncStatus('Fetching site...','loading');
-    var sr = await gFetch('/sites/'+SP.hostname+':'+SP.sitePath, token);
-    if (!sr.ok) throw new Error('Cannot access SharePoint site ('+sr.status+'). Check app permissions.');
-    var site = await sr.json();
-    showSyncStatus('Finding file...','loading');
-    var fr = await gFetch("/sites/"+site.id+"/drive/root/search(q='"+encodeURIComponent(SP.fileName)+"')", token);
-    if (!fr.ok) throw new Error('File search failed ('+fr.status+')');
-    var fd = await fr.json();
-    var files = (fd.value||[]).filter(function(f){return f.name===SP.fileName;});
-    if (!files.length) throw new Error('"'+SP.fileName+'" not found on SharePoint');
-    showSyncStatus('Downloading Excel...','loading');
-    var dr = await gFetch('/sites/'+site.id+'/drive/items/'+files[0].id+'/content', token);
-    if (!dr.ok) throw new Error('Download failed ('+dr.status+')');
-    var buf = await dr.arrayBuffer();
-    if (typeof XLSX==='undefined') throw new Error('Excel parser not loaded — check internet connection');
-    showSyncStatus('Parsing data...','loading');
-    parseAndRender(buf);
+    var token = getAccessToken();
+    if (!token) {
+      await spLogin();
+      return;
+    }
+    // Get site
+    showSyncStatus('Fetching site...', 'loading');
+    var siteResp = await graphFetch('/sites/' + SP.hostname + ':' + SP.sitePath, token);
+    if (!siteResp.ok) throw new Error('Site not accessible (' + siteResp.status + '). Check app permissions.');
+    var site = await siteResp.json();
+
+    // Search for file by name
+    showSyncStatus('Finding file...', 'loading');
+    var searchResp = await graphFetch(
+      "/sites/" + site.id + "/drive/root/search(q='" + encodeURIComponent(SP.fileName) + "')", token);
+    if (!searchResp.ok) throw new Error('File search failed (' + searchResp.status + ')');
+    var searchData = await searchResp.json();
+    var files = (searchData.value || []).filter(function(f) {
+      return f.name === SP.fileName;
+    });
+    if (!files.length) throw new Error('File "' + SP.fileName + '" not found. Check file name and permissions.');
+    var fileId = files[0].id;
+
+    // Download file content
+    showSyncStatus('Downloading Excel...', 'loading');
+    var fileResp = await graphFetch('/sites/' + site.id + '/drive/items/' + fileId + '/content', token);
+    if (!fileResp.ok) throw new Error('Download failed (' + fileResp.status + ')');
+    var buf = await fileResp.arrayBuffer();
+
+    // Check SheetJS available
+    if (typeof XLSX === 'undefined') {
+      throw new Error('Excel parser (SheetJS) not loaded. Check your internet connection.');
+    }
+
+    showSyncStatus('Parsing Excel...', 'loading');
+    parseExcelAndRender(buf);
+    return true;
   } catch(e) {
-    console.error('SP error:',e);
-    showSyncStatus('\u26a0 '+e.message,'error');
+    console.error('SP sync error:', e);
+    showSyncStatus('\u26a0 ' + e.message, 'error');
+    document.getElementById('sync-btn').style.display = 'flex';
+    renderAll();
+    return false;
+  }
+}
+
+// ── Parse Excel with SheetJS ──────────────────────────────────────
+function parseExcelAndRender(buf) {
+  try {
+    var wb = XLSX.read(buf, { type:'array', cellDates:true });
+    function cv(v) {
+      if (v===null||v===undefined) return '';
+      if (v instanceof Date) return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+      var s=String(v).trim().replace(/`/g,"'");
+      return (s==='None'||s==='nan') ? '' : s;
+    }
+    function fn(v) { try{return parseFloat(String(v).replace(/,/g,''));}catch(e){return 0;} }
+    function ri(v) { return Math.round(fn(v)); }
+
+    var ws;
+
+    // TO-DO
+    ws=wb.Sheets['To-Do-List'];
+    if(ws){ var r=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      DAILY=r.slice(1).map(function(x){return cv(x[0]);}).filter(function(v){return v&&!v.startsWith('Open daily')&&v.length<120;}); }
+
+    // TASKS
+    ws=wb.Sheets['Tasks'];
+    if(ws){ var tr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      var tk=['general','enquiries','quotations','orders','invoicing','unpaid','shipping'];
+      tk.forEach(function(k){TASKS[k]=[];});
+      tr.slice(2).forEach(function(row){ tk.forEach(function(k,i){
+        var v=i<row.length?cv(row[i]):'';
+        if(v&&!v.startsWith('*')&&!v.startsWith('Add to')&&v.length>2) TASKS[k].push(v);
+      }); }); }
+
+    // CONTACTS
+    ws=wb.Sheets['Contacts'];
+    if(ws){ var cr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      var vs=['Enquiry','1st print','Lost','Repeat print','Pending Quote Approval','Registering with BCRS','Pending info'];
+      CLIENTS=[];
+      cr.slice(1).forEach(function(row,i){
+        if(!row[0]) return;
+        var co=cv(row[0]); if(!co||co.length>80) return;
+        var st=cv(row[1]); if(vs.indexOf(st)<0) return;
+        CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),pasting:cv(row[3]),
+          comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),
+          pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),
+          office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',
+          address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
+      }); }
+
+    // ORDERS
+    var ordKey=Object.keys(wb.Sheets).find(function(k){return k.indexOf('Orders')>-1||k.indexOf('\u8ba2\u5355')>-1;});
+    ws=wb.Sheets[ordKey];
+    if(ws){ var or=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      var hi=or.findIndex(function(r){return r&&r.indexOf('Status')>-1;});
+      ORDERS=[];
+      or.slice(hi+1).forEach(function(row,i){
+        if(!row[5]||!cv(row[5])) return;
+        var co=cv(row[5]); if(!co) return;
+        var st=cv(row[18])||'In Production';
+        function fd(v){if(!v) return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim();return(s==='None'||s==='nan')?'':s.slice(0,12);}
+        ORDERS.push({id:i+1,name:co,size:cv(row[0]),qty:ri(row[4]),loc:cv(row[6]),
+          price:Math.round(fn(row[15])*100)/100,profit:Math.round(fn(row[16])*100)/100,
+          status:st,received:fd(row[19]),delivery:fd(row[20]),
+          tracking:(cv(row[22])||'').slice(0,30),contact:cv(row[24])||'',
+          mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),
+          payment:cv(row[29])||'',printer:cv(row[32])||'',shipper:cv(row[33])||'',
+          days:cv(row[34])||'',comment:(cv(row[30])||'').slice(0,80)});
+      }); }
+
+    // STD PRICING
+    ws=wb.Sheets['Standard Pricing'];
+    if(ws){ var sr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      STD={'75x30':[],'65x24':[],'75x65':[]};
+      sr.slice(4).forEach(function(row){
+        [{'n':'75x30','q':3,'p':4},{'n':'65x24','q':6,'p':7},{'n':'75x65','q':9,'p':10}].forEach(function(sz){
+          if(row[sz.q]&&row[sz.p]){ var q=ri(row[sz.q]),p=fn(row[sz.p]);
+            if(q>0&&p>0) STD[sz.n].push({qty:q,price:p,ppp:Math.round(p/q*1e6)/1e6}); } }); }); }
+
+    // COMP PRICING
+    ws=wb.Sheets['Competitor Pricing'];
+    if(ws){ var cpr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      COMP_PRICING={'75x30':[],'65x24':[],'75x65':[],'65x59':[]};
+      cpr.slice(3).forEach(function(row){
+        if(!row[0]||isNaN(parseFloat(row[0]))) return;
+        var pk=ri(row[0]),pc=ri(row[1]);
+        function sf(v){var f=parseFloat(v);return isNaN(f)?null:Math.round(f*1e6)/1e6;}
+        COMP_PRICING['75x30'].push({packs:pk,pcs:pc,ppp:sf(row[3])});
+        COMP_PRICING['65x24'].push({packs:pk,pcs:pc,ppp:sf(row[6])});
+        COMP_PRICING['75x65'].push({packs:pk,pcs:pc,ppp:sf(row[9])});
+        if(row.length>12) COMP_PRICING['65x59'].push({packs:pk,pcs:pc,ppp:sf(row[12])}); }); }
+
+    // COMPETITORS
+    var ck=Object.keys(wb.Sheets).find(function(k){return k.indexOf('\u7ade\u4e89')>-1;});
+    if(ck){ var compr=XLSX.utils.sheet_to_json(wb.Sheets[ck],{header:1,defval:null});
+      SATO_LIST=[];JEWEL_LIST=[];
+      compr.slice(2).forEach(function(row){
+        var co=cv(row[0]); if(co&&co!=='Total Order')SATO_LIST.push({company:co,qty:ri(row[1]),comment:cv(row[2])});
+        if(row.length>4){var co2=cv(row[4]);if(co2&&co2!=='Total Order')JEWEL_LIST.push({company:co2,qty:ri(row[5]),comment:cv(row[6])});}
+      }); }
+
+    // ORDER_HIST
+    ORDER_HIST=[];
+    ORDERS.forEach(function(o){
+      var m=o.size.match(/(\d+\.?\d*)[xX\u00d7](\d+\.?\d*)/);
+      if(m&&o.qty>0&&o.price>0)ORDER_HIST.push({company:o.name,size:o.size,w:parseFloat(m[1]),h:parseFloat(m[2]),area:Math.round(parseFloat(m[1])*parseFloat(m[2])),qty:o.qty,sku:1,colour:'',sell:o.price,ppp:Math.round(o.price/o.qty*1e5)/1e5});
+    });
+
+    // Refresh derived
+    PQA=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
+    UNPAID=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.price>0;});
+    ORDER_COMPANIES=[...new Set(ORDERS.map(function(o){return o.name;}).filter(function(n){return n&&n.length>2&&!/^[\d\/\s:]+$/.test(n);}))] ;
+    satoData=SATO_LIST.slice(); jewelData=JEWEL_LIST.slice();
+
+    var now=new Date(); var h8=new Date(now.getTime()+8*3600000);
+    var ts=h8.toISOString().slice(0,16).replace('T',' ')+' (GMT+8)';
+    var el=document.getElementById('sync-time'); if(el) el.textContent=ts;
+    showSyncStatus('\u2713 Synced '+ts,'ok'); hideLoginScreen();
+    renderAll();
+    console.log('SharePoint sync OK — clients:'+CLIENTS.length+' orders:'+ORDERS.length);
+  } catch(e) {
+    console.error('Parse error:',e);
+    showSyncStatus('Parse error: '+e.message,'error');
     document.getElementById('sync-btn').style.display='flex';
+    renderAll();
   }
 }
 
@@ -1139,120 +1254,68 @@ function showSyncStatus(msg, state) {
   if(p) p.style.background=state==='error'?'var(--red)':state==='loading'?'var(--amb)':'var(--grn)';
 }
 
-function setLoginStatus(msg, isError) {
-  var el=document.getElementById('login-status'); if(!el) return;
-  el.textContent=msg;
-  el.style.color=isError?'var(--red)':'var(--m)';
-}
-
-function hideLoginScreen() {
-  var el=document.getElementById('login-screen');
-  if(el) { el.style.opacity='0'; el.style.transition='opacity .4s'; setTimeout(function(){el.style.display='none';},400); }
-  document.getElementById('sync-btn').style.display='flex';
-}
-
-// Parse Excel with SheetJS
-function parseAndRender(buf) {
-  try {
-    var wb=XLSX.read(buf,{type:'array',cellDates:true});
-    function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
-    function fn(v){try{return parseFloat(String(v).replace(/,/g,''));}catch(e){return 0;}}
-    function ri(v){return Math.round(fn(v));}
-    var ws;
-
-    ws=wb.Sheets['To-Do-List'];
-    if(ws){var r=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});DAILY=r.slice(1).map(function(x){return cv(x[0]);}).filter(function(v){return v&&!v.startsWith('Open daily')&&v.length<120;});}
-
-    ws=wb.Sheets['Tasks'];
-    if(ws){var tr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});var tk=['general','enquiries','quotations','orders','invoicing','unpaid','shipping'];tk.forEach(function(k){TASKS[k]=[];});tr.slice(2).forEach(function(row){tk.forEach(function(k,i){var v=i<row.length?cv(row[i]):'';if(v&&!v.startsWith('*')&&!v.startsWith('Add to')&&v.length>2)TASKS[k].push(v);});});}
-
-    ws=wb.Sheets['Contacts'];
-    if(ws){var cr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});var vs=['Enquiry','1st print','Lost','Repeat print','Pending Quote Approval','Registering with BCRS','Pending info'];CLIENTS=[];cr.slice(1).forEach(function(row,i){if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;var st=cv(row[1]);if(vs.indexOf(st)<0)return;CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});});}
-
-    var ok=Object.keys(wb.Sheets).find(function(k){return k.indexOf('Orders')>-1||k.indexOf('\u8ba2\u5355')>-1;});
-    ws=wb.Sheets[ok];
-    if(ws){var or=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});var hi=or.findIndex(function(r){return r&&r.indexOf('Status')>-1;});ORDERS=[];or.slice(hi+1).forEach(function(row,i){if(!row[5]||!cv(row[5]))return;var co=cv(row[5]);if(!co)return;var st=cv(row[18])||'In Production';function fd(v){if(!v)return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim();return(s==='None'||s==='nan')?'':s.slice(0,12);}ORDERS.push({id:i+1,name:co,size:cv(row[0]),qty:ri(row[4]),loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,30),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),payment:cv(row[29])||'',printer:cv(row[32])||'',shipper:cv(row[33])||'',days:cv(row[34])||'',comment:(cv(row[30])||'').slice(0,80)});});}
-
-    ws=wb.Sheets['Standard Pricing'];
-    if(ws){var sr2=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});STD={'75x30':[],'65x24':[],'75x65':[]};sr2.slice(4).forEach(function(row){[{n:'75x30',q:3,p:4},{n:'65x24',q:6,p:7},{n:'75x65',q:9,p:10}].forEach(function(sz){if(row[sz.q]&&row[sz.p]){var q=ri(row[sz.q]),p=fn(row[sz.p]);if(q>0&&p>0)STD[sz.n].push({qty:q,price:p,ppp:Math.round(p/q*1e6)/1e6});}});});}
-
-    ws=wb.Sheets['Competitor Pricing'];
-    if(ws){var cpr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});COMP_PRICING={'75x30':[],'65x24':[],'75x65':[],'65x59':[]};cpr.slice(3).forEach(function(row){if(!row[0]||isNaN(parseFloat(row[0])))return;var pk=ri(row[0]),pc=ri(row[1]);function sf(v){var f=parseFloat(v);return isNaN(f)?null:Math.round(f*1e6)/1e6;}COMP_PRICING['75x30'].push({packs:pk,pcs:pc,ppp:sf(row[3])});COMP_PRICING['65x24'].push({packs:pk,pcs:pc,ppp:sf(row[6])});COMP_PRICING['75x65'].push({packs:pk,pcs:pc,ppp:sf(row[9])});if(row.length>12)COMP_PRICING['65x59'].push({packs:pk,pcs:pc,ppp:sf(row[12])});});}
-
-    var ck=Object.keys(wb.Sheets).find(function(k){return k.indexOf('\u7ade\u4e89')>-1;});
-    if(ck){var compr=XLSX.utils.sheet_to_json(wb.Sheets[ck],{header:1,defval:null});SATO_LIST=[];JEWEL_LIST=[];compr.slice(2).forEach(function(row){var co=cv(row[0]);if(co&&co!=='Total Order')SATO_LIST.push({company:co,qty:ri(row[1]),comment:cv(row[2])});if(row.length>4){var co2=cv(row[4]);if(co2&&co2!=='Total Order')JEWEL_LIST.push({company:co2,qty:ri(row[5]),comment:cv(row[6])}); }});}
-
-    ORDER_HIST=[];ORDERS.forEach(function(o){var m=o.size.match(/(\d+\.?\d*)[xX\u00d7](\d+\.?\d*)/);if(m&&o.qty>0&&o.price>0)ORDER_HIST.push({company:o.name,size:o.size,w:parseFloat(m[1]),h:parseFloat(m[2]),area:Math.round(parseFloat(m[1])*parseFloat(m[2])),qty:o.qty,sku:1,colour:'',sell:o.price,ppp:Math.round(o.price/o.qty*1e5)/1e5});});
-
-    PQA=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
-    UNPAID=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.price>0;});
-    ORDER_COMPANIES=[...new Set(ORDERS.map(function(o){return o.name;}).filter(function(n){return n&&n.length>2&&!/^[\d\/\s:]+$/.test(n);}))] ;
-    satoData=SATO_LIST.slice(); jewelData=JEWEL_LIST.slice();
-
-    var now=new Date(),h8=new Date(now.getTime()+8*3600000);
-    var ts=h8.toISOString().slice(0,16).replace('T',' ')+' (GMT+8)';
-    var el=document.getElementById('sync-time'); if(el) el.textContent=ts;
-    showSyncStatus('\u2713 Live data loaded',  'ok');
-    hideLoginScreen();
-    renderAll();
-    console.log('Sync complete — clients:'+CLIENTS.length+' orders:'+ORDERS.length);
-  } catch(e) {
-    console.error('Parse error:',e);
-    showSyncStatus('Parse error: '+e.message,'error');
-  }
-}
-
-// ── App init ──────────────────────────────────────────────────────────────
 async function initApp() {
-  // Handle Microsoft auth callback
+  // Handle OAuth callback after Microsoft login redirect
   if (window.location.search.includes('code=') || window.location.search.includes('error=')) {
-    var ok = await handleCallback();
-    if (ok) { await fetchExcelFromSharePoint(); return; }
-    else { return; }
+    var ls = document.getElementById('login-status');
+    if (ls) ls.textContent = 'Completing sign in...';
+    var ok = await handleAuthCallback();
+    if (ok) { hideLoginScreen(); await fetchExcelFromSharePoint(); return; }
+    else { if (ls) ls.textContent = 'Sign in failed. Please try again.'; return; }
   }
   // Check existing session token
-  var token = getAT();
+  var token = getAccessToken();
   if (token) {
     hideLoginScreen();
     await fetchExcelFromSharePoint();
   } else {
-    // Show login screen — wait for user to click
-    var ls = document.getElementById('login-status');
-    if (ls) ls.textContent = 'Sign in with your AYG Microsoft account';
+    // Show login screen, render empty dashboard in background
     renderAll();
   }
 }
 
-function toggleSidebar(btn) {
-  var sidebar = btn.closest('.sidebar') || btn.closest('.page').querySelector('.sidebar');
-  if (!sidebar) return;
-  var isCollapsed = sidebar.classList.contains('collapsed');
-  if (isCollapsed) {
-    sidebar.classList.remove('collapsed');
-    btn.innerHTML = '&#8250;';
-    btn.title = 'Minimise chat';
-  } else {
-    sidebar.classList.add('collapsed');
-    btn.innerHTML = '&#8249;';
-    btn.title = 'Expand chat';
-  }
-}
 
+function toggleSidebar(tab) {
+  var sidebar = tab.closest('.sidebar');
+  if (!sidebar) return;
+  var collapsed = sidebar.classList.toggle('collapsed');
+  tab.innerHTML = collapsed ? '&#8249;' : '&#8250;';
+  tab.title = collapsed ? 'Expand chat' : 'Minimise chat';
+}
 function initSidebarTabs() {
   document.querySelectorAll('.sidebar').forEach(function(sb) {
-    if (sb.style.display === 'none') return; // skip hidden sidebars (FAQ)
-    if (sb.querySelector('.sb-tab')) return; // already added
+    if (sb.style.display === 'none') return;
+    if (sb.querySelector('.sb-tab')) return;
     var tab = document.createElement('button');
     tab.className = 'sb-tab';
     tab.innerHTML = '&#8250;';
     tab.title = 'Minimise chat';
-    tab.onclick = function() { toggleSidebar(tab); };
+    tab.onclick = function(){ toggleSidebar(tab); };
     sb.appendChild(tab);
   });
 }
 
+
+function triggerLogin() {
+  var ls = document.getElementById('login-status');
+  if (ls) ls.textContent = 'Redirecting to Microsoft login...';
+  setTimeout(function() {
+    spLogin().catch(function(e) {
+      if (ls) ls.textContent = 'Login error: ' + e.message;
+      console.error('spLogin error:', e);
+    });
+  }, 50);
+}
+
+function hideLoginScreen() {
+  var el = document.getElementById('login-screen');
+  if (el) { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; setTimeout(function(){ el.style.display = 'none'; }, 400); }
+  var sb = document.getElementById('sync-btn');
+  if (sb) sb.style.display = 'flex';
+}
+
 setLang('en');
-window.addEventListener('load', function(){ initApp(); setTimeout(initSidebarTabs, 1000); });
+initApp();
 </script>
 </body>
 </html>
