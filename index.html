@@ -14,6 +14,7 @@ button,input,select,textarea{font-family:Sora,sans-serif;font-size:var(--fs)}
 button{cursor:pointer}
 /* Login */
 #login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center}
+#login-screen.hidden{display:none!important;pointer-events:none!important}
 .login-card{background:var(--sur);border:1px solid var(--b2);border-radius:20px;padding:44px 48px;width:360px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.5)}
 .login-logo{font-size:32px;font-weight:700;margin-bottom:6px}.login-logo em{color:var(--grn);font-style:normal}
 .login-tagline{font-size:13px;color:var(--m);margin-bottom:32px}
@@ -362,6 +363,7 @@ button{cursor:pointer}
       <div id="hs-results"></div>
     </div>
   </div>
+</div>
 
 <!-- COMPETITORS -->
 <div id="page-competitors" class="page">
@@ -485,7 +487,7 @@ async function handleCallback(){
 }
 
 function setLoginStatus(msg,isErr){var el=document.getElementById('login-status');if(el){el.textContent=msg;el.style.color=isErr?'var(--red)':'var(--m)';}}
-function hideLoginScreen(){var el=document.getElementById('login-screen');if(el)el.style.display='none';var sb=document.getElementById('sync-btn');if(sb)sb.style.display='flex';}
+function hideLoginScreen(){var el=document.getElementById('login-screen');if(el){el.style.display='none';el.classList.add('hidden');}var sb=document.getElementById('sync-btn');if(sb)sb.style.display='flex';}
 
 async function graphFetch(path,token){var r=await fetch('https://graph.microsoft.com/v1.0'+path,{headers:{Authorization:'Bearer '+token}});if(r.status===401){sessionStorage.removeItem('sp_at');throw new Error('Session expired');}return r;}
 
@@ -1179,6 +1181,15 @@ function resetHistSearch(){
   document.getElementById('hs-qps').value='';
   runHistSearch();
 }
+
+
+// Global safety net: if login screen is ever stuck visible while we have a
+// valid token (e.g. hideLoginScreen failed to run), the very next click
+// anywhere on the page force-hides it before the click's own handler runs.
+document.addEventListener('click',function(){
+  var ls=document.getElementById('login-screen');
+  if(ls&&getComputedStyle(ls).display!=='none'&&getAccessToken()){hideLoginScreen();}
+},true);
 
 setLang('en');
 if(window.location.search.includes('code=')||window.location.search.includes('error=')){initApp();}
