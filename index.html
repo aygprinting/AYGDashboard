@@ -497,7 +497,7 @@ async function fetchExcelFromSharePoint(){
     var bcrsSiteId = 'aygprinting3.sharepoint.com,e91681c4-2c51-4d4e-8b82-f64b431b5f8f,ddf8c702-75a3-4d6b-8a06-e0a16a378730';
     var bcrsFileId = '01F2SUMRC3PLMJ3HIRCBB3UNPAVWYLBNIE';
     // AYG Operations file: site AYGPrinting — Tasks, Contacts, Standard Pricing, Competitor Pricing, Competitors
-    var opsSiteId = SP2.siteId;
+    var opsDriveId = SP2.siteId;
     var opsFileId = SP2.fileId;
 
     showSyncStatus('Downloading BCRS data...','loading');
@@ -506,7 +506,7 @@ async function fetchExcelFromSharePoint(){
     var buf1=await dr1.arrayBuffer();
 
     showSyncStatus('Downloading AYG Ops data...','loading');
-    var dr2=await graphFetch('/sites/'+opsSiteId+'/drive/items/'+opsFileId+'/content',token);
+    var dr2=await graphFetch('/drives/'+opsDriveId+'/items/'+opsFileId+'/content',token);
     if(!dr2.ok)throw new Error('AYG Operations download failed ('+dr2.status+')');
     var buf2=await dr2.arrayBuffer();
 
