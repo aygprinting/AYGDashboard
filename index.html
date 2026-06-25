@@ -256,6 +256,7 @@ button{cursor:pointer}
     <button class="qtab" onclick="switchQ('std',this)" data-tx="standardPricing">Standard Pricing</button>
     <button class="qtab" onclick="switchQ('cmp',this)" data-tx="competitorSato">Competitor (Sato)</button>
     <button class="qtab" onclick="switchQ('honsen',this)">Competitor (Honsen)</button>
+    <button class="qtab" onclick="switchQ('search',this)">Order History Search</button>
   </div>
   <div id="qt-est">
     <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:11px;align-items:start">
@@ -337,6 +338,38 @@ button{cursor:pointer}
   <div id="qt-honsen" style="display:none">
     <div style="font-size:11px;color:var(--m);margin-bottom:9px">Honsen pricing &middot; SGD per piece &middot; Range-based &middot; <span style="color:var(--grn)">&#9733; = nearest to your size</span></div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:9px" id="honsen-tables"></div>
+  </div>
+  <div id="qt-search" style="display:none">
+    <div class="qres" style="margin-bottom:11px">
+      <div style="display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr;gap:9px;align-items:end">
+        <div class="field" style="margin-bottom:0"><label>Company name</label><input id="hs-company" type="text" placeholder="Search company..." oninput="runHistSearch()"></div>
+        <div class="field" style="margin-bottom:0"><label>Size</label><select id="hs-size" onchange="runHistSearch()">
+          <option value="">All sizes</option>
+          <option value="75x30">75&times;30mm</option>
+          <option value="65x24">65&times;24mm</option>
+          <option value="75x65">75&times;65mm</option>
+          <option value="65x59">65&times;59mm</option>
+          <option value="27x17">27&times;17mm</option>
+          <option value="other">Other</option>
+        </select></div>
+        <div class="field" style="margin-bottom:0"><label>Colour</label><select id="hs-colour" onchange="runHistSearch()">
+          <option value="">All colours</option>
+          <option value="b">1C Black</option>
+          <option value="c">Colour</option>
+        </select></div>
+        <div class="field" style="margin-bottom:0"><label>QTY/SKU min</label><input id="hs-qps" type="number" placeholder="e.g. 20000" oninput="runHistSearch()"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button class="btn" style="font-size:11px" onclick="resetHistSearch()">Reset filters</button>
+      </div>
+    </div>
+    <div class="qres">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em" id="hs-results-hd">Top 10 Results</div>
+        <div style="font-size:10px;color:var(--dim)" id="hs-results-count"></div>
+      </div>
+      <div id="hs-results"></div>
+    </div>
   </div>
 
 <!-- COMPETITORS -->
@@ -621,7 +654,7 @@ function satoSort(key){if(satoSK===key)satoSD*=-1;else{satoSK=key;satoSD=key==='
 function jewelSort(key){if(jewelSK===key)jewelSD*=-1;else{jewelSK=key;jewelSD=key==='qty'?-1:1;}jewelData.sort(function(a,b){if(key==='qty')return(b.qty-a.qty)*jewelSD;return a.company.toLowerCase().localeCompare(b.company.toLowerCase())*jewelSD;});renderJewel();}
 
 // ── QUOTES ────────────────────────────────────────────────────────────────
-function switchQ(tab,btn){['est','std','cmp','honsen'].forEach(function(t){var el=document.getElementById('qt-'+t);if(el)el.style.display=t===tab?'':'none';});document.querySelectorAll('.qtab').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');var area=histArea>0?histArea:null;if(tab==='std')renderStd(area);if(tab==='cmp')renderCmp(area);if(tab==='honsen')renderHonsen(area);}
+function switchQ(tab,btn){['est','std','cmp','honsen','search'].forEach(function(t){var el=document.getElementById('qt-'+t);if(el)el.style.display=t===tab?'':'none';});document.querySelectorAll('.qtab').forEach(function(b){b.classList.remove('on');});btn.classList.add('on');var area=histArea>0?histArea:null;if(tab==='std')renderStd(area);if(tab==='cmp')renderCmp(area);if(tab==='honsen')renderHonsen(area);if(tab==='search')runHistSearch();}
 
 function renderStd(targetArea){
   var sizes=['75x30','65x24','75x65','65x59','27x17'];
@@ -944,6 +977,64 @@ function recalcHonsenEstimate(totalQty){
   var totEl=document.getElementById('honsen-est-total');if(totEl)totEl.textContent='S$'+Math.round(estTotal).toLocaleString();
   var calcEl=document.getElementById('honsen-est-calc');if(calcEl)calcEl.textContent='S$'+ppp.toFixed(5)+' × '+totalQty.toLocaleString();
 }
+
+function sizeMatch(orderSize,filterSize){
+  if(!filterSize)return true;
+  var m=orderSize.match(/([\d.]+)[xX\u00d7]([\d.]+)/);
+  if(!m)return filterSize==='other';
+  var knownSizes=['75x30','65x24','75x65','65x59','27x17'];
+  var w=parseFloat(m[1]),h=parseFloat(m[2]);
+  var norm=w+'x'+h;
+  if(filterSize==='other')return knownSizes.indexOf(norm)===-1 && !knownSizes.some(function(ks){var kp=ks.split('x');return Math.abs(w-parseFloat(kp[0]))<2&&Math.abs(h-parseFloat(kp[1]))<2;});
+  var fp=filterSize.split('x');var fw=parseFloat(fp[0]),fh=parseFloat(fp[1]);
+  return Math.abs(w-fw)<2&&Math.abs(h-fh)<2;
+}
+
+function runHistSearch(){
+  var company=(document.getElementById('hs-company').value||'').toLowerCase().trim();
+  var size=document.getElementById('hs-size').value;
+  var colour=document.getElementById('hs-colour').value;
+  var qpsMin=parseFloat(document.getElementById('hs-qps').value)||0;
+
+  var results=ORDER_HIST.filter(function(o){
+    if(company&&o.company.toLowerCase().indexOf(company)===-1)return false;
+    if(size&&!sizeMatch(o.size,size))return false;
+    if(colour&&normCol(o.colour)!==colour)return false;
+    if(qpsMin>0){var qps=o.sku>0?Math.round(o.qty/o.sku):o.qty;if(qps<qpsMin)return false;}
+    return true;
+  });
+
+  // Sort by qty descending (most relevant/largest orders first) when no specific filters narrow it down
+  results=results.slice().sort(function(a,b){return b.qty-a.qty;});
+  var top10=results.slice(0,10);
+  var countEl=document.getElementById('hs-results-count');
+  if(countEl)countEl.textContent=results.length+' match'+(results.length===1?'':'es')+(results.length>10?' · showing top 10':'');
+
+  var resEl=document.getElementById('hs-results');if(!resEl)return;
+  if(!top10.length){resEl.innerHTML='<div class="dempty">No orders match these filters</div>';return;}
+
+  var html='<table class="ht"><thead><tr><th>'+TX.company+'</th><th>Size/Area</th><th>'+TX.qty+'</th><th>SKU</th><th style="color:var(--amb)">QTY/SKU</th><th style="color:var(--pur)">Colour</th><th>'+TX.priceSgd+'</th><th>'+TX.pricePc+'</th></tr></thead><tbody>';
+  top10.forEach(function(o){
+    var qps=o.sku>0?Math.round(o.qty/o.sku):o.qty;
+    html+='<tr><td>'+o.company+'</td><td style="white-space:nowrap">'+o.size+'<br><span class="had">'+o.area.toLocaleString()+'mm\u00b2</span></td>'
+      +'<td>'+o.qty.toLocaleString()+'</td><td>'+o.sku+'</td>'
+      +'<td style="font-family:\'JetBrains Mono\',monospace;color:var(--amb)">'+qps.toLocaleString()+'</td>'
+      +'<td style="color:var(--pur);font-size:11px;white-space:nowrap">'+(normCol(o.colour)==='c'?'Colour':'1C Black')+'</td>'
+      +'<td style="font-family:\'JetBrains Mono\',monospace">S$'+o.sell.toLocaleString()+'</td>'
+      +'<td class="hpp">S$'+o.ppp.toFixed(5)+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  resEl.innerHTML=html;
+}
+
+function resetHistSearch(){
+  document.getElementById('hs-company').value='';
+  document.getElementById('hs-size').value='';
+  document.getElementById('hs-colour').value='';
+  document.getElementById('hs-qps').value='';
+  runHistSearch();
+}
+
 setLang('en');
 if(window.location.search.includes('code=')||window.location.search.includes('error=')){initApp();}
 else{window.addEventListener('load',function(){initApp();});}
