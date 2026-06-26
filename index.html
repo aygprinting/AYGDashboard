@@ -63,6 +63,32 @@ button{cursor:pointer}
 .slbl{font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .sval{font-size:19px;font-weight:600;font-family:"JetBrains Mono",monospace}
 .shnt{font-size:10px;color:var(--dim);margin-top:2px}
+/* CRM Dashboard charts */
+.crm-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.crm-chart-card{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:14px}
+.cc-title{font-size:12px;font-weight:600;color:var(--t);margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em}
+.cc-empty{font-size:11px;color:var(--dim);padding:20px 0;text-align:center}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.bar-label{font-size:10px;color:var(--m);width:48px;flex-shrink:0}
+.bar-track{flex:1;background:var(--s2);border-radius:4px;height:16px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px;background:var(--blu);transition:width .3s}
+.bar-count{font-size:11px;font-weight:600;font-family:"JetBrains Mono",monospace;width:28px;text-align:right;flex-shrink:0}
+.pie-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pie-legend{flex:1;min-width:140px;display:flex;flex-direction:column;gap:6px}
+.pie-leg-row{display:flex;align-items:center;gap:7px;font-size:11px}
+.pie-leg-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+.pie-leg-name{flex:1;color:var(--m)}
+.pie-leg-val{font-family:"JetBrains Mono",monospace;font-weight:600;color:var(--t)}
+.funnel-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.funnel-bar{height:26px;border-radius:5px;display:flex;align-items:center;padding:0 9px;font-size:11px;font-weight:600;color:#0c0c0e;white-space:nowrap;transition:width .3s}
+.funnel-label{font-size:10px;color:var(--m);width:90px;flex-shrink:0}
+.funnel-pct{font-size:10px;color:var(--dim);width:42px;text-align:right;flex-shrink:0}
+.cf-list{display:flex;flex-direction:column;gap:6px}
+.cf-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;background:var(--s2);border-radius:var(--r);cursor:pointer;transition:all .12s}
+.cf-row:hover{background:var(--s3)}
+.cf-name{font-size:12px;color:var(--t);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cf-days{font-size:11px;font-family:"JetBrains Mono",monospace;flex-shrink:0}
+@media (max-width:1100px){.crm-charts-grid{grid-template-columns:1fr}}
 /* Board */
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:7px;flex-wrap:wrap}
 .stitle{font-size:14px;font-weight:500}
@@ -269,6 +295,28 @@ button{cursor:pointer}
 <!-- CRM -->
 <div id="page-crm" class="page">
   <div class="stats" id="crm-stats"></div>
+  <div class="crm-charts-grid" id="crm-charts-grid">
+    <div class="crm-chart-card">
+      <div class="cc-title">Clients Contacted — Last 6 Months</div>
+      <div id="crm-bar-chart"></div>
+    </div>
+    <div class="crm-chart-card">
+      <div class="cc-title">Pipeline Breakdown</div>
+      <div id="crm-pie-chart"></div>
+    </div>
+    <div class="crm-chart-card">
+      <div class="cc-title">Conversion Funnel</div>
+      <div id="crm-funnel"></div>
+    </div>
+    <div class="crm-chart-card">
+      <div class="cc-title">Call These First — Longest Since Contact</div>
+      <div id="crm-callfirst"></div>
+    </div>
+    <div class="crm-chart-card" style="grid-column:1/-1">
+      <div class="cc-title">Stale Pending Quotes (&gt;30 Days, No Movement)</div>
+      <div id="crm-stale-quotes"></div>
+    </div>
+  </div>
   <div class="sh"><div class="stitle" data-tx="clientPipeline">Client Pipeline</div><div><input class="ipt" id="crm-q" placeholder="Search..." oninput="renderCRM()"></div></div>
   <div class="board" id="crm-board"></div>
 </div>
@@ -747,6 +795,89 @@ function showSecDetail(key){
 }
 function toggleSec(key,i){secDone[key+i]=!secDone[key+i];if(activeSection)showSecDetail(activeSection);}
 
+// ── Date parsing helper (handles mixed formats: "21 Jun 2026", "15/06/2026", "2026-06-21") ──
+var MON3={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+function parseFlexDate(s){
+  if(!s)return null;
+  s=String(s).trim();
+  var m;
+  // "21 Jun 2026" or "21 June 2026"
+  m=s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+  if(m){var mo=MON3[m[2].slice(0,3).toLowerCase()];if(mo!==undefined)return new Date(+m[3],mo,+m[1]);}
+  // "15/06/2026" or "15-06-2026" (DD/MM/YYYY — assume day-first, common in SG)
+  m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){var d=+m[1],mo2=+m[2]-1;if(d>=1&&d<=31&&mo2>=0&&mo2<=11){var dt=new Date(+m[3],mo2,d);if(dt.getMonth()===mo2&&dt.getDate()===d)return dt;}}
+  // "2026-06-21" (ISO)
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  return null;
+}
+function daysSince(dateStr){
+  var d=parseFlexDate(dateStr);
+  if(!d||isNaN(d.getTime()))return null;
+  var now=new Date();
+  return Math.floor((now.setHours(0,0,0,0)-d.setHours(0,0,0,0))/86400000);
+}
+
+function renderCrmCharts(){
+  // ── Bar chart: clients by month of most recent contact, last 6 months ──
+  var now=new Date();
+  var months=[];
+  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({y:d.getFullYear(),m:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short'}),count:0});}
+  CLIENTS.forEach(function(c){
+    var d=parseFlexDate(c.lastContact);
+    if(!d||isNaN(d.getTime()))return;
+    months.forEach(function(mo){if(d.getFullYear()===mo.y&&d.getMonth()===mo.m)mo.count++;});
+  });
+  var maxCount=Math.max.apply(null,months.map(function(mo){return mo.count;}).concat([1]));
+  document.getElementById('crm-bar-chart').innerHTML=months.map(function(mo){
+    var pct=Math.round((mo.count/maxCount)*100);
+    return '<div class="bar-row"><span class="bar-label">'+mo.label+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="bar-count">'+mo.count+'</span></div>';
+  }).join('');
+
+  // ── Pie chart: 1st print / Repeat print / Lost / Enquiry-group ──
+  var pieGroups=[
+    {name:'1st print',color:'#2dd4bf',list:CLIENTS.filter(function(c){return c.stage==='1st print';})},
+    {name:'Repeat print',color:'#6ee7b7',list:CLIENTS.filter(function(c){return c.stage==='Repeat print';})},
+    {name:'Lost',color:'#45454f',list:CLIENTS.filter(function(c){return c.stage==='Lost';})},
+    {name:'Enquiry (+BCRS/info/quote)',color:'#60a5fa',list:CLIENTS.filter(function(c){return['Enquiry','Registering with BCRS','Pending info','Pending Quote Approval'].indexOf(c.stage)>-1;})}
+  ];
+  var pieTotal=pieGroups.reduce(function(a,g){return a+g.list.length;},0)||1;
+  var gradParts=[];var acc=0;
+  pieGroups.forEach(function(g){var pct=(g.list.length/pieTotal)*100;gradParts.push(g.color+' '+acc+'% '+(acc+pct)+'%');acc+=pct;});
+  var pieHtml='<div class="pie-wrap">';
+  pieHtml+='<div style="width:120px;height:120px;border-radius:50%;flex-shrink:0;background:conic-gradient('+gradParts.join(',')+')"></div>';
+  pieHtml+='<div class="pie-legend">'+pieGroups.map(function(g){var pct=Math.round((g.list.length/pieTotal)*100);return '<div class="pie-leg-row"><span class="pie-leg-dot" style="background:'+g.color+'"></span><span class="pie-leg-name">'+g.name+'</span><span class="pie-leg-val">'+g.list.length+' ('+pct+'%)</span></div>';}).join('')+'</div>';
+  pieHtml+='</div>';
+  document.getElementById('crm-pie-chart').innerHTML=pieHtml;
+
+  // ── Conversion funnel ──
+  var funnelStages=[
+    {name:'Enquiry-group',color:'#60a5fa',count:pieGroups[3].list.length},
+    {name:'Pending Quote',color:'#f472b6',count:CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).length},
+    {name:'Active (1st/Repeat)',color:'#2dd4bf',count:pieGroups[0].list.length+pieGroups[1].list.length}
+  ];
+  var funnelBase=funnelStages[0].count||1;
+  document.getElementById('crm-funnel').innerHTML=funnelStages.map(function(f,idx){
+    var widthPct=Math.max(8,Math.round((f.count/funnelBase)*100));
+    var convPct=idx===0?'':Math.round((funnelStages[idx-1].count>0?f.count/funnelStages[idx-1].count:0)*100)+'%';
+    return '<div class="funnel-row"><span class="funnel-label">'+f.name+'</span><div class="funnel-bar" style="width:'+widthPct+'%;background:'+f.color+'">'+f.count+'</div><span class="funnel-pct">'+convPct+'</span></div>';
+  }).join('')+'<div style="font-size:10px;color:var(--dim);margin-top:4px">% = conversion from previous stage</div>';
+
+  // ── Call these first: top 10 by days-since-contact (excluding Lost) ──
+  var callFirst=CLIENTS.filter(function(c){return c.stage!=='Lost';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};}).filter(function(x){return x.d!==null;}).sort(function(a,b){return b.d-a.d;}).slice(0,10);
+  document.getElementById('crm-callfirst').innerHTML=callFirst.length?callFirst.map(function(x){
+    var color=x.d>60?'var(--red)':x.d>30?'var(--amb)':'var(--m)';
+    return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:'+color+'">'+x.d+'d ago</span></div>';
+  }).join('') : '<div class="cc-empty">No contact-date data available</div>';
+
+  // ── Stale Pending Quote Approval (>30 days since contact) ──
+  var staleQ=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};}).filter(function(x){return x.d!==null&&x.d>30;}).sort(function(a,b){return b.d-a.d;});
+  document.getElementById('crm-stale-quotes').innerHTML=staleQ.length?'<div class="cf-list">'+staleQ.map(function(x){
+    return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:var(--amb)">'+x.d+' days, no movement</span></div>';
+  }).join('')+'</div>' : '<div class="cc-empty">No stale pending quotes \u2014 nice work</div>';
+}
+
 // ── CRM ──────────────────────────────────────────────────────────────────
 function renderCRM(){
   var q=(document.getElementById('crm-q').value||'').toLowerCase();
@@ -755,11 +886,23 @@ function renderCRM(){
   var pqa=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
   var act=CLIENTS.filter(function(c){return c.stage==='1st print'||c.stage==='Repeat print';});
   var lst=CLIENTS.filter(function(c){return c.stage==='Lost';});
-  document.getElementById('crm-stats').innerHTML='<div class="sc"><div class="slbl">'+TX.total+'</div><div class="sval">'+CLIENTS.length+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Enquiry\')"><div class="slbl">'+TX.enquiries+'</div><div class="sval" style="color:var(--blu)">'+enq.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Pending Quote Approval\')"><div class="slbl">'+TX.pendingQuote+'</div><div class="sval" style="color:var(--pur)">'+pqa.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'active\')"><div class="slbl">'+TX.activeClients+'</div><div class="sval" style="color:var(--grn)">'+act.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Lost\')"><div class="slbl">'+TX.lost+'</div><div class="sval" style="color:var(--dim)">'+lst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>';
+  var pst=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});
+  var stale30=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;});
+  var zhClients=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});
+  document.getElementById('crm-stats').innerHTML='<div class="sc"><div class="slbl">'+TX.total+'</div><div class="sval">'+CLIENTS.length+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Enquiry\')"><div class="slbl">'+TX.enquiries+'</div><div class="sval" style="color:var(--blu)">'+enq.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Pending Quote Approval\')"><div class="slbl">'+TX.pendingQuote+'</div><div class="sval" style="color:var(--pur)">'+pqa.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'active\')"><div class="slbl">'+TX.activeClients+'</div><div class="sval" style="color:var(--grn)">'+act.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Lost\')"><div class="slbl">'+TX.lost+'</div><div class="sval" style="color:var(--dim)">'+lst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'pasting\')"><div class="slbl">Require Pasting</div><div class="sval" style="color:var(--tel)">'+pst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'stale30\')"><div class="slbl">Last Contact &gt;30 Days</div><div class="sval" style="color:var(--amb)">'+stale30.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'zh\')"><div class="slbl">Language: Chinese</div><div class="sval" style="color:var(--pnk)">'+zhClients.length+'</div><div class="shnt">'+TX.clickView+'</div></div>';
+  renderCrmCharts();
   var board=document.getElementById('crm-board');board.innerHTML='';
   CRM_STAGES.forEach(function(stage){var sc=filtered.filter(function(c){return c.stage===stage.id;});var col=document.createElement('div');col.className='col';col.dataset.stage=stage.id;col.innerHTML='<div class="colh"><div class="coll"><div class="cdot" style="background:'+stage.color+'"></div><span class="cttl">'+(lang==='zh'?stage.zh:stage.id)+'</span></div><span class="ccnt">'+sc.length+'</span></div><div style="height:4px"></div>';sc.forEach(function(c){var el=document.createElement('div');el.className='card';el.draggable=true;el.dataset.id=c.id;el.innerHTML='<div class="cn">'+c.name+'</div>'+(c.contact?'<div class="cm">'+c.contact+(c.pic2?' / '+c.pic2:'')+(c.mobile?' \u00b7 '+c.mobile:'')+'</div>':'')+(c.email?'<div class="cm" style="color:var(--blu)">'+c.email+'</div>':'')+(c.lastContact?'<div class="cm" style="color:var(--dim)">Last: '+c.lastContact+'</div>':'')+(c.notes?'<div class="cnote">'+c.notes+'</div>':'');el.addEventListener('click',function(){openModal(c.id,'crm');});el.addEventListener('dragstart',function(){dragId=c.id;setTimeout(function(){el.classList.add('drag');},0);});el.addEventListener('dragend',function(){dragId=null;clearDrag();});col.appendChild(el);});addDrop(col,'crm',stage.id);board.appendChild(col);});
 }
-function crmDrill(f){var list=f==='active'?CLIENTS.filter(function(c){return c.stage==='1st print'||c.stage==='Repeat print';}):CLIENTS.filter(function(c){return c.stage===f;});var stage=CRM_STAGES.find(function(s){return s.id===f;});var title=f==='active'?TX.activeClients:(lang==='zh'?(stage?stage.zh:f):f);openListModal(title,list.length+' clients',list.map(function(c){return{left:c.name,right:'Last: '+(c.lastContact||'\u2014'),cb:function(){openModal(c.id,'crm');}};}));}
+function crmDrill(f){
+  var list,title;
+  if(f==='active'){list=CLIENTS.filter(function(c){return c.stage==='1st print'||c.stage==='Repeat print';});title=TX.activeClients;}
+  else if(f==='pasting'){list=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});title='Require Pasting';}
+  else if(f==='stale30'){list=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;}).sort(function(a,b){return daysSince(b.lastContact)-daysSince(a.lastContact);});title='Last Contact >30 Days';}
+  else if(f==='zh'){list=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});title='Language: Chinese';}
+  else{list=CLIENTS.filter(function(c){return c.stage===f;});var stage=CRM_STAGES.find(function(s){return s.id===f;});title=lang==='zh'?(stage?stage.zh:f):f;}
+  openListModal(title,list.length+' clients',list.map(function(c){var d=daysSince(c.lastContact);var right=(f==='stale30'&&d!==null)?(d+' days ago'):'Last: '+(c.lastContact||'\u2014');return{left:c.name,right:right,cb:function(){openModal(c.id,'crm');}};}));
+}
 
 // ── ORDERS ────────────────────────────────────────────────────────────────
 function renderOrders(){
