@@ -57,22 +57,45 @@ button{cursor:pointer}
 .page{display:none;height:100vh;overflow-y:auto;padding:14px 16px;-webkit-overflow-scrolling:touch}
 .page.on{display:block}
 /* Stats */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px;margin-bottom:12px}
-.sc{background:var(--sur);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px}
+.stats{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:64px;gap:7px;margin-bottom:12px}
+.sc{background:var(--sur);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px;grid-column:span 3;min-width:0;position:relative;overflow:hidden;display:flex;flex-direction:column}
+@media (max-width:600px){.sc{grid-column:span 6!important}}
 .sc.clk{cursor:pointer;transition:all .15s}.sc.clk:hover{border-color:var(--b2);transform:translateY(-1px)}
 .slbl{font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .sval{font-size:19px;font-weight:600;font-family:"JetBrains Mono",monospace}
 .shnt{font-size:10px;color:var(--dim);margin-top:2px}
 /* CRM Dashboard charts */
-.crm-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.crm-chart-card{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:14px}
+.crm-charts-grid{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:64px;gap:10px;margin-bottom:16px}
+.crm-chart-card{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:14px;grid-column:span 6;min-width:0;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.cc-body{flex:1;overflow:auto;min-height:0}
+@media (max-width:1100px){.crm-chart-card{grid-column:span 12!important}}
 .cc-title{font-size:12px;font-weight:600;color:var(--t);margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em}
 .cc-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
 .cc-controls{display:flex;gap:7px;flex-wrap:wrap}
 .cc-controls .ipt{width:180px;font-size:12px}
 .cf-sort{background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:6px 9px;color:var(--t);font-size:12px;outline:none}
-.cf-scroll{max-height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
+.cf-scroll{display:flex;flex-direction:column;gap:6px;padding-right:2px}
 .cc-empty{font-size:11px;color:var(--dim);padding:20px 0;text-align:center}
+/* ── Customizable layout system ── */
+.layout-toolbar{display:flex;justify-content:flex-end;margin-bottom:8px;gap:8px}
+.layout-edit-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--b2);background:var(--s2);color:var(--m);font-size:12px;cursor:pointer;transition:all .15s}
+.layout-edit-btn:hover{color:var(--t);background:var(--s3)}
+.layout-edit-btn.active{background:rgba(110,231,183,.15);border-color:rgba(110,231,183,.4);color:var(--grn)}
+.layout-reset-btn{display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--b2);background:transparent;color:var(--m);font-size:12px;cursor:pointer}
+.layout-reset-btn:hover{color:var(--t);background:var(--s2)}
+.layout-reset-btn.show{display:inline-flex}
+.edit-mode .sc,.edit-mode .crm-chart-card{position:relative;cursor:grab;outline:1px dashed var(--b2);outline-offset:2px;user-select:none}
+.edit-mode .sc.dragging,.edit-mode .crm-chart-card.dragging{opacity:.4;cursor:grabbing}
+.edit-mode .sc.drag-over,.edit-mode .crm-chart-card.drag-over{outline:2px dashed var(--grn);outline-offset:2px}
+.edit-mode .sc.clk,.edit-mode .crm-chart-card{pointer-events:auto}
+.edit-mode .sc.clk{cursor:grab}
+.resize-handle{display:none;position:absolute;right:1px;bottom:1px;width:14px;height:14px;cursor:nwse-resize;color:var(--m);z-index:5}
+.edit-mode .resize-handle{display:flex;align-items:center;justify-content:center}
+.resize-handle svg{width:10px;height:10px;opacity:.6}
+.resize-handle:hover svg{opacity:1}
+.drag-handle{display:none;position:absolute;top:4px;right:4px;width:18px;height:18px;align-items:center;justify-content:center;color:var(--dim);z-index:5}
+.edit-mode .drag-handle{display:flex}
+.resizing{transition:none!important}
 .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .bar-row-clk{cursor:pointer;border-radius:6px;transition:background .12s;margin:0 -6px 7px;padding:0 6px}
 .bar-row-clk:hover{background:var(--s2)}
@@ -96,7 +119,6 @@ button{cursor:pointer}
 .cf-row:hover{background:var(--s3)}
 .cf-name{font-size:12px;color:var(--t);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cf-days{font-size:11px;font-family:"JetBrains Mono",monospace;flex-shrink:0}
-@media (max-width:1100px){.crm-charts-grid{grid-template-columns:1fr}}
 /* Board */
 .sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:7px;flex-wrap:wrap}
 .stitle{font-size:14px;font-weight:500}
@@ -302,37 +324,61 @@ button{cursor:pointer}
 
 <!-- CRM -->
 <div id="page-crm" class="page">
+  <div class="layout-toolbar">
+    <button class="layout-reset-btn" id="crm-reset-btn" onclick="resetLayout('crm-stats');resetLayout('crm-charts-grid')" data-tx="resetLayout">Reset layout</button>
+    <button class="layout-edit-btn" id="crm-edit-btn" onclick="toggleEditMode('crm')" data-tx="customizeLayout">Customize layout</button>
+  </div>
   <div class="stats" id="crm-stats"></div>
   <div class="crm-charts-grid" id="crm-charts-grid">
-    <div class="crm-chart-card">
-      <div class="cc-title" data-tx="clientsContacted6mo">Clients Contacted — Last 6 Months</div>
-      <div id="crm-bar-chart"></div>
-    </div>
-    <div class="crm-chart-card">
-      <div class="cc-title" data-tx="pipelineBreakdown">Pipeline Breakdown</div>
-      <div id="crm-pie-chart"></div>
-    </div>
-    <div class="crm-chart-card">
-      <div class="cc-title" data-tx="conversionFunnel">Conversion Funnel</div>
-      <div id="crm-funnel"></div>
-    </div>
-    <div class="crm-chart-card" style="grid-column:1/-1">
-      <div class="cc-title-row">
-        <div class="cc-title" data-tx="callFirst" style="margin-bottom:0">Call These First</div>
-        <div class="cc-controls">
-          <input class="ipt" id="cf-search" data-tx-ph="searchClients" placeholder="Search clients..." oninput="renderCallFirst()">
-          <select class="cf-sort" id="cf-sort" onchange="renderCallFirst()">
-            <option value="mostDays" data-tx="mostDays">Most days since contact</option>
-            <option value="fewestDays" data-tx="fewestDays">Fewest days since contact</option>
-            <option value="nameAZ" data-tx="nameAZ">Name A→Z</option>
-          </select>
-        </div>
+    <div class="crm-chart-card" data-card-id="crm-chart-bar" style="grid-row:span 5">
+      <span class="drag-handle" data-grip="crm-chart-bar"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
+      <span class="resize-handle" data-resize="crm-chart-bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span>
+      <div class="cc-body">
+        <div class="cc-title" data-tx="clientsContacted6mo">Clients Contacted — Last 6 Months</div>
+        <div id="crm-bar-chart"></div>
       </div>
-      <div id="crm-callfirst" class="cf-scroll"></div>
     </div>
-    <div class="crm-chart-card" style="grid-column:1/-1">
-      <div class="cc-title" data-tx="staleQuotes">Stale Pending Quotes (&gt;30 Days, No Movement)</div>
-      <div id="crm-stale-quotes"></div>
+    <div class="crm-chart-card" data-card-id="crm-chart-pie" style="grid-row:span 5">
+      <span class="drag-handle" data-grip="crm-chart-pie"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
+      <span class="resize-handle" data-resize="crm-chart-pie"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span>
+      <div class="cc-body">
+        <div class="cc-title" data-tx="pipelineBreakdown">Pipeline Breakdown</div>
+        <div id="crm-pie-chart"></div>
+      </div>
+    </div>
+    <div class="crm-chart-card" data-card-id="crm-chart-funnel" style="grid-row:span 5">
+      <span class="drag-handle" data-grip="crm-chart-funnel"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
+      <span class="resize-handle" data-resize="crm-chart-funnel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span>
+      <div class="cc-body">
+        <div class="cc-title" data-tx="conversionFunnel">Conversion Funnel</div>
+        <div id="crm-funnel"></div>
+      </div>
+    </div>
+    <div class="crm-chart-card" data-card-id="crm-chart-callfirst" style="grid-column:span 12;grid-row:span 6">
+      <span class="drag-handle" data-grip="crm-chart-callfirst"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
+      <span class="resize-handle" data-resize="crm-chart-callfirst"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span>
+      <div class="cc-body">
+        <div class="cc-title-row">
+          <div class="cc-title" data-tx="callFirst" style="margin-bottom:0">Call These First</div>
+          <div class="cc-controls">
+            <input class="ipt" id="cf-search" data-tx-ph="searchClients" placeholder="Search clients..." oninput="renderCallFirst()">
+            <select class="cf-sort" id="cf-sort" onchange="renderCallFirst()">
+              <option value="mostDays" data-tx="mostDays">Most days since contact</option>
+              <option value="fewestDays" data-tx="fewestDays">Fewest days since contact</option>
+              <option value="nameAZ" data-tx="nameAZ">Name A→Z</option>
+            </select>
+          </div>
+        </div>
+        <div id="crm-callfirst" class="cf-scroll"></div>
+      </div>
+    </div>
+    <div class="crm-chart-card" data-card-id="crm-chart-stale" style="grid-column:span 12;grid-row:span 5">
+      <span class="drag-handle" data-grip="crm-chart-stale"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
+      <span class="resize-handle" data-resize="crm-chart-stale"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span>
+      <div class="cc-body">
+        <div class="cc-title" data-tx="staleQuotes">Stale Pending Quotes (&gt;30 Days, No Movement)</div>
+        <div id="crm-stale-quotes"></div>
+      </div>
     </div>
   </div>
   <div class="sh"><div class="stitle" data-tx="clientPipeline">Client Pipeline</div><div><input class="ipt" id="crm-q" placeholder="Search..." oninput="renderCRM()"></div></div>
@@ -341,6 +387,10 @@ button{cursor:pointer}
 
 <!-- ORDERS -->
 <div id="page-orders" class="page">
+  <div class="layout-toolbar">
+    <button class="layout-reset-btn" id="ord-reset-btn" onclick="resetLayout('ord-stats')" data-tx="resetLayout">Reset layout</button>
+    <button class="layout-edit-btn" id="ord-edit-btn" onclick="toggleEditMode('ord')" data-tx="customizeLayout">Customize layout</button>
+  </div>
   <div class="stats" id="ord-stats"></div>
   <div class="sh"><div class="stitle" data-tx="ordersPipeline">Orders Pipeline</div><div><input class="ipt" id="ord-q" placeholder="Search..." oninput="renderOrders()"></div></div>
   <div class="board" id="ord-board"></div>
@@ -463,6 +513,10 @@ button{cursor:pointer}
 
 <!-- COMPETITORS -->
 <div id="page-competitors" class="page">
+  <div class="layout-toolbar">
+    <button class="layout-reset-btn" id="comp-reset-btn" onclick="resetLayout('comp-stats')" data-tx="resetLayout">Reset layout</button>
+    <button class="layout-edit-btn" id="comp-edit-btn" onclick="toggleEditMode('comp')" data-tx="customizeLayout">Customize layout</button>
+  </div>
   <div class="stats" id="comp-stats"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
     <div>
@@ -533,8 +587,9 @@ var FLAGS={Singapore:'\ud83c\uddf8\ud83c\uddec',Malaysia:'\ud83c\uddf2\ud83c\udd
 var SECS=[{key:'general',color:'#fbbf24',en:'General Tasks',zh:'\u6742\u9879\u4efb\u52a1'},{key:'enquiries',color:'#60a5fa',en:'Enquiries',zh:'\u8be2\u76d8\u8ddf\u8fdb'},{key:'quotations',color:'#a78bfa',en:'Quotations',zh:'\u62a5\u4ef7\u8ddf\u8fdb'},{key:'orders',color:'#2dd4bf',en:'Orders to process',zh:'\u5f85\u5904\u7406\u8ba2\u5355'},{key:'invoicing',color:'#f472b6',en:'Invoicing',zh:'\u5f85\u5f00\u53d1\u7968'},{key:'unpaid',color:'#f87171',en:'Unpaid invoices',zh:'\u672a\u4ed8\u6b3e\u9879'},{key:'shipping',color:'#6ee7b7',en:'Shipping estimates',zh:'\u914d\u9001\u65e5\u671f'}];
 
 var lang='en';
-var TX_EN={todoTab:'To-do & Inbox',crmTab:'Sales CRM',ordersTab:'Orders',quotesTab:'Quotes & Pricing',competitorsTab:'Competitors',dailyCheck:'Daily checklist',clickSection:'Click a section above',clientPipeline:'Client Pipeline',ordersPipeline:'Orders Pipeline',total:'Total',enquiries:'Enquiries',pendingQuote:'Pending Quote',activeClients:'Active Clients',lost:'Lost',revenue:'Revenue',inProduction:'In Production',inTransit:'In Transit',unpaid:'Unpaid',clickView:'click \u2193',dropHere:'Drop here',paid:'Paid',unpaidTxt:'Unpaid',estDel:'Est:',quoteEstimator:'Quote Estimator',standardPricing:'Standard Pricing',competitorSato:'Competitor (Sato)',jobDetails:'Job Details',shippingParams:'Shipping Parameters',client:'Client',widthMM:'Width (mm)',heightMM:'Height (mm)',qtyPcs:'Total Qty (pcs)',skus:'No. of SKUs',colour:'Colour',black:'1C Black',colourOpt:'Colour',destination:'Destination',airRmb:'\u2708 Rate (RMB/kg)',docCost:'Documentation cost (SGD)',calculate:'Calculate',fillForm:'Fill in the form to calculate',quoteSummary:'Quote Summary',totalQty:'Total qty',qtyPerSku:'QTY / SKU',costPerPcRmb:'Print cost/pc (RMB)',printCost:'Print cost (SGD)',shipDocs:'Shipping + docs',gstRow:'GST',totalCost:'Total cost',sellingPrice:'Selling price',profit:'Profit',profitMargin:'Profit margin',pricePerPc:'Price per piece',editHint:'\u270f\ufe0f Edit any value to recalculate',howCalc:'How it was calculated',printCostHd:'\u2460 Print cost',shipHd:'\u2461 Shipping',priceHd:'\u2462 Price',stdEstimate:'\u2605 Standard Pricing Estimate',cmpEstimate:'\u2605 Competitor (Sato) Estimate',nearestSize:'Nearest size',qpsLookup:'QTY/SKU lookup',nearestTier:'Nearest tier (round up)',estTotal:'Est. total',nearestHist:'10 Nearest Historical Orders',filterQPS:'Filter QTY/SKU:',company:'Company',sizeArea:'Size/Area',diff:'Diff',qty:'Qty',priceSgd:'Sell Price SGD',pricePc:'Price/pc',noHist:'No matching historical orders',satoList:'Sato Asia List',jewelList:'Jewel Creative List',comment:'Comment',bothNote:'Also our client',ourClient:'Our client',synced:'Synced',reqPasting:'Require Pasting',lastContact30:'Last Contact >30 Days',langChinese:'Language: Chinese',clientsContacted6mo:'Clients Contacted — Last 6 Months',pipelineBreakdown:'Pipeline Breakdown',conversionFunnel:'Conversion Funnel',callFirst:'Call These First',daysSinceContact:'Days Since Contact',staleQuotes:'Stale Pending Quotes (>30 Days, No Movement)',convFromPrev:'% = conversion from previous stage',noContactData:'No contact-date data available',noStaleQuotes:'No stale pending quotes — nice work',daysNoMovement:'days, no movement',daysAgo:'days ago',lastLbl:'Last:',clientsCount:'clients',contactedIn:'Contacted in',searchClients:'Search clients...',sortBy:'Sort by',nameAZ:'Name A→Z',mostDays:'Most days since contact',fewestDays:'Fewest days since contact',noClientsFound:'No clients found',enquiryGroup:'Enquiry (+BCRS/info/quote)',enquiryGroupShort:'Enquiry-group',activeFunnel:'Active (1st/Repeat)'};
-var TX_ZH={todoTab:'\u5f85\u529e\u4e8b\u9879',crmTab:'\u9500\u552e\u7ba1\u7406',ordersTab:'\u8ba2\u5355\u7ba1\u7406',quotesTab:'\u62a5\u4ef7\u8ba1\u7b97',competitorsTab:'\u7ade\u4e89\u5bf9\u624b',dailyCheck:'\u6bcf\u65e5\u5f85\u529e',clickSection:'\u70b9\u51fb\u4e0a\u65b9\u5206\u7c7b',clientPipeline:'\u5ba2\u6237\u7ba1\u9053',ordersPipeline:'\u8ba2\u5355\u7ba1\u9053',total:'\u603b\u6570',enquiries:'\u8be2\u76d8',pendingQuote:'\u5f85\u62a5\u4ef7',activeClients:'\u6d3b\u8dc3\u5ba2\u6237',lost:'\u5df2\u6d41\u5931',revenue:'\u603b\u6536\u5165',inProduction:'\u751f\u4ea7\u4e2d',inTransit:'\u8fd0\u8f93\u4e2d',unpaid:'\u672a\u4ed8\u6b3e',clickView:'\u70b9\u51fb\u67e5\u770b \u2193',dropHere:'\u62d6\u5230\u6b64\u5904',paid:'\u5df2\u4ed8\u6b3e',unpaidTxt:'\u672a\u4ed8\u6b3e',estDel:'\u9884\u8ba1:',quoteEstimator:'\u62a5\u4ef7\u8ba1\u7b97\u5668',standardPricing:'\u6807\u51c6\u62a5\u4ef7',competitorSato:'\u7ade\u4e89\u5bf9\u624b(Sato)',jobDetails:'\u8ba2\u5355\u4fe1\u606f',shippingParams:'\u8fd0\u8f93\u53c2\u6570',client:'\u5ba2\u6237',widthMM:'\u5bbd\u5ea6(mm)',heightMM:'\u9ad8\u5ea6(mm)',qtyPcs:'\u603b\u6570\u91cf(\u5f20)',skus:'SKU\u6570\u91cf',colour:'\u989c\u8272',black:'\u5355\u8272\u9ed1',colourOpt:'\u5f69\u8272',destination:'\u76ee\u7684\u5730',airRmb:'\u2708 \u8d39\u7387(RMB/kg)',docCost:'\u6587\u4ef6\u8d39(SGD)',calculate:'\u8ba1\u7b97\u62a5\u4ef7',fillForm:'\u586b\u5199\u8868\u5355\u5e76\u8ba1\u7b97',quoteSummary:'\u62a5\u4ef7\u6458\u8981',totalQty:'\u603b\u6570\u91cf',qtyPerSku:'QTY/SKU',costPerPcRmb:'\u5370\u5237\u5355\u4ef7(RMB)',printCost:'\u5370\u5237\u6210\u672c(SGD)',shipDocs:'\u8fd0\u8d39+\u6587\u4ef6\u8d39',gstRow:'GST',totalCost:'\u603b\u6210\u672c',sellingPrice:'\u5efa\u8bae\u552e\u4ef7',profit:'\u5229\u6da6',profitMargin:'\u5229\u6da6\u7387',pricePerPc:'\u6bcf\u5f20\u5355\u4ef7',editHint:'\u270f\ufe0f \u53ef\u4fee\u6539\u4efb\u4f55\u5b57\u6bb5',howCalc:'\u8ba1\u7b97\u903b\u8f91',printCostHd:'\u2460 \u5370\u5237\u6210\u672c',shipHd:'\u2461 \u8fd0\u8d39',priceHd:'\u2462 \u62a5\u4ef7',stdEstimate:'\u2605 \u6807\u51c6\u62a5\u4ef7\u4f30\u7b97',cmpEstimate:'\u2605 Sato\u4ef7\u683c\u4f30\u7b97',nearestSize:'\u6700\u8fd1\u5c3a\u5bf8',qpsLookup:'QTY/SKU\u67e5\u8be2',nearestTier:'\u6700\u8fd1\u6570\u91cf\u6863(\u5411\u4e0a)',estTotal:'\u4f30\u7b97\u603b\u4ef7',nearestHist:'10\u4e2a\u6700\u8fd1\u5386\u53f2\u8ba2\u5355',filterQPS:'\u6309QTY/SKU\u7b5b\u9009:',company:'\u516c\u53f8',sizeArea:'\u5c3a\u5bf8/\u9762\u79ef',diff:'\u9762\u79ef\u5dee',qty:'\u6570\u91cf',priceSgd:'\u552e\u4ef7SGD',pricePc:'\u6bcf\u5f20\u4ef7\u683c',noHist:'\u65e0\u5339\u914d\u5386\u53f2\u8ba2\u5355',satoList:'Sato Asia\u5217\u8868',jewelList:'Jewel Creative\u5217\u8868',comment:'\u5907\u6ce8',bothNote:'\u4e5f\u662f\u6211\u4eec\u5ba2\u6237',ourClient:'\u6211\u4eec\u5ba2\u6237',synced:'\u540c\u6b65\u65f6\u95f4',reqPasting:'\u9700\u8d34\u88c5',lastContact30:'\u8d85\u8fc730\u5929\u672a\u8054\u7cfb',langChinese:'\u8bed\u8a00\uff1a\u4e2d\u6587',clientsContacted6mo:'\u8fd16\u4e2a\u6708\u8054\u7cfb\u5ba2\u6237',pipelineBreakdown:'\u9500\u552e\u7ba1\u9053\u5206\u6790',conversionFunnel:'\u8f6c\u5316\u6f0f\u6597',callFirst:'\u4f18\u5148\u8054\u7cfb',daysSinceContact:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570',staleQuotes:'\u62a5\u4ef7\u505c\u6ede\uff08\u8d85\u8fc730\u5929\u672a\u63a8\u8fdb\uff09',convFromPrev:'% = \u4e0e\u4e0a\u4e00\u9636\u6bb5\u76f8\u6bd4\u7684\u8f6c\u5316\u7387',noContactData:'\u6682\u65e0\u8054\u7cfb\u65e5\u671f\u6570\u636e',noStaleQuotes:'\u6ca1\u6709\u505c\u6ede\u7684\u62a5\u4ef7 \u2014 \u505a\u5f97\u4e0d\u9519',daysNoMovement:'\u5929\uff0c\u672a\u63a8\u8fdb',daysAgo:'\u5929\u524d',lastLbl:'\u6700\u540e\u8054\u7cfb\uff1a',clientsCount:'\u4f4d\u5ba2\u6237',contactedIn:'\u8054\u7cfb\u4e8e',searchClients:'\u641c\u7d22\u5ba2\u6237...',sortBy:'\u6392\u5e8f\u65b9\u5f0f',nameAZ:'\u540d\u79f0 A\u2192Z',mostDays:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570\uff08\u6700\u591a\uff09',fewestDays:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570\uff08\u6700\u5c11\uff09',noClientsFound:'\u672a\u627e\u5230\u5ba2\u6237',enquiryGroup:'\u8be2\u76d8\uff08\u542b BCRS/\u4fe1\u606f/\u62a5\u4ef7\uff09',enquiryGroupShort:'\u8be2\u76d8\u7ec4',activeFunnel:'\u6d3b\u8dc3\uff08\u9996\u5370/\u91cd\u5370\uff09'};
+captureDefaultOrder('crm-charts-grid');
+var TX_EN={todoTab:'To-do & Inbox',crmTab:'Sales CRM',ordersTab:'Orders',quotesTab:'Quotes & Pricing',competitorsTab:'Competitors',dailyCheck:'Daily checklist',clickSection:'Click a section above',clientPipeline:'Client Pipeline',ordersPipeline:'Orders Pipeline',total:'Total',enquiries:'Enquiries',pendingQuote:'Pending Quote',activeClients:'Active Clients',lost:'Lost',revenue:'Revenue',inProduction:'In Production',inTransit:'In Transit',unpaid:'Unpaid',clickView:'click \u2193',dropHere:'Drop here',paid:'Paid',unpaidTxt:'Unpaid',estDel:'Est:',quoteEstimator:'Quote Estimator',standardPricing:'Standard Pricing',competitorSato:'Competitor (Sato)',jobDetails:'Job Details',shippingParams:'Shipping Parameters',client:'Client',widthMM:'Width (mm)',heightMM:'Height (mm)',qtyPcs:'Total Qty (pcs)',skus:'No. of SKUs',colour:'Colour',black:'1C Black',colourOpt:'Colour',destination:'Destination',airRmb:'\u2708 Rate (RMB/kg)',docCost:'Documentation cost (SGD)',calculate:'Calculate',fillForm:'Fill in the form to calculate',quoteSummary:'Quote Summary',totalQty:'Total qty',qtyPerSku:'QTY / SKU',costPerPcRmb:'Print cost/pc (RMB)',printCost:'Print cost (SGD)',shipDocs:'Shipping + docs',gstRow:'GST',totalCost:'Total cost',sellingPrice:'Selling price',profit:'Profit',profitMargin:'Profit margin',pricePerPc:'Price per piece',editHint:'\u270f\ufe0f Edit any value to recalculate',howCalc:'How it was calculated',printCostHd:'\u2460 Print cost',shipHd:'\u2461 Shipping',priceHd:'\u2462 Price',stdEstimate:'\u2605 Standard Pricing Estimate',cmpEstimate:'\u2605 Competitor (Sato) Estimate',nearestSize:'Nearest size',qpsLookup:'QTY/SKU lookup',nearestTier:'Nearest tier (round up)',estTotal:'Est. total',nearestHist:'10 Nearest Historical Orders',filterQPS:'Filter QTY/SKU:',company:'Company',sizeArea:'Size/Area',diff:'Diff',qty:'Qty',priceSgd:'Sell Price SGD',pricePc:'Price/pc',noHist:'No matching historical orders',satoList:'Sato Asia List',jewelList:'Jewel Creative List',comment:'Comment',bothNote:'Also our client',ourClient:'Our client',synced:'Synced',reqPasting:'Require Pasting',lastContact30:'Last Contact >30 Days',langChinese:'Language: Chinese',clientsContacted6mo:'Clients Contacted — Last 6 Months',pipelineBreakdown:'Pipeline Breakdown',conversionFunnel:'Conversion Funnel',callFirst:'Call These First',daysSinceContact:'Days Since Contact',staleQuotes:'Stale Pending Quotes (>30 Days, No Movement)',convFromPrev:'% = conversion from previous stage',noContactData:'No contact-date data available',noStaleQuotes:'No stale pending quotes — nice work',daysNoMovement:'days, no movement',daysAgo:'days ago',lastLbl:'Last:',clientsCount:'clients',contactedIn:'Contacted in',searchClients:'Search clients...',sortBy:'Sort by',nameAZ:'Name A→Z',mostDays:'Most days since contact',fewestDays:'Fewest days since contact',noClientsFound:'No clients found',enquiryGroup:'Enquiry (+BCRS/info/quote)',enquiryGroupShort:'Enquiry-group',activeFunnel:'Active (1st/Repeat)',customizeLayout:'Customize layout',resetLayout:'Reset layout',layoutHint:'Drag to reorder, drag bottom-right corner to resize'};
+var TX_ZH={todoTab:'\u5f85\u529e\u4e8b\u9879',crmTab:'\u9500\u552e\u7ba1\u7406',ordersTab:'\u8ba2\u5355\u7ba1\u7406',quotesTab:'\u62a5\u4ef7\u8ba1\u7b97',competitorsTab:'\u7ade\u4e89\u5bf9\u624b',dailyCheck:'\u6bcf\u65e5\u5f85\u529e',clickSection:'\u70b9\u51fb\u4e0a\u65b9\u5206\u7c7b',clientPipeline:'\u5ba2\u6237\u7ba1\u9053',ordersPipeline:'\u8ba2\u5355\u7ba1\u9053',total:'\u603b\u6570',enquiries:'\u8be2\u76d8',pendingQuote:'\u5f85\u62a5\u4ef7',activeClients:'\u6d3b\u8dc3\u5ba2\u6237',lost:'\u5df2\u6d41\u5931',revenue:'\u603b\u6536\u5165',inProduction:'\u751f\u4ea7\u4e2d',inTransit:'\u8fd0\u8f93\u4e2d',unpaid:'\u672a\u4ed8\u6b3e',clickView:'\u70b9\u51fb\u67e5\u770b \u2193',dropHere:'\u62d6\u5230\u6b64\u5904',paid:'\u5df2\u4ed8\u6b3e',unpaidTxt:'\u672a\u4ed8\u6b3e',estDel:'\u9884\u8ba1:',quoteEstimator:'\u62a5\u4ef7\u8ba1\u7b97\u5668',standardPricing:'\u6807\u51c6\u62a5\u4ef7',competitorSato:'\u7ade\u4e89\u5bf9\u624b(Sato)',jobDetails:'\u8ba2\u5355\u4fe1\u606f',shippingParams:'\u8fd0\u8f93\u53c2\u6570',client:'\u5ba2\u6237',widthMM:'\u5bbd\u5ea6(mm)',heightMM:'\u9ad8\u5ea6(mm)',qtyPcs:'\u603b\u6570\u91cf(\u5f20)',skus:'SKU\u6570\u91cf',colour:'\u989c\u8272',black:'\u5355\u8272\u9ed1',colourOpt:'\u5f69\u8272',destination:'\u76ee\u7684\u5730',airRmb:'\u2708 \u8d39\u7387(RMB/kg)',docCost:'\u6587\u4ef6\u8d39(SGD)',calculate:'\u8ba1\u7b97\u62a5\u4ef7',fillForm:'\u586b\u5199\u8868\u5355\u5e76\u8ba1\u7b97',quoteSummary:'\u62a5\u4ef7\u6458\u8981',totalQty:'\u603b\u6570\u91cf',qtyPerSku:'QTY/SKU',costPerPcRmb:'\u5370\u5237\u5355\u4ef7(RMB)',printCost:'\u5370\u5237\u6210\u672c(SGD)',shipDocs:'\u8fd0\u8d39+\u6587\u4ef6\u8d39',gstRow:'GST',totalCost:'\u603b\u6210\u672c',sellingPrice:'\u5efa\u8bae\u552e\u4ef7',profit:'\u5229\u6da6',profitMargin:'\u5229\u6da6\u7387',pricePerPc:'\u6bcf\u5f20\u5355\u4ef7',editHint:'\u270f\ufe0f \u53ef\u4fee\u6539\u4efb\u4f55\u5b57\u6bb5',howCalc:'\u8ba1\u7b97\u903b\u8f91',printCostHd:'\u2460 \u5370\u5237\u6210\u672c',shipHd:'\u2461 \u8fd0\u8d39',priceHd:'\u2462 \u62a5\u4ef7',stdEstimate:'\u2605 \u6807\u51c6\u62a5\u4ef7\u4f30\u7b97',cmpEstimate:'\u2605 Sato\u4ef7\u683c\u4f30\u7b97',nearestSize:'\u6700\u8fd1\u5c3a\u5bf8',qpsLookup:'QTY/SKU\u67e5\u8be2',nearestTier:'\u6700\u8fd1\u6570\u91cf\u6863(\u5411\u4e0a)',estTotal:'\u4f30\u7b97\u603b\u4ef7',nearestHist:'10\u4e2a\u6700\u8fd1\u5386\u53f2\u8ba2\u5355',filterQPS:'\u6309QTY/SKU\u7b5b\u9009:',company:'\u516c\u53f8',sizeArea:'\u5c3a\u5bf8/\u9762\u79ef',diff:'\u9762\u79ef\u5dee',qty:'\u6570\u91cf',priceSgd:'\u552e\u4ef7SGD',pricePc:'\u6bcf\u5f20\u4ef7\u683c',noHist:'\u65e0\u5339\u914d\u5386\u53f2\u8ba2\u5355',satoList:'Sato Asia\u5217\u8868',jewelList:'Jewel Creative\u5217\u8868',comment:'\u5907\u6ce8',bothNote:'\u4e5f\u662f\u6211\u4eec\u5ba2\u6237',ourClient:'\u6211\u4eec\u5ba2\u6237',synced:'\u540c\u6b65\u65f6\u95f4',reqPasting:'\u9700\u8d34\u88c5',lastContact30:'\u8d85\u8fc730\u5929\u672a\u8054\u7cfb',langChinese:'\u8bed\u8a00\uff1a\u4e2d\u6587',clientsContacted6mo:'\u8fd16\u4e2a\u6708\u8054\u7cfb\u5ba2\u6237',pipelineBreakdown:'\u9500\u552e\u7ba1\u9053\u5206\u6790',conversionFunnel:'\u8f6c\u5316\u6f0f\u6597',callFirst:'\u4f18\u5148\u8054\u7cfb',daysSinceContact:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570',staleQuotes:'\u62a5\u4ef7\u505c\u6ede\uff08\u8d85\u8fc730\u5929\u672a\u63a8\u8fdb\uff09',convFromPrev:'% = \u4e0e\u4e0a\u4e00\u9636\u6bb5\u76f8\u6bd4\u7684\u8f6c\u5316\u7387',noContactData:'\u6682\u65e0\u8054\u7cfb\u65e5\u671f\u6570\u636e',noStaleQuotes:'\u6ca1\u6709\u505c\u6ede\u7684\u62a5\u4ef7 \u2014 \u505a\u5f97\u4e0d\u9519',daysNoMovement:'\u5929\uff0c\u672a\u63a8\u8fdb',daysAgo:'\u5929\u524d',lastLbl:'\u6700\u540e\u8054\u7cfb\uff1a',clientsCount:'\u4f4d\u5ba2\u6237',contactedIn:'\u8054\u7cfb\u4e8e',searchClients:'\u641c\u7d22\u5ba2\u6237...',sortBy:'\u6392\u5e8f\u65b9\u5f0f',nameAZ:'\u540d\u79f0 A\u2192Z',mostDays:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570\uff08\u6700\u591a\uff09',fewestDays:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570\uff08\u6700\u5c11\uff09',noClientsFound:'\u672a\u627e\u5230\u5ba2\u6237',enquiryGroup:'\u8be2\u76d8\uff08\u542b BCRS/\u4fe1\u606f/\u62a5\u4ef7\uff09',enquiryGroupShort:'\u8be2\u76d8\u7ec4',activeFunnel:'\u6d3b\u8dc3\uff08\u9996\u5370/\u91cd\u5370\uff09',customizeLayout:'\u81ea\u5b9a\u4e49\u5e03\u5c40',resetLayout:'\u91cd\u7f6e\u5e03\u5c40',layoutHint:'\u62d6\u52a8\u6392\u5e8f\uff0c\u62d6\u62fd\u53f3\u4e0b\u89d2\u8c03\u6574\u5927\u5c0f'};
 var TX=TX_EN;
 
 var activeSection=null,dragId=null,editId=null,editType=null;
@@ -773,6 +828,178 @@ function setLang(l){
   document.querySelectorAll('[data-tx-ph]').forEach(function(el){var k=el.getAttribute('data-tx-ph');if(TX[k])el.placeholder=TX[k];});
   renderAll();
 }
+// ── Customizable dashboard layout system ──────────────────────────────────
+var LAYOUT_PREFIX='aygops-layout-';
+var EDIT_MODE_PAGES={}; // tracks which page keys currently have edit mode on
+var DEFAULT_ORDER={}; // captures original DOM order for static grids, used by resetLayout
+function captureDefaultOrder(containerId){
+  var container=document.getElementById(containerId);
+  if(!container||DEFAULT_ORDER[containerId])return; // capture once only
+  var order=[];
+  Array.prototype.forEach.call(container.children,function(card){
+    var id=card.getAttribute('data-card-id');
+    if(id)order.push(id);
+  });
+  DEFAULT_ORDER[containerId]=order;
+}
+function layoutStorageKey(containerId){return LAYOUT_PREFIX+containerId;}
+function getSavedLayout(containerId){
+  try{
+    var raw=localStorage.getItem(layoutStorageKey(containerId));
+    if(!raw)return null;
+    var parsed=JSON.parse(raw);
+    if(!parsed||typeof parsed!=='object')return null;
+    return parsed;
+  }catch(e){return null;}
+}
+function saveLayout(containerId,layout){
+  try{localStorage.setItem(layoutStorageKey(containerId),JSON.stringify(layout));}catch(e){/* storage unavailable or full — silently skip persistence */}
+}
+function resetLayout(containerId){
+  try{localStorage.removeItem(layoutStorageKey(containerId));}catch(e){}
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  Array.prototype.forEach.call(container.children,function(card){card.style.gridColumn='';card.style.gridRow='';});
+  // Re-trigger whichever render function owns this container so default order/markup comes back
+  if(containerId==='crm-stats')renderCRM();
+  else if(containerId==='ord-stats')renderOrders();
+  else if(containerId==='comp-stats')renderCompStats();
+  else if(DEFAULT_ORDER[containerId]){
+    // Static grid (e.g. crm-charts-grid): restore original DOM order captured at page load
+    var cards={};
+    Array.prototype.forEach.call(container.children,function(card){
+      var id=card.getAttribute('data-card-id');
+      if(id)cards[id]=card;
+    });
+    DEFAULT_ORDER[containerId].forEach(function(id){if(cards[id])container.appendChild(cards[id]);});
+  }
+}
+function applyLayout(containerId){
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  var layout=getSavedLayout(containerId);
+  if(layout&&layout.order&&layout.order.length){
+    var cards={};
+    Array.prototype.forEach.call(container.children,function(card){
+      var id=card.getAttribute('data-card-id');
+      if(id)cards[id]=card;
+    });
+    layout.order.forEach(function(id){
+      if(cards[id])container.appendChild(cards[id]);
+    });
+    if(layout.sizes){
+      Object.keys(layout.sizes).forEach(function(id){
+        if(cards[id]){
+          var sz=layout.sizes[id];
+          if(sz.col)cards[id].style.gridColumn='span '+sz.col;
+          if(sz.row)cards[id].style.gridRow='span '+sz.row;
+        }
+      });
+    }
+  }
+  // If this container's page is currently in edit mode, freshly-rendered cards need handlers re-bound
+  var pageKeyMap={'crm-stats':'crm','crm-charts-grid':'crm','ord-stats':'ord','comp-stats':'comp'};
+  var pk=pageKeyMap[containerId];
+  if(pk&&EDIT_MODE_PAGES[pk]){container.classList.add('edit-mode');wireCardInteractions(containerId);}
+}
+function captureLayout(containerId){
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  var order=[];var sizes={};
+  Array.prototype.forEach.call(container.children,function(card){
+    var id=card.getAttribute('data-card-id');
+    if(!id)return;
+    order.push(id);
+    var colSpan=parseInt((card.style.gridColumn||'').replace('span ','') ,10);
+    var rowSpan=parseInt((card.style.gridRow||'').replace('span ',''),10);
+    if(colSpan||rowSpan)sizes[id]={col:colSpan||undefined,row:rowSpan||undefined};
+  });
+  saveLayout(containerId,{order:order,sizes:sizes});
+}
+function toggleEditMode(pageKey){
+  var containerMap={crm:['crm-stats','crm-charts-grid'],ord:['ord-stats'],comp:['comp-stats']};
+  var containers=containerMap[pageKey]||[];
+  var nowOn=!EDIT_MODE_PAGES[pageKey];
+  EDIT_MODE_PAGES[pageKey]=nowOn;
+  var editBtn=document.getElementById(pageKey+'-edit-btn');
+  var resetBtn=document.getElementById(pageKey+'-reset-btn');
+  if(editBtn)editBtn.classList.toggle('active',nowOn);
+  if(resetBtn)resetBtn.classList.toggle('show',nowOn);
+  containers.forEach(function(cid){
+    var container=document.getElementById(cid);
+    if(!container)return;
+    container.classList.toggle('edit-mode',nowOn);
+    if(nowOn)wireCardInteractions(cid);
+  });
+}
+var dragState=null;
+function wireCardInteractions(containerId){
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  Array.prototype.forEach.call(container.children,function(card){
+    if(card.dataset.wired)return; // avoid double-binding on repeated calls
+    card.dataset.wired='1';
+    card.setAttribute('draggable','true');
+    card.addEventListener('dragstart',function(e){
+      if(!card.closest('.edit-mode'))return;
+      dragState={containerId:containerId,cardId:card.getAttribute('data-card-id')};
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend',function(){card.classList.remove('dragging');document.querySelectorAll('.drag-over').forEach(function(el){el.classList.remove('drag-over');});});
+    card.addEventListener('dragover',function(e){
+      if(!dragState||dragState.containerId!==containerId)return;
+      e.preventDefault();
+      if(card.getAttribute('data-card-id')!==dragState.cardId)card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave',function(){card.classList.remove('drag-over');});
+    card.addEventListener('drop',function(e){
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      if(!dragState||dragState.containerId!==containerId)return;
+      var fromId=dragState.cardId;
+      var toId=card.getAttribute('data-card-id');
+      if(fromId===toId)return;
+      var fromEl=container.querySelector('[data-card-id="'+fromId+'"]');
+      var toEl=card;
+      if(!fromEl||!toEl)return;
+      // Swap positions: insert fromEl before toEl, shifting others naturally via DOM order
+      var fromNext=fromEl.nextSibling;
+      toEl.parentNode.insertBefore(fromEl,toEl);
+      if(fromNext)toEl.parentNode.insertBefore(toEl,fromNext);
+      else toEl.parentNode.appendChild(toEl);
+      captureLayout(containerId);
+    });
+    var handle=card.querySelector('[data-resize]');
+    if(handle){
+      handle.addEventListener('mousedown',function(e){
+        e.preventDefault();e.stopPropagation();
+        var defaultSpan=card.classList.contains('crm-chart-card')?6:3;
+        var startX=e.clientX,startY=e.clientY;
+        var startCol=parseInt((card.style.gridColumn||'').replace('span ',''),10)||defaultSpan;
+        var startRow=parseInt((card.style.gridRow||'').replace('span ',''),10)||1;
+        var colWidth=card.getBoundingClientRect().width/startCol;
+        var rowUnit=64+10; // matches grid-auto-rows (64px) + row gap (10px) so drag distance maps 1:1 to row-span steps
+        card.classList.add('resizing');
+        function onMove(ev){
+          var dx=ev.clientX-startX,dy=ev.clientY-startY;
+          var newCol=Math.max(2,Math.min(12,Math.round(startCol+dx/colWidth)));
+          var newRow=Math.max(1,Math.min(6,Math.round(startRow+dy/rowUnit)));
+          card.style.gridColumn='span '+newCol;
+          card.style.gridRow='span '+newRow;
+        }
+        function onUp(){
+          document.removeEventListener('mousemove',onMove);
+          document.removeEventListener('mouseup',onUp);
+          card.classList.remove('resizing');
+          captureLayout(containerId);
+        }
+        document.addEventListener('mousemove',onMove);
+        document.addEventListener('mouseup',onUp);
+      });
+    }
+  });
+}
+
 function toggleSidebar(){
   var nav=document.getElementById('sidebar-nav');
   var collapsed=nav.classList.toggle('collapsed');
@@ -839,6 +1066,16 @@ function daysSince(dateStr){
   return Math.floor((now.setHours(0,0,0,0)-d.setHours(0,0,0,0))/86400000);
 }
 function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
+var GRIP_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>';
+var RESIZE_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg>';
+function layoutHandles(cardId){
+  return '<span class="drag-handle" data-grip="'+cardId+'">'+GRIP_SVG+'</span><span class="resize-handle" data-resize="'+cardId+'">'+RESIZE_SVG+'</span>';
+}
+function statCard(cardId,label,value,color,onclick,hint){
+  var clk=onclick?' clk':'';
+  var click=onclick?' onclick="'+onclick+'"':'';
+  return '<div class="sc'+clk+'" data-card-id="'+cardId+'"'+click+'>'+layoutHandles(cardId)+'<div class="cc-body"><div class="slbl">'+label+'</div><div class="sval"'+(color?' style="color:'+color+'"':'')+'>'+value+'</div>'+(hint?'<div class="shnt">'+hint+'</div>':'')+'</div></div>';
+}
 
 function renderCrmCharts(){
   // ── Bar chart: clients by month of most recent contact, last 6 months ──
@@ -897,6 +1134,7 @@ function renderCrmCharts(){
   document.getElementById('crm-stale-quotes').innerHTML=staleQ.length?'<div class="cf-list">'+staleQ.map(function(x){
     return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:var(--amb)">'+(lang==='zh'?(x.d+TX.daysNoMovement):(x.d+' '+TX.daysNoMovement))+'</span></div>';
   }).join('')+'</div>' : '<div class="cc-empty">'+TX.noStaleQuotes+'</div>';
+  applyLayout('crm-charts-grid');
 }
 
 function renderCallFirst(){
@@ -928,7 +1166,16 @@ function renderCRM(){
   var pst=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});
   var stale30=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;});
   var zhClients=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});
-  document.getElementById('crm-stats').innerHTML='<div class="sc"><div class="slbl">'+TX.total+'</div><div class="sval">'+CLIENTS.length+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Enquiry\')"><div class="slbl">'+TX.enquiries+'</div><div class="sval" style="color:var(--blu)">'+enq.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Pending Quote Approval\')"><div class="slbl">'+TX.pendingQuote+'</div><div class="sval" style="color:var(--pur)">'+pqa.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'active\')"><div class="slbl">'+TX.activeClients+'</div><div class="sval" style="color:var(--grn)">'+act.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Lost\')"><div class="slbl">'+TX.lost+'</div><div class="sval" style="color:var(--dim)">'+lst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'pasting\')"><div class="slbl">'+TX.reqPasting+'</div><div class="sval" style="color:var(--tel)">'+pst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'stale30\')"><div class="slbl">'+TX.lastContact30+'</div><div class="sval" style="color:var(--amb)">'+stale30.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'zh\')"><div class="slbl">'+TX.langChinese+'</div><div class="sval" style="color:var(--pnk)">'+zhClients.length+'</div><div class="shnt">'+TX.clickView+'</div></div>';
+  document.getElementById('crm-stats').innerHTML=
+    statCard('crm-total',TX.total,CLIENTS.length)+
+    statCard('crm-enquiries',TX.enquiries,enq.length,'var(--blu)',"crmDrill('Enquiry')",TX.clickView)+
+    statCard('crm-pending',TX.pendingQuote,pqa.length,'var(--pur)',"crmDrill('Pending Quote Approval')",TX.clickView)+
+    statCard('crm-active',TX.activeClients,act.length,'var(--grn)',"crmDrill('active')",TX.clickView)+
+    statCard('crm-lost',TX.lost,lst.length,'var(--dim)',"crmDrill('Lost')",TX.clickView)+
+    statCard('crm-pasting',TX.reqPasting,pst.length,'var(--tel)',"crmDrill('pasting')",TX.clickView)+
+    statCard('crm-stale30',TX.lastContact30,stale30.length,'var(--amb)',"crmDrill('stale30')",TX.clickView)+
+    statCard('crm-zh',TX.langChinese,zhClients.length,'var(--pnk)',"crmDrill('zh')",TX.clickView);
+  applyLayout('crm-stats');
   renderCrmCharts();
   var board=document.getElementById('crm-board');board.innerHTML='';
   CRM_STAGES.forEach(function(stage){var sc=filtered.filter(function(c){return c.stage===stage.id;});var col=document.createElement('div');col.className='col';col.dataset.stage=stage.id;col.innerHTML='<div class="colh"><div class="coll"><div class="cdot" style="background:'+stage.color+'"></div><span class="cttl">'+(lang==='zh'?stage.zh:stage.id)+'</span></div><span class="ccnt">'+sc.length+'</span></div><div style="height:4px"></div>';sc.forEach(function(c){var el=document.createElement('div');el.className='card';el.draggable=true;el.dataset.id=c.id;el.innerHTML='<div class="cn">'+c.name+'</div>'+(c.contact?'<div class="cm">'+c.contact+(c.pic2?' / '+c.pic2:'')+(c.mobile?' \u00b7 '+c.mobile:'')+'</div>':'')+(c.email?'<div class="cm" style="color:var(--blu)">'+c.email+'</div>':'')+(c.lastContact?'<div class="cm" style="color:var(--dim)">Last: '+c.lastContact+'</div>':'')+(c.notes?'<div class="cnote">'+c.notes+'</div>':'');el.addEventListener('click',function(){openModal(c.id,'crm');});el.addEventListener('dragstart',function(){dragId=c.id;setTimeout(function(){el.classList.add('drag');},0);});el.addEventListener('dragend',function(){dragId=null;clearDrag();});col.appendChild(el);});addDrop(col,'crm',stage.id);board.appendChild(col);});
@@ -959,7 +1206,13 @@ function renderOrders(){
   var totRev=ORDERS.reduce(function(a,o){return a+(o.price||0);},0);
   var inProd=ORDERS.filter(function(o){return o.status==='In Production';});
   var inTrans=ORDERS.filter(function(o){return o.status==='Out for Delivery';});
-  document.getElementById('ord-stats').innerHTML='<div class="sc"><div class="slbl">'+TX.total+'</div><div class="sval">'+ORDERS.length+'</div></div>'+'<div class="sc"><div class="slbl">'+TX.revenue+'</div><div class="sval" style="color:var(--grn)">S$'+Math.round(totRev).toLocaleString()+'</div></div>'+'<div class="sc clk" onclick="ordDrill(\'In Production\')"><div class="slbl">'+TX.inProduction+'</div><div class="sval" style="color:var(--pur)">'+inProd.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="ordDrill(\'Out for Delivery\')"><div class="slbl">'+TX.inTransit+'</div><div class="sval" style="color:var(--tel)">'+inTrans.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="ordDrill(\'unpaid\')"><div class="slbl">'+TX.unpaid+'</div><div class="sval" style="color:var(--red)">'+UNPAID.length+'</div><div class="shnt">'+TX.clickView+'</div></div>';
+  document.getElementById('ord-stats').innerHTML=
+    statCard('ord-total',TX.total,ORDERS.length)+
+    statCard('ord-revenue',TX.revenue,'S$'+Math.round(totRev).toLocaleString(),'var(--grn)')+
+    statCard('ord-inprod',TX.inProduction,inProd.length,'var(--pur)',"ordDrill('In Production')",TX.clickView)+
+    statCard('ord-intransit',TX.inTransit,inTrans.length,'var(--tel)',"ordDrill('Out for Delivery')",TX.clickView)+
+    statCard('ord-unpaid',TX.unpaid,UNPAID.length,'var(--red)',"ordDrill('unpaid')",TX.clickView);
+  applyLayout('ord-stats');
   var board=document.getElementById('ord-board');board.innerHTML='';
   ORD_STAGES.forEach(function(stage){var so=filtered.filter(function(o){return o.status===stage.id;});var stageRev=so.reduce(function(a,o){return a+(o.price||0);},0);var col=document.createElement('div');col.className='col';col.dataset.stage=stage.id;col.innerHTML='<div class="colh"><div class="coll"><div class="cdot" style="background:'+stage.color+'"></div><span class="cttl">'+(lang==='zh'?stage.zh:stage.id)+'</span></div><span class="ccnt">'+so.length+'</span></div>'+(stageRev>0?'<div class="crev">S$'+Math.round(stageRev).toLocaleString()+'</div>':'<div style="height:5px"></div>');so.forEach(function(o){var el=document.createElement('div');el.className='card';el.draggable=true;el.dataset.id=o.id;el.innerHTML='<div class="cn">'+o.name+'</div>'+'<div style="display:flex;align-items:center;justify-content:space-between;gap:3px;margin-bottom:2px"><span class="cm">'+(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.size+' \u00b7 '+o.qty.toLocaleString()+'</span>'+(o.price?'<span class="cprice">S$'+o.price.toLocaleString()+'</span>':'')+'</div>'+'<div class="cm">'+(o.printer||'')+(o.shipper?' \u00b7 '+o.shipper:'')+'</div>'+'<div class="cm">'+TX.estDel+' '+o.delivery+'</div>'+(o.tracking?'<div class="ctrack">'+o.tracking.slice(0,24)+'</div>':'')+'<span class="cbadge '+(o.payment==='Paid'?'paid-b':'unpaid-b')+'">'+(o.payment==='Paid'?TX.paid:TX.unpaidTxt)+'</span>';el.addEventListener('click',function(){openModal(o.id,'orders');});el.addEventListener('dragstart',function(){dragId=o.id;setTimeout(function(){el.classList.add('drag');},0);});el.addEventListener('dragend',function(){dragId=null;clearDrag();});col.appendChild(el);});addDrop(col,'orders',stage.id);board.appendChild(col);});
 }
@@ -986,11 +1239,12 @@ function renderCompStats(){
   var jewelTotal=JEWEL_LIST.reduce(function(a,r){return a+(r.qty||0);},0);
   var bothCount=SATO_LIST.filter(function(r){return r.comment&&r.comment.toUpperCase().indexOf('BOTH')>-1||r.comment&&r.comment.toLowerCase().indexOf('also')>-1;}).length;
   statsEl.innerHTML=
-    '<div class="sc"><div class="slbl">Sato Clients</div><div class="sval" style="color:var(--pnk)">'+SATO_LIST.length+'</div></div>'
-    +'<div class="sc"><div class="slbl">Sato Total Qty</div><div class="sval" style="color:var(--pnk)">'+satoTotal.toLocaleString()+'</div></div>'
-    +'<div class="sc"><div class="slbl">Jewel Clients</div><div class="sval" style="color:var(--amb)">'+JEWEL_LIST.length+'</div></div>'
-    +'<div class="sc"><div class="slbl">Jewel Total Qty</div><div class="sval" style="color:var(--amb)">'+jewelTotal.toLocaleString()+'</div></div>'
-    +'<div class="sc"><div class="slbl">Overlap w/ Sato</div><div class="sval" style="color:var(--grn)">'+bothCount+'</div></div>';
+    statCard('comp-sato-clients','Sato Clients',SATO_LIST.length,'var(--pnk)')+
+    statCard('comp-sato-qty','Sato Total Qty',satoTotal.toLocaleString(),'var(--pnk)')+
+    statCard('comp-jewel-clients','Jewel Clients',JEWEL_LIST.length,'var(--amb)')+
+    statCard('comp-jewel-qty','Jewel Total Qty',jewelTotal.toLocaleString(),'var(--amb)')+
+    statCard('comp-overlap','Overlap w/ Sato',bothCount,'var(--grn)');
+  applyLayout('comp-stats');
 }
 function renderSato(){
   var q=(document.getElementById('sato-q').value||'').toLowerCase();
