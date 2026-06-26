@@ -67,8 +67,16 @@ button{cursor:pointer}
 .crm-charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .crm-chart-card{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:14px}
 .cc-title{font-size:12px;font-weight:600;color:var(--t);margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em}
+.cc-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.cc-controls{display:flex;gap:7px;flex-wrap:wrap}
+.cc-controls .ipt{width:180px;font-size:12px}
+.cf-sort{background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:6px 9px;color:var(--t);font-size:12px;outline:none}
+.cf-scroll{max-height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:2px}
 .cc-empty{font-size:11px;color:var(--dim);padding:20px 0;text-align:center}
 .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.bar-row-clk{cursor:pointer;border-radius:6px;transition:background .12s;margin:0 -6px 7px;padding:0 6px}
+.bar-row-clk:hover{background:var(--s2)}
+.bar-row-clk:hover .bar-fill{background:var(--grn)}
 .bar-label{font-size:10px;color:var(--m);width:48px;flex-shrink:0}
 .bar-track{flex:1;background:var(--s2);border-radius:4px;height:16px;overflow:hidden;position:relative}
 .bar-fill{height:100%;border-radius:4px;background:var(--blu);transition:width .3s}
@@ -297,23 +305,33 @@ button{cursor:pointer}
   <div class="stats" id="crm-stats"></div>
   <div class="crm-charts-grid" id="crm-charts-grid">
     <div class="crm-chart-card">
-      <div class="cc-title">Clients Contacted — Last 6 Months</div>
+      <div class="cc-title" data-tx="clientsContacted6mo">Clients Contacted — Last 6 Months</div>
       <div id="crm-bar-chart"></div>
     </div>
     <div class="crm-chart-card">
-      <div class="cc-title">Pipeline Breakdown</div>
+      <div class="cc-title" data-tx="pipelineBreakdown">Pipeline Breakdown</div>
       <div id="crm-pie-chart"></div>
     </div>
     <div class="crm-chart-card">
-      <div class="cc-title">Conversion Funnel</div>
+      <div class="cc-title" data-tx="conversionFunnel">Conversion Funnel</div>
       <div id="crm-funnel"></div>
     </div>
-    <div class="crm-chart-card">
-      <div class="cc-title">Call These First — Longest Since Contact</div>
-      <div id="crm-callfirst"></div>
+    <div class="crm-chart-card" style="grid-column:1/-1">
+      <div class="cc-title-row">
+        <div class="cc-title" data-tx="callFirst" style="margin-bottom:0">Call These First</div>
+        <div class="cc-controls">
+          <input class="ipt" id="cf-search" data-tx-ph="searchClients" placeholder="Search clients..." oninput="renderCallFirst()">
+          <select class="cf-sort" id="cf-sort" onchange="renderCallFirst()">
+            <option value="mostDays" data-tx="mostDays">Most days since contact</option>
+            <option value="fewestDays" data-tx="fewestDays">Fewest days since contact</option>
+            <option value="nameAZ" data-tx="nameAZ">Name A→Z</option>
+          </select>
+        </div>
+      </div>
+      <div id="crm-callfirst" class="cf-scroll"></div>
     </div>
     <div class="crm-chart-card" style="grid-column:1/-1">
-      <div class="cc-title">Stale Pending Quotes (&gt;30 Days, No Movement)</div>
+      <div class="cc-title" data-tx="staleQuotes">Stale Pending Quotes (&gt;30 Days, No Movement)</div>
       <div id="crm-stale-quotes"></div>
     </div>
   </div>
@@ -509,13 +527,14 @@ var HONSEN_PRICING={"75x30":[{"min":1,"max":5000,"ppp":0.063},{"min":5001,"max":
 var HONSEN_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
 var CMP_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
 var CRM_STAGES=[{id:'Enquiry',zh:'\u8be2\u76d8',color:'#60a5fa'},{id:'Registering with BCRS',zh:'\u6ce8\u518cBCRS',color:'#a78bfa'},{id:'Pending info',zh:'\u5f85\u4fe1\u606f',color:'#fbbf24'},{id:'Pending Quote Approval',zh:'\u5f85\u62a5\u4ef7',color:'#f472b6'},{id:'1st print',zh:'\u9996\u6b21\u5370\u5237',color:'#2dd4bf'},{id:'Repeat print',zh:'\u91cd\u590d\u5370\u5237',color:'#6ee7b7'},{id:'Lost',zh:'\u5df2\u6d41\u5931',color:'#45454f'}];
+var CRM_MONTHS=[];
 var ORD_STAGES=[{id:'In Production',zh:'\u751f\u4ea7\u4e2d',color:'#a78bfa'},{id:'Out for Delivery',zh:'\u8fd0\u8f93\u4e2d',color:'#2dd4bf'},{id:'Delivered',zh:'\u5df2\u4ea4\u8d27',color:'#6ee7b7'},{id:'Paid',zh:'\u5df2\u4ed8\u6b3e',color:'#45454f'}];
 var FLAGS={Singapore:'\ud83c\uddf8\ud83c\uddec',Malaysia:'\ud83c\uddf2\ud83c\uddfe',China:'\ud83c\udde8\ud83c\uddf3',Taiwan:'\ud83c\uddf9\ud83c\uddfc','Hong Kong':'\ud83c\udded\ud83c\uddf0',Indonesia:'\ud83c\uddee\ud83c\udde9',Japan:'\ud83c\uddef\ud83c\uddf5',Thailand:'\ud83c\uddf9\ud83c\udded'};
 var SECS=[{key:'general',color:'#fbbf24',en:'General Tasks',zh:'\u6742\u9879\u4efb\u52a1'},{key:'enquiries',color:'#60a5fa',en:'Enquiries',zh:'\u8be2\u76d8\u8ddf\u8fdb'},{key:'quotations',color:'#a78bfa',en:'Quotations',zh:'\u62a5\u4ef7\u8ddf\u8fdb'},{key:'orders',color:'#2dd4bf',en:'Orders to process',zh:'\u5f85\u5904\u7406\u8ba2\u5355'},{key:'invoicing',color:'#f472b6',en:'Invoicing',zh:'\u5f85\u5f00\u53d1\u7968'},{key:'unpaid',color:'#f87171',en:'Unpaid invoices',zh:'\u672a\u4ed8\u6b3e\u9879'},{key:'shipping',color:'#6ee7b7',en:'Shipping estimates',zh:'\u914d\u9001\u65e5\u671f'}];
 
 var lang='en';
-var TX_EN={todoTab:'To-do & Inbox',crmTab:'Sales CRM',ordersTab:'Orders',quotesTab:'Quotes & Pricing',competitorsTab:'Competitors',dailyCheck:'Daily checklist',clickSection:'Click a section above',clientPipeline:'Client Pipeline',ordersPipeline:'Orders Pipeline',total:'Total',enquiries:'Enquiries',pendingQuote:'Pending Quote',activeClients:'Active Clients',lost:'Lost',revenue:'Revenue',inProduction:'In Production',inTransit:'In Transit',unpaid:'Unpaid',clickView:'click \u2193',dropHere:'Drop here',paid:'Paid',unpaidTxt:'Unpaid',estDel:'Est:',quoteEstimator:'Quote Estimator',standardPricing:'Standard Pricing',competitorSato:'Competitor (Sato)',jobDetails:'Job Details',shippingParams:'Shipping Parameters',client:'Client',widthMM:'Width (mm)',heightMM:'Height (mm)',qtyPcs:'Total Qty (pcs)',skus:'No. of SKUs',colour:'Colour',black:'1C Black',colourOpt:'Colour',destination:'Destination',airRmb:'\u2708 Rate (RMB/kg)',docCost:'Documentation cost (SGD)',calculate:'Calculate',fillForm:'Fill in the form to calculate',quoteSummary:'Quote Summary',totalQty:'Total qty',qtyPerSku:'QTY / SKU',costPerPcRmb:'Print cost/pc (RMB)',printCost:'Print cost (SGD)',shipDocs:'Shipping + docs',gstRow:'GST',totalCost:'Total cost',sellingPrice:'Selling price',profit:'Profit',profitMargin:'Profit margin',pricePerPc:'Price per piece',editHint:'\u270f\ufe0f Edit any value to recalculate',howCalc:'How it was calculated',printCostHd:'\u2460 Print cost',shipHd:'\u2461 Shipping',priceHd:'\u2462 Price',stdEstimate:'\u2605 Standard Pricing Estimate',cmpEstimate:'\u2605 Competitor (Sato) Estimate',nearestSize:'Nearest size',qpsLookup:'QTY/SKU lookup',nearestTier:'Nearest tier (round up)',estTotal:'Est. total',nearestHist:'10 Nearest Historical Orders',filterQPS:'Filter QTY/SKU:',company:'Company',sizeArea:'Size/Area',diff:'Diff',qty:'Qty',priceSgd:'Sell Price SGD',pricePc:'Price/pc',noHist:'No matching historical orders',satoList:'Sato Asia List',jewelList:'Jewel Creative List',comment:'Comment',bothNote:'Also our client',ourClient:'Our client',synced:'Synced'};
-var TX_ZH={todoTab:'\u5f85\u529e\u4e8b\u9879',crmTab:'\u9500\u552e\u7ba1\u7406',ordersTab:'\u8ba2\u5355\u7ba1\u7406',quotesTab:'\u62a5\u4ef7\u8ba1\u7b97',competitorsTab:'\u7ade\u4e89\u5bf9\u624b',dailyCheck:'\u6bcf\u65e5\u5f85\u529e',clickSection:'\u70b9\u51fb\u4e0a\u65b9\u5206\u7c7b',clientPipeline:'\u5ba2\u6237\u7ba1\u9053',ordersPipeline:'\u8ba2\u5355\u7ba1\u9053',total:'\u603b\u6570',enquiries:'\u8be2\u76d8',pendingQuote:'\u5f85\u62a5\u4ef7',activeClients:'\u6d3b\u8dc3\u5ba2\u6237',lost:'\u5df2\u6d41\u5931',revenue:'\u603b\u6536\u5165',inProduction:'\u751f\u4ea7\u4e2d',inTransit:'\u8fd0\u8f93\u4e2d',unpaid:'\u672a\u4ed8\u6b3e',clickView:'\u70b9\u51fb\u67e5\u770b \u2193',dropHere:'\u62d6\u5230\u6b64\u5904',paid:'\u5df2\u4ed8\u6b3e',unpaidTxt:'\u672a\u4ed8\u6b3e',estDel:'\u9884\u8ba1:',quoteEstimator:'\u62a5\u4ef7\u8ba1\u7b97\u5668',standardPricing:'\u6807\u51c6\u62a5\u4ef7',competitorSato:'\u7ade\u4e89\u5bf9\u624b(Sato)',jobDetails:'\u8ba2\u5355\u4fe1\u606f',shippingParams:'\u8fd0\u8f93\u53c2\u6570',client:'\u5ba2\u6237',widthMM:'\u5bbd\u5ea6(mm)',heightMM:'\u9ad8\u5ea6(mm)',qtyPcs:'\u603b\u6570\u91cf(\u5f20)',skus:'SKU\u6570\u91cf',colour:'\u989c\u8272',black:'\u5355\u8272\u9ed1',colourOpt:'\u5f69\u8272',destination:'\u76ee\u7684\u5730',airRmb:'\u2708 \u8d39\u7387(RMB/kg)',docCost:'\u6587\u4ef6\u8d39(SGD)',calculate:'\u8ba1\u7b97\u62a5\u4ef7',fillForm:'\u586b\u5199\u8868\u5355\u5e76\u8ba1\u7b97',quoteSummary:'\u62a5\u4ef7\u6458\u8981',totalQty:'\u603b\u6570\u91cf',qtyPerSku:'QTY/SKU',costPerPcRmb:'\u5370\u5237\u5355\u4ef7(RMB)',printCost:'\u5370\u5237\u6210\u672c(SGD)',shipDocs:'\u8fd0\u8d39+\u6587\u4ef6\u8d39',gstRow:'GST',totalCost:'\u603b\u6210\u672c',sellingPrice:'\u5efa\u8bae\u552e\u4ef7',profit:'\u5229\u6da6',profitMargin:'\u5229\u6da6\u7387',pricePerPc:'\u6bcf\u5f20\u5355\u4ef7',editHint:'\u270f\ufe0f \u53ef\u4fee\u6539\u4efb\u4f55\u5b57\u6bb5',howCalc:'\u8ba1\u7b97\u903b\u8f91',printCostHd:'\u2460 \u5370\u5237\u6210\u672c',shipHd:'\u2461 \u8fd0\u8d39',priceHd:'\u2462 \u62a5\u4ef7',stdEstimate:'\u2605 \u6807\u51c6\u62a5\u4ef7\u4f30\u7b97',cmpEstimate:'\u2605 Sato\u4ef7\u683c\u4f30\u7b97',nearestSize:'\u6700\u8fd1\u5c3a\u5bf8',qpsLookup:'QTY/SKU\u67e5\u8be2',nearestTier:'\u6700\u8fd1\u6570\u91cf\u6863(\u5411\u4e0a)',estTotal:'\u4f30\u7b97\u603b\u4ef7',nearestHist:'10\u4e2a\u6700\u8fd1\u5386\u53f2\u8ba2\u5355',filterQPS:'\u6309QTY/SKU\u7b5b\u9009:',company:'\u516c\u53f8',sizeArea:'\u5c3a\u5bf8/\u9762\u79ef',diff:'\u9762\u79ef\u5dee',qty:'\u6570\u91cf',priceSgd:'\u552e\u4ef7SGD',pricePc:'\u6bcf\u5f20\u4ef7\u683c',noHist:'\u65e0\u5339\u914d\u5386\u53f2\u8ba2\u5355',satoList:'Sato Asia\u5217\u8868',jewelList:'Jewel Creative\u5217\u8868',comment:'\u5907\u6ce8',bothNote:'\u4e5f\u662f\u6211\u4eec\u5ba2\u6237',ourClient:'\u6211\u4eec\u5ba2\u6237',synced:'\u540c\u6b65\u65f6\u95f4'};
+var TX_EN={todoTab:'To-do & Inbox',crmTab:'Sales CRM',ordersTab:'Orders',quotesTab:'Quotes & Pricing',competitorsTab:'Competitors',dailyCheck:'Daily checklist',clickSection:'Click a section above',clientPipeline:'Client Pipeline',ordersPipeline:'Orders Pipeline',total:'Total',enquiries:'Enquiries',pendingQuote:'Pending Quote',activeClients:'Active Clients',lost:'Lost',revenue:'Revenue',inProduction:'In Production',inTransit:'In Transit',unpaid:'Unpaid',clickView:'click \u2193',dropHere:'Drop here',paid:'Paid',unpaidTxt:'Unpaid',estDel:'Est:',quoteEstimator:'Quote Estimator',standardPricing:'Standard Pricing',competitorSato:'Competitor (Sato)',jobDetails:'Job Details',shippingParams:'Shipping Parameters',client:'Client',widthMM:'Width (mm)',heightMM:'Height (mm)',qtyPcs:'Total Qty (pcs)',skus:'No. of SKUs',colour:'Colour',black:'1C Black',colourOpt:'Colour',destination:'Destination',airRmb:'\u2708 Rate (RMB/kg)',docCost:'Documentation cost (SGD)',calculate:'Calculate',fillForm:'Fill in the form to calculate',quoteSummary:'Quote Summary',totalQty:'Total qty',qtyPerSku:'QTY / SKU',costPerPcRmb:'Print cost/pc (RMB)',printCost:'Print cost (SGD)',shipDocs:'Shipping + docs',gstRow:'GST',totalCost:'Total cost',sellingPrice:'Selling price',profit:'Profit',profitMargin:'Profit margin',pricePerPc:'Price per piece',editHint:'\u270f\ufe0f Edit any value to recalculate',howCalc:'How it was calculated',printCostHd:'\u2460 Print cost',shipHd:'\u2461 Shipping',priceHd:'\u2462 Price',stdEstimate:'\u2605 Standard Pricing Estimate',cmpEstimate:'\u2605 Competitor (Sato) Estimate',nearestSize:'Nearest size',qpsLookup:'QTY/SKU lookup',nearestTier:'Nearest tier (round up)',estTotal:'Est. total',nearestHist:'10 Nearest Historical Orders',filterQPS:'Filter QTY/SKU:',company:'Company',sizeArea:'Size/Area',diff:'Diff',qty:'Qty',priceSgd:'Sell Price SGD',pricePc:'Price/pc',noHist:'No matching historical orders',satoList:'Sato Asia List',jewelList:'Jewel Creative List',comment:'Comment',bothNote:'Also our client',ourClient:'Our client',synced:'Synced',reqPasting:'Require Pasting',lastContact30:'Last Contact >30 Days',langChinese:'Language: Chinese',clientsContacted6mo:'Clients Contacted — Last 6 Months',pipelineBreakdown:'Pipeline Breakdown',conversionFunnel:'Conversion Funnel',callFirst:'Call These First',daysSinceContact:'Days Since Contact',staleQuotes:'Stale Pending Quotes (>30 Days, No Movement)',convFromPrev:'% = conversion from previous stage',noContactData:'No contact-date data available',noStaleQuotes:'No stale pending quotes — nice work',daysNoMovement:'days, no movement',daysAgo:'days ago',lastLbl:'Last:',clientsCount:'clients',contactedIn:'Contacted in',searchClients:'Search clients...',sortBy:'Sort by',nameAZ:'Name A→Z',mostDays:'Most days since contact',fewestDays:'Fewest days since contact',noClientsFound:'No clients found',enquiryGroup:'Enquiry (+BCRS/info/quote)',enquiryGroupShort:'Enquiry-group',activeFunnel:'Active (1st/Repeat)'};
+var TX_ZH={todoTab:'\u5f85\u529e\u4e8b\u9879',crmTab:'\u9500\u552e\u7ba1\u7406',ordersTab:'\u8ba2\u5355\u7ba1\u7406',quotesTab:'\u62a5\u4ef7\u8ba1\u7b97',competitorsTab:'\u7ade\u4e89\u5bf9\u624b',dailyCheck:'\u6bcf\u65e5\u5f85\u529e',clickSection:'\u70b9\u51fb\u4e0a\u65b9\u5206\u7c7b',clientPipeline:'\u5ba2\u6237\u7ba1\u9053',ordersPipeline:'\u8ba2\u5355\u7ba1\u9053',total:'\u603b\u6570',enquiries:'\u8be2\u76d8',pendingQuote:'\u5f85\u62a5\u4ef7',activeClients:'\u6d3b\u8dc3\u5ba2\u6237',lost:'\u5df2\u6d41\u5931',revenue:'\u603b\u6536\u5165',inProduction:'\u751f\u4ea7\u4e2d',inTransit:'\u8fd0\u8f93\u4e2d',unpaid:'\u672a\u4ed8\u6b3e',clickView:'\u70b9\u51fb\u67e5\u770b \u2193',dropHere:'\u62d6\u5230\u6b64\u5904',paid:'\u5df2\u4ed8\u6b3e',unpaidTxt:'\u672a\u4ed8\u6b3e',estDel:'\u9884\u8ba1:',quoteEstimator:'\u62a5\u4ef7\u8ba1\u7b97\u5668',standardPricing:'\u6807\u51c6\u62a5\u4ef7',competitorSato:'\u7ade\u4e89\u5bf9\u624b(Sato)',jobDetails:'\u8ba2\u5355\u4fe1\u606f',shippingParams:'\u8fd0\u8f93\u53c2\u6570',client:'\u5ba2\u6237',widthMM:'\u5bbd\u5ea6(mm)',heightMM:'\u9ad8\u5ea6(mm)',qtyPcs:'\u603b\u6570\u91cf(\u5f20)',skus:'SKU\u6570\u91cf',colour:'\u989c\u8272',black:'\u5355\u8272\u9ed1',colourOpt:'\u5f69\u8272',destination:'\u76ee\u7684\u5730',airRmb:'\u2708 \u8d39\u7387(RMB/kg)',docCost:'\u6587\u4ef6\u8d39(SGD)',calculate:'\u8ba1\u7b97\u62a5\u4ef7',fillForm:'\u586b\u5199\u8868\u5355\u5e76\u8ba1\u7b97',quoteSummary:'\u62a5\u4ef7\u6458\u8981',totalQty:'\u603b\u6570\u91cf',qtyPerSku:'QTY/SKU',costPerPcRmb:'\u5370\u5237\u5355\u4ef7(RMB)',printCost:'\u5370\u5237\u6210\u672c(SGD)',shipDocs:'\u8fd0\u8d39+\u6587\u4ef6\u8d39',gstRow:'GST',totalCost:'\u603b\u6210\u672c',sellingPrice:'\u5efa\u8bae\u552e\u4ef7',profit:'\u5229\u6da6',profitMargin:'\u5229\u6da6\u7387',pricePerPc:'\u6bcf\u5f20\u5355\u4ef7',editHint:'\u270f\ufe0f \u53ef\u4fee\u6539\u4efb\u4f55\u5b57\u6bb5',howCalc:'\u8ba1\u7b97\u903b\u8f91',printCostHd:'\u2460 \u5370\u5237\u6210\u672c',shipHd:'\u2461 \u8fd0\u8d39',priceHd:'\u2462 \u62a5\u4ef7',stdEstimate:'\u2605 \u6807\u51c6\u62a5\u4ef7\u4f30\u7b97',cmpEstimate:'\u2605 Sato\u4ef7\u683c\u4f30\u7b97',nearestSize:'\u6700\u8fd1\u5c3a\u5bf8',qpsLookup:'QTY/SKU\u67e5\u8be2',nearestTier:'\u6700\u8fd1\u6570\u91cf\u6863(\u5411\u4e0a)',estTotal:'\u4f30\u7b97\u603b\u4ef7',nearestHist:'10\u4e2a\u6700\u8fd1\u5386\u53f2\u8ba2\u5355',filterQPS:'\u6309QTY/SKU\u7b5b\u9009:',company:'\u516c\u53f8',sizeArea:'\u5c3a\u5bf8/\u9762\u79ef',diff:'\u9762\u79ef\u5dee',qty:'\u6570\u91cf',priceSgd:'\u552e\u4ef7SGD',pricePc:'\u6bcf\u5f20\u4ef7\u683c',noHist:'\u65e0\u5339\u914d\u5386\u53f2\u8ba2\u5355',satoList:'Sato Asia\u5217\u8868',jewelList:'Jewel Creative\u5217\u8868',comment:'\u5907\u6ce8',bothNote:'\u4e5f\u662f\u6211\u4eec\u5ba2\u6237',ourClient:'\u6211\u4eec\u5ba2\u6237',synced:'\u540c\u6b65\u65f6\u95f4',reqPasting:'\u9700\u8d34\u88c5',lastContact30:'\u8d85\u8fc730\u5929\u672a\u8054\u7cfb',langChinese:'\u8bed\u8a00\uff1a\u4e2d\u6587',clientsContacted6mo:'\u8fd16\u4e2a\u6708\u8054\u7cfb\u5ba2\u6237',pipelineBreakdown:'\u9500\u552e\u7ba1\u9053\u5206\u6790',conversionFunnel:'\u8f6c\u5316\u6f0f\u6597',callFirst:'\u4f18\u5148\u8054\u7cfb',daysSinceContact:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570',staleQuotes:'\u62a5\u4ef7\u505c\u6ede\uff08\u8d85\u8fc730\u5929\u672a\u63a8\u8fdb\uff09',convFromPrev:'% = \u4e0e\u4e0a\u4e00\u9636\u6bb5\u76f8\u6bd4\u7684\u8f6c\u5316\u7387',noContactData:'\u6682\u65e0\u8054\u7cfb\u65e5\u671f\u6570\u636e',noStaleQuotes:'\u6ca1\u6709\u505c\u6ede\u7684\u62a5\u4ef7 \u2014 \u505a\u5f97\u4e0d\u9519',daysNoMovement:'\u5929\uff0c\u672a\u63a8\u8fdb',daysAgo:'\u5929\u524d',lastLbl:'\u6700\u540e\u8054\u7cfb\uff1a',clientsCount:'\u4f4d\u5ba2\u6237',contactedIn:'\u8054\u7cfb\u4e8e',searchClients:'\u641c\u7d22\u5ba2\u6237...',sortBy:'\u6392\u5e8f\u65b9\u5f0f',nameAZ:'\u540d\u79f0 A\u2192Z',mostDays:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570\uff08\u6700\u591a\uff09',fewestDays:'\u8ddd\u4e0a\u6b21\u8054\u7cfb\u5929\u6570\uff08\u6700\u5c11\uff09',noClientsFound:'\u672a\u627e\u5230\u5ba2\u6237',enquiryGroup:'\u8be2\u76d8\uff08\u542b BCRS/\u4fe1\u606f/\u62a5\u4ef7\uff09',enquiryGroupShort:'\u8be2\u76d8\u7ec4',activeFunnel:'\u6d3b\u8dc3\uff08\u9996\u5370/\u91cd\u5370\uff09'};
 var TX=TX_EN;
 
 var activeSection=null,dragId=null,editId=null,editType=null;
@@ -751,6 +770,7 @@ function setLang(l){
   lang=l;TX=l==='en'?TX_EN:TX_ZH;
   document.querySelectorAll('.lang').forEach(function(b){b.classList.toggle('on',(l==='en'&&b.textContent==='EN')||(l==='zh'&&b.textContent==='\u4e2d\u6587'));});
   document.querySelectorAll('[data-tx]').forEach(function(el){var k=el.getAttribute('data-tx');if(TX[k])el.textContent=TX[k];});
+  document.querySelectorAll('[data-tx-ph]').forEach(function(el){var k=el.getAttribute('data-tx-ph');if(TX[k])el.placeholder=TX[k];});
   renderAll();
 }
 function toggleSidebar(){
@@ -818,29 +838,34 @@ function daysSince(dateStr){
   var now=new Date();
   return Math.floor((now.setHours(0,0,0,0)-d.setHours(0,0,0,0))/86400000);
 }
+function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
 
 function renderCrmCharts(){
   // ── Bar chart: clients by month of most recent contact, last 6 months ──
   var now=new Date();
   var months=[];
-  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({y:d.getFullYear(),m:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short'}),count:0});}
+  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({y:d.getFullYear(),m:d.getMonth(),label:d.toLocaleDateString('en-GB',{month:'short'}),clients:[]});}
   CLIENTS.forEach(function(c){
     var d=parseFlexDate(c.lastContact);
     if(!d||isNaN(d.getTime()))return;
-    months.forEach(function(mo){if(d.getFullYear()===mo.y&&d.getMonth()===mo.m)mo.count++;});
+    months.forEach(function(mo){if(d.getFullYear()===mo.y&&d.getMonth()===mo.m)mo.clients.push(c);});
   });
-  var maxCount=Math.max.apply(null,months.map(function(mo){return mo.count;}).concat([1]));
-  document.getElementById('crm-bar-chart').innerHTML=months.map(function(mo){
-    var pct=Math.round((mo.count/maxCount)*100);
-    return '<div class="bar-row"><span class="bar-label">'+mo.label+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="bar-count">'+mo.count+'</span></div>';
+  CRM_MONTHS=months;
+  var maxCount=Math.max.apply(null,months.map(function(mo){return mo.clients.length;}).concat([1]));
+  document.getElementById('crm-bar-chart').innerHTML=months.map(function(mo,idx){
+    var pct=Math.round((mo.clients.length/maxCount)*100);
+    var cls=mo.clients.length?' bar-row-clk':'';
+    return '<div class="bar-row'+cls+'" onclick="crmDrillMonth('+idx+')"><span class="bar-label">'+mo.label+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div><span class="bar-count">'+mo.clients.length+'</span></div>';
   }).join('');
 
   // ── Pie chart: 1st print / Repeat print / Lost / Enquiry-group ──
+  var stage1p=CRM_STAGES.find(function(s){return s.id==='1st print';});
+  var stageRp=CRM_STAGES.find(function(s){return s.id==='Repeat print';});
   var pieGroups=[
-    {name:'1st print',color:'#2dd4bf',list:CLIENTS.filter(function(c){return c.stage==='1st print';})},
-    {name:'Repeat print',color:'#6ee7b7',list:CLIENTS.filter(function(c){return c.stage==='Repeat print';})},
-    {name:'Lost',color:'#45454f',list:CLIENTS.filter(function(c){return c.stage==='Lost';})},
-    {name:'Enquiry (+BCRS/info/quote)',color:'#60a5fa',list:CLIENTS.filter(function(c){return['Enquiry','Registering with BCRS','Pending info','Pending Quote Approval'].indexOf(c.stage)>-1;})}
+    {name:lang==='zh'?stage1p.zh:'1st print',color:'#2dd4bf',list:CLIENTS.filter(function(c){return c.stage==='1st print';})},
+    {name:lang==='zh'?stageRp.zh:'Repeat print',color:'#6ee7b7',list:CLIENTS.filter(function(c){return c.stage==='Repeat print';})},
+    {name:TX.lost,color:'#45454f',list:CLIENTS.filter(function(c){return c.stage==='Lost';})},
+    {name:TX.enquiryGroup,color:'#60a5fa',list:CLIENTS.filter(function(c){return['Enquiry','Registering with BCRS','Pending info','Pending Quote Approval'].indexOf(c.stage)>-1;})}
   ];
   var pieTotal=pieGroups.reduce(function(a,g){return a+g.list.length;},0)||1;
   var gradParts=[];var acc=0;
@@ -853,29 +878,43 @@ function renderCrmCharts(){
 
   // ── Conversion funnel ──
   var funnelStages=[
-    {name:'Enquiry-group',color:'#60a5fa',count:pieGroups[3].list.length},
-    {name:'Pending Quote',color:'#f472b6',count:CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).length},
-    {name:'Active (1st/Repeat)',color:'#2dd4bf',count:pieGroups[0].list.length+pieGroups[1].list.length}
+    {name:TX.enquiryGroupShort,color:'#60a5fa',count:pieGroups[3].list.length},
+    {name:TX.pendingQuote,color:'#f472b6',count:CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).length},
+    {name:TX.activeFunnel,color:'#2dd4bf',count:pieGroups[0].list.length+pieGroups[1].list.length}
   ];
   var funnelBase=funnelStages[0].count||1;
   document.getElementById('crm-funnel').innerHTML=funnelStages.map(function(f,idx){
     var widthPct=Math.max(8,Math.round((f.count/funnelBase)*100));
     var convPct=idx===0?'':Math.round((funnelStages[idx-1].count>0?f.count/funnelStages[idx-1].count:0)*100)+'%';
     return '<div class="funnel-row"><span class="funnel-label">'+f.name+'</span><div class="funnel-bar" style="width:'+widthPct+'%;background:'+f.color+'">'+f.count+'</div><span class="funnel-pct">'+convPct+'</span></div>';
-  }).join('')+'<div style="font-size:10px;color:var(--dim);margin-top:4px">% = conversion from previous stage</div>';
+  }).join('')+'<div style="font-size:10px;color:var(--dim);margin-top:4px">'+TX.convFromPrev+'</div>';
 
-  // ── Call these first: top 10 by days-since-contact (excluding Lost) ──
-  var callFirst=CLIENTS.filter(function(c){return c.stage!=='Lost';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};}).filter(function(x){return x.d!==null;}).sort(function(a,b){return b.d-a.d;}).slice(0,10);
-  document.getElementById('crm-callfirst').innerHTML=callFirst.length?callFirst.map(function(x){
-    var color=x.d>60?'var(--red)':x.d>30?'var(--amb)':'var(--m)';
-    return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:'+color+'">'+x.d+'d ago</span></div>';
-  }).join('') : '<div class="cc-empty">No contact-date data available</div>';
+  // ── Call these first: rendered by its own function (search + sort + scroll) ──
+  renderCallFirst();
 
   // ── Stale Pending Quote Approval (>30 days since contact) ──
   var staleQ=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};}).filter(function(x){return x.d!==null&&x.d>30;}).sort(function(a,b){return b.d-a.d;});
   document.getElementById('crm-stale-quotes').innerHTML=staleQ.length?'<div class="cf-list">'+staleQ.map(function(x){
-    return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:var(--amb)">'+x.d+' days, no movement</span></div>';
-  }).join('')+'</div>' : '<div class="cc-empty">No stale pending quotes \u2014 nice work</div>';
+    return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:var(--amb)">'+(lang==='zh'?(x.d+TX.daysNoMovement):(x.d+' '+TX.daysNoMovement))+'</span></div>';
+  }).join('')+'</div>' : '<div class="cc-empty">'+TX.noStaleQuotes+'</div>';
+}
+
+function renderCallFirst(){
+  var box=document.getElementById('crm-callfirst');
+  if(!box)return;
+  var q=(document.getElementById('cf-search').value||'').toLowerCase();
+  var sortMode=document.getElementById('cf-sort').value;
+  var all=CLIENTS.filter(function(c){return c.stage!=='Lost';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};});
+  if(q)all=all.filter(function(x){return x.c.name.toLowerCase().indexOf(q)>-1||(x.c.contact||'').toLowerCase().indexOf(q)>-1;});
+  if(sortMode==='nameAZ'){all.sort(function(a,b){return a.c.name.localeCompare(b.c.name);});}
+  else if(sortMode==='fewestDays'){all.sort(function(a,b){var ad=a.d===null?Infinity:a.d,bd=b.d===null?Infinity:b.d;return ad-bd;});}
+  else{all.sort(function(a,b){var ad=a.d===null?-1:a.d,bd=b.d===null?-1:b.d;return bd-ad;});}
+  if(!all.length){box.innerHTML='<div class="cc-empty">'+TX.noClientsFound+'</div>';return;}
+  box.innerHTML=all.map(function(x){
+    var color=x.d===null?'var(--dim)':x.d>60?'var(--red)':x.d>30?'var(--amb)':'var(--m)';
+    var daysTxt=x.d===null?'\u2014':(lang==='zh'?(x.d+TX.daysAgo):(x.d+' '+TX.daysAgo));
+    return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:'+color+'">'+daysTxt+'</span></div>';
+  }).join('');
 }
 
 // ── CRM ──────────────────────────────────────────────────────────────────
@@ -889,7 +928,7 @@ function renderCRM(){
   var pst=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});
   var stale30=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;});
   var zhClients=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});
-  document.getElementById('crm-stats').innerHTML='<div class="sc"><div class="slbl">'+TX.total+'</div><div class="sval">'+CLIENTS.length+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Enquiry\')"><div class="slbl">'+TX.enquiries+'</div><div class="sval" style="color:var(--blu)">'+enq.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Pending Quote Approval\')"><div class="slbl">'+TX.pendingQuote+'</div><div class="sval" style="color:var(--pur)">'+pqa.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'active\')"><div class="slbl">'+TX.activeClients+'</div><div class="sval" style="color:var(--grn)">'+act.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Lost\')"><div class="slbl">'+TX.lost+'</div><div class="sval" style="color:var(--dim)">'+lst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'pasting\')"><div class="slbl">Require Pasting</div><div class="sval" style="color:var(--tel)">'+pst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'stale30\')"><div class="slbl">Last Contact &gt;30 Days</div><div class="sval" style="color:var(--amb)">'+stale30.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'zh\')"><div class="slbl">Language: Chinese</div><div class="sval" style="color:var(--pnk)">'+zhClients.length+'</div><div class="shnt">'+TX.clickView+'</div></div>';
+  document.getElementById('crm-stats').innerHTML='<div class="sc"><div class="slbl">'+TX.total+'</div><div class="sval">'+CLIENTS.length+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Enquiry\')"><div class="slbl">'+TX.enquiries+'</div><div class="sval" style="color:var(--blu)">'+enq.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Pending Quote Approval\')"><div class="slbl">'+TX.pendingQuote+'</div><div class="sval" style="color:var(--pur)">'+pqa.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'active\')"><div class="slbl">'+TX.activeClients+'</div><div class="sval" style="color:var(--grn)">'+act.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'Lost\')"><div class="slbl">'+TX.lost+'</div><div class="sval" style="color:var(--dim)">'+lst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'pasting\')"><div class="slbl">'+TX.reqPasting+'</div><div class="sval" style="color:var(--tel)">'+pst.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'stale30\')"><div class="slbl">'+TX.lastContact30+'</div><div class="sval" style="color:var(--amb)">'+stale30.length+'</div><div class="shnt">'+TX.clickView+'</div></div>'+'<div class="sc clk" onclick="crmDrill(\'zh\')"><div class="slbl">'+TX.langChinese+'</div><div class="sval" style="color:var(--pnk)">'+zhClients.length+'</div><div class="shnt">'+TX.clickView+'</div></div>';
   renderCrmCharts();
   var board=document.getElementById('crm-board');board.innerHTML='';
   CRM_STAGES.forEach(function(stage){var sc=filtered.filter(function(c){return c.stage===stage.id;});var col=document.createElement('div');col.className='col';col.dataset.stage=stage.id;col.innerHTML='<div class="colh"><div class="coll"><div class="cdot" style="background:'+stage.color+'"></div><span class="cttl">'+(lang==='zh'?stage.zh:stage.id)+'</span></div><span class="ccnt">'+sc.length+'</span></div><div style="height:4px"></div>';sc.forEach(function(c){var el=document.createElement('div');el.className='card';el.draggable=true;el.dataset.id=c.id;el.innerHTML='<div class="cn">'+c.name+'</div>'+(c.contact?'<div class="cm">'+c.contact+(c.pic2?' / '+c.pic2:'')+(c.mobile?' \u00b7 '+c.mobile:'')+'</div>':'')+(c.email?'<div class="cm" style="color:var(--blu)">'+c.email+'</div>':'')+(c.lastContact?'<div class="cm" style="color:var(--dim)">Last: '+c.lastContact+'</div>':'')+(c.notes?'<div class="cnote">'+c.notes+'</div>':'');el.addEventListener('click',function(){openModal(c.id,'crm');});el.addEventListener('dragstart',function(){dragId=c.id;setTimeout(function(){el.classList.add('drag');},0);});el.addEventListener('dragend',function(){dragId=null;clearDrag();});col.appendChild(el);});addDrop(col,'crm',stage.id);board.appendChild(col);});
@@ -897,11 +936,19 @@ function renderCRM(){
 function crmDrill(f){
   var list,title;
   if(f==='active'){list=CLIENTS.filter(function(c){return c.stage==='1st print'||c.stage==='Repeat print';});title=TX.activeClients;}
-  else if(f==='pasting'){list=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});title='Require Pasting';}
-  else if(f==='stale30'){list=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;}).sort(function(a,b){return daysSince(b.lastContact)-daysSince(a.lastContact);});title='Last Contact >30 Days';}
-  else if(f==='zh'){list=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});title='Language: Chinese';}
+  else if(f==='pasting'){list=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});title=TX.reqPasting;}
+  else if(f==='stale30'){list=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;}).sort(function(a,b){return daysSince(b.lastContact)-daysSince(a.lastContact);});title=TX.lastContact30;}
+  else if(f==='zh'){list=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});title=TX.langChinese;}
   else{list=CLIENTS.filter(function(c){return c.stage===f;});var stage=CRM_STAGES.find(function(s){return s.id===f;});title=lang==='zh'?(stage?stage.zh:f):f;}
-  openListModal(title,list.length+' clients',list.map(function(c){var d=daysSince(c.lastContact);var right=(f==='stale30'&&d!==null)?(d+' days ago'):'Last: '+(c.lastContact||'\u2014');return{left:c.name,right:right,cb:function(){openModal(c.id,'crm');}};}));
+  openListModal(title,fmtCount(list.length),list.map(function(c){var d=daysSince(c.lastContact);var right=(f==='stale30'&&d!==null)?(lang==='zh'?(d+TX.daysAgo):(d+' '+TX.daysAgo)):TX.lastLbl+' '+(c.lastContact||'\u2014');return{left:c.name,right:right,cb:function(){openModal(c.id,'crm');}};}));
+}
+
+function crmDrillMonth(idx){
+  var mo=CRM_MONTHS[idx];
+  if(!mo||!mo.clients.length)return;
+  var monthLabel=mo.label+' '+mo.y;
+  var list=mo.clients.slice().sort(function(a,b){return daysSince(a.lastContact)-daysSince(b.lastContact);});
+  openListModal(TX.contactedIn+' '+monthLabel,fmtCount(list.length),list.map(function(c){return{left:c.name,right:TX.lastLbl+' '+(c.lastContact||'\u2014'),cb:function(){openModal(c.id,'crm');}};}));
 }
 
 // ── ORDERS ────────────────────────────────────────────────────────────────
