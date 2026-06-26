@@ -22,15 +22,29 @@ button{cursor:pointer}
 .login-btn:hover{opacity:.85}
 .login-status{font-size:12px;color:var(--m);margin-top:16px;min-height:18px}
 .login-note{font-size:11px;color:var(--dim);margin-top:24px;line-height:1.6;border-top:1px solid var(--b);padding-top:16px}
-/* Nav */
-.nav{display:flex;align-items:center;background:var(--sur);border-bottom:1px solid var(--b);padding:0 14px;height:52px;position:sticky;top:0;z-index:50;gap:4px}
-.logo{font-size:15px;font-weight:600;margin-right:12px;white-space:nowrap;flex-shrink:0}
+/* Nav — sidebar on desktop, top bar on mobile (see media query) */
+.app-shell{display:flex;min-height:100vh}
+.nav{display:flex;flex-direction:column;align-items:stretch;background:var(--sur);border-right:1px solid var(--b);width:200px;flex-shrink:0;height:100vh;position:sticky;top:0;z-index:50;gap:0;overflow-y:auto;transition:width .2s}
+.nav-top{display:flex;align-items:center;justify-content:space-between;padding:16px 14px 10px;flex-shrink:0}
+.nav-collapse-btn{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex-shrink:0;border:none;background:transparent;color:var(--m);border-radius:var(--r);cursor:pointer;transition:all .15s}
+.nav-collapse-btn:hover{color:var(--t);background:var(--s2)}
+.nav-collapse-btn svg{transition:transform .2s}
+.logo{font-size:15px;font-weight:600;margin-right:12px;white-space:nowrap;flex-shrink:0;overflow:hidden}
 .logo em{color:var(--grn);font-style:normal}
-.tabs{display:flex;gap:2px;flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
-.tab{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:var(--r);font-size:12px;color:var(--m);border:none;background:transparent;transition:all .15s;white-space:nowrap}
+.tabs{display:flex;flex-direction:column;gap:2px;flex:1;overflow-x:visible;padding:6px 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--r);font-size:13px;color:var(--m);border:none;background:transparent;transition:all .15s;white-space:nowrap;width:100%;text-align:left}
 .tab:hover{color:var(--t);background:var(--s2)}.tab.on{color:var(--t);background:var(--s3);font-weight:500}
+.main{flex:1;min-width:0;transition:margin-left .2s}
+/* Collapsed sidebar — icons only */
+.nav.collapsed{width:56px}
+.nav.collapsed .logo{width:0;margin-right:0;opacity:0}
+.nav.collapsed .nav-collapse-btn svg{transform:rotate(180deg)}
+.nav.collapsed .tab{justify-content:center;padding:9px 0}
+.nav.collapsed .tab span{display:none}
+.nav.collapsed .nav-right{display:none}
 .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.nav-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.nav-right{display:flex;flex-direction:column;align-items:stretch;gap:8px;flex-shrink:0;padding:10px;border-top:1px solid var(--b)}
+.nav-right .fs-bar,.nav-right .lang-wrap,.nav-right .sync-box{width:100%;box-sizing:border-box;justify-content:space-between}
 .lang-wrap{display:flex;background:var(--s2);border:1px solid var(--b2);border-radius:20px;overflow:hidden}
 .lang{padding:4px 10px;font-size:12px;font-weight:500;border:none;background:transparent;color:var(--m)}
 .lang.on{background:var(--grn);color:#0c0c0e}
@@ -40,7 +54,7 @@ button{cursor:pointer}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 /* Layout */
-.page{display:none;height:calc(100vh - 52px);overflow-y:auto;padding:14px 16px;-webkit-overflow-scrolling:touch}
+.page{display:none;height:100vh;overflow-y:auto;padding:14px 16px;-webkit-overflow-scrolling:touch}
 .page.on{display:block}
 /* Stats */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:7px;margin-bottom:12px}
@@ -137,15 +151,22 @@ button{cursor:pointer}
 
 /* ── Mobile responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
-  .nav{padding:0 8px;gap:3px;height:auto;min-height:52px;flex-wrap:wrap}
-  .tabs{overflow-x:auto;flex:1;min-width:0;padding:4px 0}
-  .tab{padding:5px 8px;font-size:11px}
-  .nav-right{gap:4px;flex-shrink:0}
+  .app-shell{flex-direction:column}
+  .nav{flex-direction:row;align-items:center;width:auto!important;height:auto;min-height:52px;position:sticky;border-right:none;border-bottom:1px solid var(--b);padding:0 8px;gap:3px;flex-wrap:wrap;overflow-y:visible}
+  .nav-collapse-btn{display:none}
+  .nav.collapsed .logo{width:auto;opacity:1}
+  .nav.collapsed .tab span{display:inline}
+  .nav.collapsed .nav-right{display:flex}
+  .nav-top{padding:0;margin-right:8px}
+  .tabs{flex-direction:row;overflow-x:auto;flex:1;min-width:0;padding:4px 0}
+  .tab{width:auto;padding:5px 8px;font-size:11px}
+  .nav-right{flex-direction:row;align-items:center;gap:4px;flex-shrink:0;padding:0;border-top:none}
+  .nav-right .fs-bar,.nav-right .lang-wrap,.nav-right .sync-box{width:auto}
   .fs-bar{display:none}
   .lang-wrap{border-radius:14px}
   .sync-box{font-size:9px;padding:3px 6px}
   #sync-time{font-size:9px}
-  .page{padding:10px 8px}
+  .page{padding:10px 8px;height:calc(100vh - 52px)}
   /* Todo */
   .todo-body{grid-template-columns:1fr!important;gap:6px}
   .tcol{max-height:220px}
@@ -201,14 +222,20 @@ button{cursor:pointer}
   </div>
 </div>
 
-<nav class="nav">
-  <div class="logo">AYG<em>Ops</em></div>
+<div class="app-shell">
+<nav class="nav" id="sidebar-nav">
+  <div class="nav-top">
+    <div class="logo">AYG<em>Ops</em></div>
+    <button class="nav-collapse-btn" id="nav-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar" aria-label="Toggle sidebar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
+  </div>
   <div class="tabs">
-    <button class="tab on" onclick="goTab('todo',this)"><div class="dot" style="background:var(--amb)"></div><span data-tx="todoTab">To-do &amp; Inbox</span></button>
-    <button class="tab" onclick="goTab('crm',this)"><div class="dot" style="background:var(--blu)"></div><span data-tx="crmTab">Sales CRM</span></button>
-    <button class="tab" onclick="goTab('orders',this)"><div class="dot" style="background:var(--tel)"></div><span data-tx="ordersTab">Orders</span></button>
-    <button class="tab" onclick="goTab('quotes',this)"><div class="dot" style="background:var(--pur)"></div><span data-tx="quotesTab">Quotes &amp; Pricing</span></button>
-    <button class="tab" onclick="goTab('competitors',this)"><div class="dot" style="background:var(--pnk)"></div><span data-tx="competitorsTab">Competitors</span></button>
+    <button class="tab on" onclick="goTab('todo',this)" title="To-do &amp; Inbox"><div class="dot" style="background:var(--amb)"></div><span data-tx="todoTab">To-do &amp; Inbox</span></button>
+    <button class="tab" onclick="goTab('crm',this)" title="Sales CRM"><div class="dot" style="background:var(--blu)"></div><span data-tx="crmTab">Sales CRM</span></button>
+    <button class="tab" onclick="goTab('orders',this)" title="Orders"><div class="dot" style="background:var(--tel)"></div><span data-tx="ordersTab">Orders</span></button>
+    <button class="tab" onclick="goTab('quotes',this)" title="Quotes &amp; Pricing"><div class="dot" style="background:var(--pur)"></div><span data-tx="quotesTab">Quotes &amp; Pricing</span></button>
+    <button class="tab" onclick="goTab('competitors',this)" title="Competitors"><div class="dot" style="background:var(--pnk)"></div><span data-tx="competitorsTab">Competitors</span></button>
   </div>
   <div class="nav-right">
     <div class="fs-bar"><span>Text</span><input type="range" min="11" max="30" value="14" step="1" oninput="setFs(this.value)"><span id="fs-val">14px</span></div>
@@ -223,6 +250,9 @@ button{cursor:pointer}
     </div>
   </div>
 </nav>
+
+
+<div class="main">
 
 <!-- TODO -->
 <div id="page-todo" class="page on">
@@ -396,6 +426,8 @@ button{cursor:pointer}
       <div style="font-size:11px;color:var(--m);margin-top:6px" id="jewel-count"></div>
     </div>
   </div>
+</div>
+</div>
 </div>
 
 <!-- MODAL -->
@@ -672,6 +704,12 @@ function setLang(l){
   document.querySelectorAll('.lang').forEach(function(b){b.classList.toggle('on',(l==='en'&&b.textContent==='EN')||(l==='zh'&&b.textContent==='\u4e2d\u6587'));});
   document.querySelectorAll('[data-tx]').forEach(function(el){var k=el.getAttribute('data-tx');if(TX[k])el.textContent=TX[k];});
   renderAll();
+}
+function toggleSidebar(){
+  var nav=document.getElementById('sidebar-nav');
+  var collapsed=nav.classList.toggle('collapsed');
+  var btn=document.getElementById('nav-collapse-btn');
+  if(btn)btn.title=collapsed?'Expand sidebar':'Collapse sidebar';
 }
 function goTab(tab,btn){
   // Safety: if login screen is still visible but we have a token, force-hide it
