@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>AYG Printing</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c0c0e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AYG Printing">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -2566,6 +2573,16 @@ document.addEventListener('click',function(){
 setLang('en');
 if(window.location.search.includes('code=')||window.location.search.includes('error=')){initApp();}
 else{window.addEventListener('load',function(){initApp();});}
+
+// Register the PWA service worker (caches the app shell only; never touches
+// live SharePoint/Graph data). Fails silently and harmlessly if unsupported.
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('service-worker.js').catch(function(err){
+      console.warn('Service worker registration failed (app still works normally):',err);
+    });
+  });
+}
 </script>
 </body>
 </html>
