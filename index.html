@@ -1877,6 +1877,7 @@ function renderPpcScatter(){
   var note=targetArea?('<div style="font-size:10px;color:var(--dim);margin-top:4px">'+TX.areaHighlightNote+'</div>'):'';
   box.innerHTML=svg+legend+note;
 }
+var ORD_RATIO_BUCKETS=[];
 var ORD_BURDEN_BUCKETS=[];
 
 function ordDrillRatioBucket(idx){
