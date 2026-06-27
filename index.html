@@ -89,7 +89,7 @@ button{cursor:pointer}
 .edit-mode .sc.drag-over,.edit-mode .crm-chart-card.drag-over{outline:2px dashed var(--grn);outline-offset:2px}
 .edit-mode .sc.clk,.edit-mode .crm-chart-card{pointer-events:auto}
 .edit-mode .sc.clk{cursor:grab}
-.resize-handle{display:none;position:absolute;right:1px;bottom:1px;width:14px;height:14px;cursor:nwse-resize;color:var(--m);z-index:5}
+.resize-handle{display:none;position:absolute;right:1px;bottom:1px;width:14px;height:14px;cursor:nwse-resize;color:var(--m);z-index:5;touch-action:none}
 .edit-mode .resize-handle{display:flex;align-items:center;justify-content:center}
 .resize-handle svg{width:10px;height:10px;opacity:.6}
 .resize-handle:hover svg{opacity:1}
@@ -103,7 +103,7 @@ button{cursor:pointer}
 .bar-label{font-size:calc(var(--fs) * 0.714);color:var(--m);width:48px;flex-shrink:0}
 .bar-track{flex:1;background:var(--s2);border-radius:4px;height:16px;overflow:hidden;position:relative}
 .bar-fill{height:100%;border-radius:4px;background:var(--blu);transition:width .3s}
-.bar-count{font-size:11px;font-weight:600;font-family:"JetBrains Mono",monospace;width:28px;text-align:right;flex-shrink:0}
+.bar-count{font-size:11px;font-weight:600;font-family:"JetBrains Mono",monospace;width:44px;text-align:right;flex-shrink:0}
 .pie-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .pie-legend{flex:1;min-width:140px;display:flex;flex-direction:column;gap:6px}
 .pie-leg-row{display:flex;align-items:center;gap:7px;font-size:calc(var(--fs) * 0.786)}
@@ -209,11 +209,19 @@ button{cursor:pointer}
 
 /* ── Mobile responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
-  .nav{width:56px}
+  .nav.collapsed{width:44px;height:44px;background:transparent;border:none;position:fixed;top:10px;left:10px;z-index:60;overflow:visible}
+  .nav.collapsed .nav-top{padding:0;background:var(--sur);border:1px solid var(--b2);border-radius:50%;width:44px;height:44px;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+  .nav.collapsed .nav-collapse-btn{width:44px;height:44px}
+  .nav.collapsed .tabs{display:none}
   .nav:not(.collapsed){width:200px;position:fixed;height:100vh;z-index:60;box-shadow:4px 0 16px rgba(0,0,0,.4)}
   .app-shell:has(.nav:not(.collapsed)) .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
   .nav.collapsed .logo{width:0;opacity:0}
   .main-topbar{justify-content:flex-start;gap:6px;padding:6px 8px;flex-wrap:wrap}
+  /* Bigger touch targets for drag/resize handles in edit mode */
+  .resize-handle{width:36px;height:36px;bottom:-4px;right:-4px;background:var(--s3);border-radius:8px 0 8px 0}
+  .resize-handle svg{width:16px;height:16px}
+  .drag-handle{width:32px;height:32px;top:0;right:0;background:var(--s3);border-radius:0 8px 0 8px}
+  .drag-handle svg{width:16px;height:16px}
   .fs-bar{display:none}
   .lang-wrap{border-radius:14px}
   .sync-box{font-size:9px;padding:3px 6px}
@@ -1143,32 +1151,47 @@ function wireCardInteractions(containerId){
     });
     var handle=card.querySelector('[data-resize]');
     if(handle){
-      handle.addEventListener('mousedown',function(e){
-        e.preventDefault();e.stopPropagation();
+      function startResize(clientX,clientY){
         var defaultSpan=card.classList.contains('crm-chart-card')?6:3;
-        var startX=e.clientX,startY=e.clientY;
+        var startX=clientX,startY=clientY;
         var startCol=parseInt((card.style.gridColumn||'').replace('span ',''),10)||defaultSpan;
         var startRow=parseInt((card.style.gridRow||'').replace('span ',''),10)||1;
         var colWidth=card.getBoundingClientRect().width/startCol;
         var isStatCard=card.classList.contains('sc');
         var rowUnit=isStatCard?(84+7):(64+10); // matches each grid's grid-auto-rows + its gap, so drag distance maps 1:1 to row-span steps
         card.classList.add('resizing');
-        function onMove(ev){
-          var dx=ev.clientX-startX,dy=ev.clientY-startY;
+        function applyMove(cx,cy){
+          var dx=cx-startX,dy=cy-startY;
           var newCol=Math.max(2,Math.min(12,Math.round(startCol+dx/colWidth)));
           var newRow=Math.max(1,Math.min(12,Math.round(startRow+dy/rowUnit)));
           card.style.gridColumn='span '+newCol;
           card.style.gridRow='span '+newRow;
         }
-        function onUp(){
-          document.removeEventListener('mousemove',onMove);
-          document.removeEventListener('mouseup',onUp);
+        function onMouseMove(ev){applyMove(ev.clientX,ev.clientY);}
+        function onTouchMove(ev){if(ev.touches&&ev.touches[0]){ev.preventDefault();applyMove(ev.touches[0].clientX,ev.touches[0].clientY);}}
+        function finish(){
+          document.removeEventListener('mousemove',onMouseMove);
+          document.removeEventListener('mouseup',finish);
+          document.removeEventListener('touchmove',onTouchMove);
+          document.removeEventListener('touchend',finish);
+          document.removeEventListener('touchcancel',finish);
           card.classList.remove('resizing');
           captureLayout(containerId);
         }
-        document.addEventListener('mousemove',onMove);
-        document.addEventListener('mouseup',onUp);
+        document.addEventListener('mousemove',onMouseMove);
+        document.addEventListener('mouseup',finish);
+        document.addEventListener('touchmove',onTouchMove,{passive:false});
+        document.addEventListener('touchend',finish);
+        document.addEventListener('touchcancel',finish);
+      }
+      handle.addEventListener('mousedown',function(e){
+        e.preventDefault();e.stopPropagation();
+        startResize(e.clientX,e.clientY);
       });
+      handle.addEventListener('touchstart',function(e){
+        e.preventDefault();e.stopPropagation();
+        if(e.touches&&e.touches[0])startResize(e.touches[0].clientX,e.touches[0].clientY);
+      },{passive:false});
     }
   });
 }
