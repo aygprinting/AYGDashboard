@@ -237,7 +237,9 @@ button{cursor:pointer}
   .nav.collapsed .nav-top{padding:0;background:var(--sur);border:1px solid var(--b2);border-radius:50%;width:44px;height:44px;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)}
   .nav.collapsed .nav-collapse-btn{width:44px;height:44px}
   .nav.collapsed .tabs{display:none}
-  .nav:not(.collapsed){width:200px;position:fixed;height:100vh;z-index:60;box-shadow:4px 0 16px rgba(0,0,0,.4)}
+  .nav:not(.collapsed){width:240px;position:fixed;height:100vh;z-index:60;box-shadow:4px 0 16px rgba(0,0,0,.4)}
+  .nav:not(.collapsed) .tab{font-size:16px;padding:13px 12px;gap:12px;min-height:44px}
+  .nav:not(.collapsed) .dot{width:8px;height:8px}
   .app-shell:has(.nav:not(.collapsed)) .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
   .nav.collapsed .logo{width:0;opacity:0}
   .main-topbar{justify-content:flex-start;gap:6px;padding:6px 8px;flex-wrap:wrap}
@@ -338,7 +340,7 @@ button{cursor:pointer}
     <button id="sync-btn" onclick="fetchExcelFromSharePoint()" style="display:none;background:var(--grn);border:none;border-radius:var(--r);padding:2px 9px;color:#0c0c0e;font-size:11px;font-weight:600;cursor:pointer;margin-right:4px">&#8635; Sync</button>
     <div>
       <div id="sync-status" style="font-size:10px;color:var(--m)">Not synced</div>
-      <div id="sync-time" style="font-size:10px;color:var(--t);font-weight:500">10 Jun 2026 23:29 (GMT+8)</div>
+      <div id="sync-time" style="font-size:10px;color:var(--t);font-weight:500">&mdash;</div>
     </div>
   </div>
 </div>
