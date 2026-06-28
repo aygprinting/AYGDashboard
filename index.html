@@ -69,7 +69,6 @@ button{cursor:pointer}
 /* Stats */
 .stats{display:grid;grid-template-columns:repeat(12,1fr);grid-auto-rows:84px;gap:7px;margin-bottom:12px}
 .sc{background:var(--sur);border:1px solid var(--b);border-radius:var(--r);padding:10px 12px;grid-column:span 3;min-width:0;min-height:0;position:relative;overflow:hidden;display:flex;flex-direction:column}
-@media (max-width:600px){.sc{grid-column:span 6!important}}
 .sc.clk{cursor:pointer;transition:all .15s}.sc.clk:hover{border-color:var(--b2);transform:translateY(-1px)}
 .slbl{font-size:calc(var(--fs) * 0.714);color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
 .sval{font-size:19px;font-weight:600;font-family:"JetBrains Mono",monospace}
@@ -198,7 +197,7 @@ button{cursor:pointer}
 /* Quotes */
 .qtab{padding:5px 12px;border-radius:var(--r);border:none;background:transparent;color:var(--m);font-size:12px;cursor:pointer;transition:all .12s}
 .qtab:hover{color:var(--t);background:var(--s2)}.qtab.on{color:var(--t);background:var(--s3);font-weight:500}
-.qres{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:12px}
+.qres{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:12px;overflow-x:auto}
 .qres.nearest{border-color:var(--grn)}
 .field{margin-bottom:8px}
 .field label{display:block;font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
@@ -243,6 +242,10 @@ button{cursor:pointer}
   .app-shell:has(.nav:not(.collapsed)) .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
   .nav.collapsed .logo{width:0;opacity:0}
   .main-topbar{justify-content:flex-end;gap:6px;padding:6px 8px 6px 58px;flex-wrap:nowrap;overflow-x:auto}
+  .vbar-chart{overflow-x:visible}
+  .vbar-col{min-width:0}
+  .vbar-value{font-size:8px!important}
+  .vbar-month{font-size:9px!important}
   /* Bigger touch targets for drag/resize handles in edit mode */
   .resize-handle{width:36px;height:36px;bottom:-4px;right:-4px;background:var(--s3);border-radius:8px 0 8px 0}
   .resize-handle svg{width:16px;height:16px}
@@ -267,6 +270,7 @@ button{cursor:pointer}
   .col{flex:0 0 160px}
   /* Stats */
   .stats{grid-template-columns:repeat(3,1fr)!important;gap:5px}
+  .sc{grid-column:span 1!important}
   .sval{font-size:16px}
   /* Quotes — stack vertically */
   #qt-est > div[style*="grid-template-columns:200px"]{display:flex!important;flex-direction:column!important;gap:9px}
@@ -287,6 +291,7 @@ button{cursor:pointer}
 @media (max-width: 480px) {
   .tab{font-size:10px;padding:4px 6px}
   .stats{grid-template-columns:repeat(2,1fr)!important}
+  .sc{grid-column:span 1!important}
   .col{flex:0 0 145px}
   #std-tables,#cmp-tables,#honsen-tables{grid-template-columns:1fr!important}
 }
@@ -2308,7 +2313,7 @@ function applyHF(){
   var html='<table class="ht"><thead><tr><th>'+TX.company+'</th><th>'+TX.sizeArea+'</th><th>'+TX.diff+'</th><th>'+TX.qty+'</th><th>SKU</th><th style="color:var(--amb)">QTY/SKU</th>'+colHeader+'<th>'+TX.priceSgd+'</th><th>'+TX.pricePc+'</th></tr></thead><tbody>';
   top10.forEach(function(o){var diff=o.area-histArea;var ds=diff===0?'color:var(--grn)':Math.abs(diff)<500?'color:var(--amb)':'color:var(--dim)';var diffStr=(diff===0?'=':(diff>0?'+':'')+Math.round(diff).toLocaleString())+'mm\u00b2';var qps=o.sku>0?Math.round(o.qty/o.sku):o.qty;var colCell=hasColour?'<td style="color:var(--pur);white-space:nowrap;font-size:11px">'+(normCol(o.colour)==='c'?'Colour':'1C Black')+'</td>':'';html+='<tr class="'+(Math.abs(diff)<200?'hn':'')+'"><td>'+o.company+'</td><td style="white-space:nowrap">'+o.size+'<br><span class="had">'+o.area.toLocaleString()+'mm\u00b2</span></td><td style="'+ds+';font-size:10px">'+diffStr+'</td><td>'+o.qty.toLocaleString()+'</td><td>'+o.sku+'</td><td style="font-family:\'JetBrains Mono\',monospace;color:var(--amb)">'+qps.toLocaleString()+'</td>'+colCell+'<td style="font-family:\'JetBrains Mono\',monospace">S$'+o.sell.toLocaleString()+'</td><td class="hpp">S$'+o.ppp.toFixed(5)+'</td></tr>';});
   html+='</tbody></table>';
-  document.getElementById('q-hist').innerHTML=html;
+  document.getElementById('q-hist').innerHTML='<div style="overflow-x:auto">'+html+'</div>';
 }
 
 function recalcSummary(){
@@ -2578,7 +2583,7 @@ function runHistSearch(){
       +'<td class="hpp">S$'+o.ppp.toFixed(5)+'</td></tr>';
   });
   html+='</tbody></table>';
-  resEl.innerHTML=html;
+  resEl.innerHTML='<div style="overflow-x:auto">'+html+'</div>';
 }
 
 function resetHistSearch(){
