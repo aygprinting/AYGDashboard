@@ -199,7 +199,7 @@ button{cursor:pointer}
 /* Quotes */
 .qtab{padding:5px 12px;border-radius:var(--r);border:none;background:transparent;color:var(--m);font-size:12px;cursor:pointer;transition:all .12s}
 .qtab:hover{color:var(--t);background:var(--s2)}.qtab.on{color:var(--t);background:var(--s3);font-weight:500}
-.qres{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:12px;overflow-x:auto}
+.qres{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:12px;overflow-x:auto;min-width:0;box-sizing:border-box}
 .qres.nearest{border-color:var(--grn)}
 .field{margin-bottom:8px}
 .field label{display:block;font-size:10px;color:var(--m);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
@@ -652,7 +652,7 @@ button{cursor:pointer}
   <div id="qt-est">
     <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:11px;align-items:start">
       <!-- INPUT -->
-      <div>
+      <div style="width:100%;min-width:0">
         <div class="qres" style="margin-bottom:9px">
           <div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" data-tx="jobDetails">Job Details</div>
           <div class="field"><label data-tx="client">Client</label><input id="q-client" type="text"></div>
@@ -683,12 +683,12 @@ button{cursor:pointer}
         </div>
       </div>
       <!-- SUMMARY + LOGIC -->
-      <div>
+      <div style="width:100%;min-width:0">
         <div class="qres" id="q-result" style="margin-bottom:9px"><div class="dempty" data-tx="fillForm">Fill in the form to calculate</div></div>
         <div class="qres" id="q-logic"><div class="dempty" data-tx="howCalc">Calculation logic</div></div>
       </div>
       <!-- HIST -->
-      <div>
+      <div style="width:100%;min-width:0">
         <div class="qres" id="q-hist-box" style="display:none">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
             <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em" id="q-hist-hd">10 Nearest Historical Orders</div>
