@@ -60,7 +60,7 @@ button{cursor:pointer}
 .lang.on{background:var(--grn);color:#0c0c0e}
 .fs-bar{display:flex;align-items:center;gap:4px;background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:3px 8px}
 .fs-bar span{font-size:10px;color:var(--m)}.fs-bar input{width:70px;accent-color:var(--grn);cursor:pointer}
-.sync-box{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m);background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:4px 9px;max-width:150px;flex-shrink:0}
+.sync-box{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m);background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:4px 9px;max-width:135px;flex-shrink:0}
 .sync-box>div{min-width:0;overflow:hidden}
 #sync-status,#sync-time{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
@@ -283,7 +283,7 @@ button{cursor:pointer}
   /* Standard/competitor pricing grids */
   #std-tables,#cmp-tables,#honsen-tables{grid-template-columns:1fr!important}
   /* Competitors page */
-  #page-competitors > div{grid-template-columns:1fr!important}
+  #page-competitors .comp-tables-grid{grid-template-columns:1fr!important}
   /* Modal */
   .modal{width:calc(100vw - 24px)!important;padding:14px}
   /* Login card */
@@ -763,7 +763,7 @@ button{cursor:pointer}
     <button class="layout-edit-btn" id="comp-edit-btn" onclick="toggleEditMode('comp')" data-tx="customizeLayout">Customize layout</button>
   </div>
   <div class="stats" id="comp-stats"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+  <div class="comp-tables-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
     <div>
       <div style="font-size:13px;font-weight:600;color:var(--pnk);margin-bottom:8px" data-tx="satoList">Sato Asia List</div>
       <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
