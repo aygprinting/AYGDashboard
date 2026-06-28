@@ -6,6 +6,7 @@
 <title>AYG Printing</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0c0c0e">
+<script>try{var __t=localStorage.getItem('aygops-theme');if(__t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,6 +16,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#0c0c0e;--sur:#141416;--s2:#1c1c20;--s3:#242428;--b:rgba(255,255,255,.06);--b2:rgba(255,255,255,.11);--t:#ededee;--m:#7a7a85;--dim:#45454f;--grn:#6ee7b7;--blu:#60a5fa;--amb:#fbbf24;--red:#f87171;--pur:#a78bfa;--tel:#2dd4bf;--pnk:#f472b6;--r:10px;--rl:14px;--fs:14px}
+html[data-theme="light"]{--bg:#f7f7f8;--sur:#ffffff;--s2:#f0f0f2;--s3:#e4e4e7;--b:rgba(0,0,0,.08);--b2:rgba(0,0,0,.14);--t:#18181b;--m:#6b7280;--dim:#9ca3af;--grn:#0d9488;--blu:#2563eb;--amb:#b45309;--red:#dc2626;--pur:#7c3aed;--tel:#0f766e;--pnk:#db2777}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--t);font-family:Sora,sans-serif;font-size:var(--fs);min-height:100vh;overflow-x:hidden}
 button,input,select,textarea{font-family:Sora,sans-serif;font-size:var(--fs)}
@@ -53,6 +55,8 @@ button{cursor:pointer}
 .lang-wrap{display:flex;background:var(--s2);border:1px solid var(--b2);border-radius:20px;overflow:hidden}
 .nav-backdrop{display:none}
 .lang{padding:4px 10px;font-size:12px;font-weight:500;border:none;background:transparent;color:var(--m)}
+.theme-toggle-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--b2);background:var(--s2);border-radius:50%;color:var(--t);cursor:pointer;flex-shrink:0;transition:background .15s}
+.theme-toggle-btn:hover{background:var(--s3)}
 .lang.on{background:var(--grn);color:#0c0c0e}
 .fs-bar{display:flex;align-items:center;gap:4px;background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:3px 8px}
 .fs-bar span{font-size:10px;color:var(--m)}.fs-bar input{width:70px;accent-color:var(--grn);cursor:pointer}
@@ -323,6 +327,10 @@ button{cursor:pointer}
 
 <div class="main">
 <div class="main-topbar">
+  <button id="theme-toggle-btn" class="theme-toggle-btn" onclick="toggleTheme()" title="Switch background">
+    <svg id="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <svg id="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="display:none"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+  </button>
   <div class="fs-bar"><span data-tx="textLabel">Text</span><input type="range" min="11" max="30" value="14" step="1" oninput="setFs(this.value)"><span id="fs-val">14px</span></div>
   <div class="lang-wrap"><button class="lang on" onclick="setLang('en')">EN</button><button class="lang" onclick="setLang('zh')">&#20013;&#25991;</button></div>
   <div class="sync-box">
@@ -1045,6 +1053,22 @@ async function initApp(){
 
 // ── UTILS ────────────────────────────────────────────────────────────────
 function setFs(v){document.documentElement.style.setProperty('--fs',v+'px');document.getElementById('fs-val').textContent=v+'px';}
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme',theme);
+  var moonIcon=document.getElementById('theme-icon-moon'),sunIcon=document.getElementById('theme-icon-sun');
+  if(moonIcon&&sunIcon){
+    moonIcon.style.display=theme==='light'?'none':'block';
+    sunIcon.style.display=theme==='light'?'block':'none';
+  }
+  var btn=document.getElementById('theme-toggle-btn');
+  if(btn)btn.title=theme==='light'?'Switch to dark background':'Switch to bright background';
+}
+function toggleTheme(){
+  var current=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
+  var next=current==='light'?'dark':'light';
+  applyTheme(next);
+  try{localStorage.setItem('aygops-theme',next);}catch(e){}
+}
 function setLang(l){
   lang=l;TX=l==='en'?TX_EN:TX_ZH;
   document.querySelectorAll('.lang').forEach(function(b){b.classList.toggle('on',(l==='en'&&b.textContent==='EN')||(l==='zh'&&b.textContent==='\u4e2d\u6587'));});
@@ -2571,6 +2595,7 @@ document.addEventListener('click',function(){
 },true);
 
 setLang('en');
+applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'light':'dark');
 if(window.location.search.includes('code=')||window.location.search.includes('error=')){initApp();}
 else{window.addEventListener('load',function(){initApp();});}
 
