@@ -242,15 +242,17 @@ button{cursor:pointer}
   .nav:not(.collapsed) .dot{width:8px;height:8px}
   .app-shell:has(.nav:not(.collapsed)) .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
   .nav.collapsed .logo{width:0;opacity:0}
-  .main-topbar{justify-content:flex-start;gap:6px;padding:6px 8px;flex-wrap:wrap}
+  .main-topbar{justify-content:flex-end;gap:6px;padding:6px 8px 6px 58px;flex-wrap:nowrap;overflow-x:auto}
   /* Bigger touch targets for drag/resize handles in edit mode */
   .resize-handle{width:36px;height:36px;bottom:-4px;right:-4px;background:var(--s3);border-radius:8px 0 8px 0}
   .resize-handle svg{width:16px;height:16px}
   .drag-handle{width:32px;height:32px;top:0;right:0;background:var(--s3);border-radius:0 8px 0 8px}
   .drag-handle svg{width:16px;height:16px}
   .fs-bar{display:none}
-  .lang-wrap{border-radius:14px}
-  .sync-box{font-size:9px;padding:3px 6px}
+  .lang-wrap{border-radius:14px;flex-shrink:0}
+  .theme-toggle-btn{flex-shrink:0}
+  .sync-box{font-size:9px;padding:3px 6px;max-width:140px;flex-shrink:0}
+  #sync-status,#sync-time{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
   #sync-time{font-size:9px}
   .page{padding:10px 8px}
   /* Todo */
