@@ -244,6 +244,8 @@ button{cursor:pointer}
   .app-shell:has(.nav:not(.collapsed)) .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55}
   .nav.collapsed .logo{width:0;opacity:0}
   .main-topbar{justify-content:flex-end;gap:6px;padding:6px 8px 6px 58px;flex-wrap:nowrap;overflow-x:auto}
+  .qtab-row{overflow-x:auto;flex-wrap:nowrap!important;-webkit-overflow-scrolling:touch}
+  .qtab-row .qtab{flex-shrink:0}
   .vbar-chart{overflow-x:visible}
   .vbar-col{min-width:0}
   .vbar-value{font-size:8px!important}
@@ -642,7 +644,7 @@ button{cursor:pointer}
 
 <!-- QUOTES -->
 <div id="page-quotes" class="page">
-  <div style="display:flex;gap:3px;margin-bottom:11px;border-bottom:1px solid var(--b);padding-bottom:8px">
+  <div class="qtab-row" style="display:flex;gap:3px;margin-bottom:11px;border-bottom:1px solid var(--b);padding-bottom:8px">
     <button class="qtab on" onclick="switchQ('est',this)" data-tx="quoteEstimator">Quote Estimator</button>
     <button class="qtab" onclick="switchQ('std',this)" data-tx="standardPricing">Standard Pricing</button>
     <button class="qtab" onclick="switchQ('cmp',this)" data-tx="competitorSato">Competitor (Sato)</button>
