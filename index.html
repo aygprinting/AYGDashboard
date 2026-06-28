@@ -60,7 +60,9 @@ button{cursor:pointer}
 .lang.on{background:var(--grn);color:#0c0c0e}
 .fs-bar{display:flex;align-items:center;gap:4px;background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:3px 8px}
 .fs-bar span{font-size:10px;color:var(--m)}.fs-bar input{width:70px;accent-color:var(--grn);cursor:pointer}
-.sync-box{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m);background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:4px 9px}
+.sync-box{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--m);background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:4px 9px;max-width:150px;flex-shrink:0}
+.sync-box>div{min-width:0;overflow:hidden}
+#sync-status,#sync-time{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .pulse{width:6px;height:6px;border-radius:50%;background:var(--grn);animation:blink 2s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 /* Layout */
@@ -254,8 +256,7 @@ button{cursor:pointer}
   .fs-bar{display:none}
   .lang-wrap{border-radius:14px;flex-shrink:0}
   .theme-toggle-btn{flex-shrink:0}
-  .sync-box{font-size:9px;padding:3px 6px;max-width:140px;flex-shrink:0}
-  #sync-status,#sync-time{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+  .sync-box{font-size:9px;padding:3px 6px;max-width:120px}
   #sync-time{font-size:9px}
   .page{padding:10px 8px}
   /* Todo */
@@ -680,11 +681,13 @@ button{cursor:pointer}
           <button class="btn btn-g" style="width:100%;justify-content:center;padding:9px;margin-top:4px" onclick="calcQ()"><span data-tx="calculate">Calculate</span></button>
         </div>
       </div>
-      <!-- SUMMARY -->
-      <div class="qres" id="q-result"><div class="dempty" data-tx="fillForm">Fill in the form to calculate</div></div>
-      <!-- LOGIC + HIST -->
+      <!-- SUMMARY + LOGIC -->
       <div>
-        <div class="qres" id="q-logic" style="margin-bottom:9px"><div class="dempty" data-tx="howCalc">Calculation logic</div></div>
+        <div class="qres" id="q-result" style="margin-bottom:9px"><div class="dempty" data-tx="fillForm">Fill in the form to calculate</div></div>
+        <div class="qres" id="q-logic"><div class="dempty" data-tx="howCalc">Calculation logic</div></div>
+      </div>
+      <!-- HIST -->
+      <div>
         <div class="qres" id="q-hist-box" style="display:none">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
             <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em" id="q-hist-hd">10 Nearest Historical Orders</div>
@@ -2368,8 +2371,8 @@ function calcQ(){
 
   var mn="'JetBrains Mono',monospace";
   var rs='display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 0;border-bottom:1px solid var(--b);';
-  var ls='font-size:11px;color:var(--m);flex:1';
-  var is='width:90px;background:var(--bg);border:1px solid var(--b2);border-radius:6px;padding:3px 6px;color:var(--t);font-family:'+mn+';font-size:12px;font-weight:500;text-align:right;outline:none;';
+  var ls='font-size:11px;color:var(--m);flex:1;min-width:0';
+  var is='width:88px;max-width:35%;flex-shrink:0;background:var(--bg);border:1px solid var(--b2);border-radius:6px;padding:3px 6px;color:var(--t);font-family:'+mn+';font-size:12px;font-weight:500;text-align:right;outline:none;';
   var div='<div style="border-top:1px solid var(--b2);margin:6px 0 4px"></div>';
   function fmt(n){return'S$'+Math.round(n).toLocaleString();}
 
