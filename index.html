@@ -2408,8 +2408,7 @@ function renderPpcScatter(){
 }
 function renderPpcTable(){
   var tbody=document.getElementById('ppc-table-tbody');if(!tbody)return;
-  var rows=PPC_LAST_POINTS.slice().sort(function(a,b){return b.ppc-a.ppc;});
-  tbody.innerHTML=ppcTableRows(rows);
+  tbody.innerHTML=ppcTableRows(PPC_LAST_POINTS);
 }
 function ppcTableRows(rows){
   if(!rows.length)return '<tr><td colspan="7" class="cc-empty">'+TX.noClientsFound+'</td></tr>';
@@ -2502,7 +2501,7 @@ function renderQePpcPanel(skipTable){
   var legendItems=[{color:'var(--blu)',label:'1C Black'},{color:'var(--pnk)',label:'Colour'}];
   var note=buildPpcNote(area>0,usedFallback);
   if(chartEl)chartEl.innerHTML=svg+vbarLegend(legendItems)+note;
-  if(tbody&&!skipTable)tbody.innerHTML=buildYourQuoteRowPPC('yq-rmb-ppc')+ppcTableRows(points.slice().sort(function(a,b){return b.ppc-a.ppc;}));
+  if(tbody&&!skipTable)tbody.innerHTML=buildYourQuoteRowPPC('yq-rmb-ppc')+ppcTableRows(points);
 }
 function ppcResetZoom(){PPC_ZOOM=null;renderPpcScatter();}
 function buildPpcNote(hasAreaTarget,usedColourFallback){
