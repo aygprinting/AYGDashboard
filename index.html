@@ -454,6 +454,8 @@ button{cursor:pointer}
             <select class="cf-sort" id="lostq-colour-filter" onchange="renderLostClientQuotes()">
               <option value="" data-tx="allColoursOpt">All colours</option>
             </select>
+            <input class="ipt" id="lostq-qtypersku-filter" type="number" data-tx-ph="qpsMinLbl" placeholder="QTY/SKU min" style="width:120px" oninput="renderLostClientQuotes()">
+            <input class="ipt" id="lostq-area-filter" type="number" data-tx-ph="areaMm2Lbl" placeholder="Area (mm\u00b2)..." style="width:120px" oninput="renderLostClientQuotes()">
           </div>
         </div>
         <div style="overflow-x:auto">
@@ -462,6 +464,7 @@ button{cursor:pointer}
             <th onclick="sortLostQ('company')" data-tx="company">Company</th>
             <th onclick="sortLostQ('size')" data-tx="sizeCol">Size</th>
             <th onclick="sortLostQ('area')" data-tx="areaCol">Area</th>
+            <th id="lostq-diff-th" data-tx="diff" style="display:none">Diff</th>
             <th onclick="sortLostQ('colour')" data-tx="colour">Colour</th>
             <th onclick="sortLostQ('qty')" data-tx="qtyPcs">Total Qty (pcs)</th>
             <th onclick="sortLostQ('qtyPerSku')" data-tx="qtyPerSkuCol">QTY/SKU</th>
@@ -1704,8 +1707,10 @@ function renderLostClientQuotes(){
   var box=document.getElementById('crm-lost-quotes-tbody');
   if(!box)return;
   LOST_QUOTE_ROWS=buildLostClientQuoteRows();
+  var diffTh=document.getElementById('lostq-diff-th');
   if(!LOST_QUOTE_ROWS.length){
     var lostCount=CLIENTS.filter(function(c){return c.stage==='Lost';}).length;
+    if(diffTh)diffTh.style.display='none';
     box.innerHTML='<tr><td colspan="7" class="cc-empty">'+TX.noLostQuoteMatches
       +'<div style="margin-top:6px;font-size:10px;color:var(--dim)">'
       +'Debug: '+lostCount+' lost client(s) in Contacts \u00b7 '+QUOTES_RAW.length+' quote row(s) loaded from Custom Sizes &amp; Quotes'
@@ -1714,6 +1719,8 @@ function renderLostClientQuotes(){
   }
   var q=(document.getElementById('lostq-search').value||'').toLowerCase();
   var colourFilter=document.getElementById('lostq-colour-filter').value;
+  var qpsMin=parseFloat(document.getElementById('lostq-qtypersku-filter').value)||0;
+  var areaTarget=parseFloat(document.getElementById('lostq-area-filter').value)||0;
   var rows=LOST_QUOTE_ROWS.slice();
   // Populate colour filter options once per render (cheap; list is small)
   var colourSel=document.getElementById('lostq-colour-filter');
@@ -1726,6 +1733,15 @@ function renderLostClientQuotes(){
   }
   if(colourFilter)rows=rows.filter(function(r){return r.quote.colour===colourFilter;});
   if(q)rows=rows.filter(function(r){return r.client.name.toLowerCase().indexOf(q)>-1||(r.quote.size||'').toLowerCase().indexOf(q)>-1||(r.quote.colour||'').toLowerCase().indexOf(q)>-1;});
+  if(qpsMin>0)rows=rows.filter(function(r){return(r.quote.qtyPerSku||0)>=qpsMin;});
+  // Area filter: keep quotes within \u00b120% of the target area (matches the tolerance used
+  // elsewhere in the app for "nearest size" lookups), and show how far off each one is.
+  var showDiff=areaTarget>0;
+  if(showDiff){
+    var lo=areaTarget*0.8,hi=areaTarget*1.2;
+    rows=rows.filter(function(r){return r.quote.area&&r.quote.area>=lo&&r.quote.area<=hi;});
+  }
+  if(diffTh)diffTh.style.display=showDiff?'':'none';
   var col=LOSTQ_SORT.col,dir=LOSTQ_SORT.dir;
   rows.sort(function(a,b){
     var av,bv;
@@ -1742,22 +1758,31 @@ function renderLostClientQuotes(){
   });
   var theadRow=document.querySelector('#crm-lost-quotes-table thead tr');
   if(theadRow){
-    var cols=['company','size','area','colour','qty','qtyPerSku','ppp'];
+    var cols=['company','size','area','diff','colour','qty','qtyPerSku','ppp'];
     Array.prototype.forEach.call(theadRow.children,function(th,i){
       th.classList.remove('sort-asc','sort-desc');
       if(cols[i]===col)th.classList.add(dir==='asc'?'sort-asc':'sort-desc');
     });
   }
-  if(!rows.length){box.innerHTML='<tr><td colspan="7" class="cc-empty">'+TX.noLostQuoteMatches+'</td></tr>';return;}
+  var colCount=showDiff?8:7;
+  if(!rows.length){box.innerHTML='<tr><td colspan="'+colCount+'" class="cc-empty">'+TX.noLostQuoteMatches+'</td></tr>';return;}
   box.innerHTML=rows.map(function(r,i){
     var idx=LOST_QUOTE_ROWS.indexOf(r);
     var areaTxt=r.quote.area?r.quote.area.toLocaleString()+' mm\u00b2':'\u2014';
     var pppTxt=isFinite(r.quote.ppp)&&r.quote.ppp?'S$'+r.quote.ppp.toFixed(4):'\u2014';
     var aliasNote=r.matchedName.toLowerCase()!==normalizeCompanyName(r.client.name)?(' <span style="color:var(--dim);font-size:10px">('+TX.quotedAs+' '+r.matchedName+')</span>'):'';
+    var diffCell='';
+    if(showDiff){
+      var diff=(r.quote.area||0)-areaTarget;
+      var ds=diff===0?'color:var(--grn)':Math.abs(diff)<areaTarget*0.05?'color:var(--amb)':'color:var(--dim)';
+      var diffStr=(diff===0?'=':(diff>0?'+':'')+Math.round(diff).toLocaleString())+'mm\u00b2';
+      diffCell='<td style="'+ds+';font-size:10px">'+diffStr+'</td>';
+    }
     return '<tr style="cursor:pointer" onclick="openLostQuoteRowDetail('+idx+')">'
       +'<td>'+r.client.name+aliasNote+'</td>'
       +'<td>'+(r.quote.size||'\u2014')+'</td>'
       +'<td>'+areaTxt+'</td>'
+      +diffCell
       +'<td>'+(r.quote.colour||'\u2014')+'</td>'
       +'<td>'+(r.quote.qty?r.quote.qty.toLocaleString():'\u2014')+'</td>'
       +'<td>'+(r.quote.qtyPerSku?r.quote.qtyPerSku.toLocaleString():'\u2014')+'</td>'
