@@ -701,6 +701,37 @@ button{cursor:pointer}
     <button class="qtab" onclick="switchQ('search',this)" data-tx="quotesHistSearch">Quotes History Search</button>
   </div>
   <div id="qt-est">
+    <div class="qres" id="cq-history-box" style="display:none;margin-bottom:11px">
+      <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" id="cq-history-hd" data-tx="clientHistoryHd">Client Order &amp; Quote History</div>
+      <div style="margin-bottom:6px;font-size:10px;font-weight:600;color:var(--grn);text-transform:uppercase;letter-spacing:.05em" data-tx="pastOrdersHd">Past Orders</div>
+      <div style="overflow-x:auto;margin-bottom:14px">
+        <table class="comp-table" id="cq-orders-table">
+          <thead><tr>
+            <th data-tx="sizeCol">Size</th>
+            <th data-tx="areaCol">Area</th>
+            <th data-tx="colour">Colour</th>
+            <th data-tx="qtyPcs">Total Qty (pcs)</th>
+            <th data-tx="qtyPerSkuCol">QTY/SKU</th>
+            <th data-tx="pricePerPcSgdCol">Price per piece (SGD)</th>
+          </tr></thead>
+          <tbody id="cq-orders-tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-bottom:6px;font-size:10px;font-weight:600;color:var(--amb);text-transform:uppercase;letter-spacing:.05em" data-tx="pastQuotesHd">Past Quotes</div>
+      <div style="overflow-x:auto">
+        <table class="comp-table" id="cq-quotes-table">
+          <thead><tr>
+            <th data-tx="sizeCol">Size</th>
+            <th data-tx="areaCol">Area</th>
+            <th data-tx="colour">Colour</th>
+            <th data-tx="qtyPcs">Total Qty (pcs)</th>
+            <th data-tx="qtyPerSkuCol">QTY/SKU</th>
+            <th data-tx="pricePerPcSgdCol">Price per piece (SGD)</th>
+          </tr></thead>
+          <tbody id="cq-quotes-tbody"></tbody>
+        </table>
+      </div>
+    </div>
     <div style="display:grid;grid-template-columns:200px 1fr 1fr;gap:11px;align-items:start">
       <!-- INPUT -->
       <div style="width:100%;min-width:0">
@@ -779,37 +810,6 @@ button{cursor:pointer}
         </div>
       </div>
       <div id="lq-match-results"></div>
-    </div>
-    <div class="qres" id="cq-history-box" style="display:none;margin-top:11px">
-      <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" id="cq-history-hd" data-tx="clientHistoryHd">Client Order &amp; Quote History</div>
-      <div style="margin-bottom:6px;font-size:10px;font-weight:600;color:var(--grn);text-transform:uppercase;letter-spacing:.05em" data-tx="pastOrdersHd">Past Orders</div>
-      <div style="overflow-x:auto;margin-bottom:14px">
-        <table class="comp-table" id="cq-orders-table">
-          <thead><tr>
-            <th data-tx="sizeCol">Size</th>
-            <th data-tx="areaCol">Area</th>
-            <th data-tx="colour">Colour</th>
-            <th data-tx="qtyPcs">Total Qty (pcs)</th>
-            <th data-tx="qtyPerSkuCol">QTY/SKU</th>
-            <th data-tx="pricePerPcSgdCol">Price per piece (SGD)</th>
-          </tr></thead>
-          <tbody id="cq-orders-tbody"></tbody>
-        </table>
-      </div>
-      <div style="margin-bottom:6px;font-size:10px;font-weight:600;color:var(--amb);text-transform:uppercase;letter-spacing:.05em" data-tx="pastQuotesHd">Past Quotes</div>
-      <div style="overflow-x:auto">
-        <table class="comp-table" id="cq-quotes-table">
-          <thead><tr>
-            <th data-tx="sizeCol">Size</th>
-            <th data-tx="areaCol">Area</th>
-            <th data-tx="colour">Colour</th>
-            <th data-tx="qtyPcs">Total Qty (pcs)</th>
-            <th data-tx="qtyPerSkuCol">QTY/SKU</th>
-            <th data-tx="pricePerPcSgdCol">Price per piece (SGD)</th>
-          </tr></thead>
-          <tbody id="cq-quotes-tbody"></tbody>
-        </table>
-      </div>
     </div>
   </div>
   <div id="qt-std" style="display:none">
@@ -2728,8 +2728,11 @@ function clientHistoryRow(size,area,colour,qty,qtyPerSku,ppp){
 }
 function renderClientHistory(){
   var box=document.getElementById('cq-history-box');
-  var name=(document.getElementById('q-client').value||'').trim().toLowerCase();
+  var rawName=(document.getElementById('q-client').value||'').trim();
+  var name=rawName.toLowerCase();
   if(!name){if(box)box.style.display='none';return;}
+  var hd=document.getElementById('cq-history-hd');
+  if(hd)hd.textContent=TX.clientHistoryHd+' \u2014 '+rawName;
   var matchedOrders=ORDERS.filter(function(o){return o.name&&o.name.toLowerCase().indexOf(name)>-1;});
   var matchedQuotes=QUOTES_RAW.filter(function(q){return q.company&&q.company.toLowerCase().indexOf(name)>-1;});
   if(box)box.style.display='';
