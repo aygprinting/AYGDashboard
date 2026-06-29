@@ -2745,14 +2745,14 @@ function renderClientHistory(){
   }
   var ordersBody=document.getElementById('cq-orders-tbody');
   if(ordersBody){
-    ordersBody.innerHTML=buildYourQuoteRowCT('yq-sp-client-orders')+(matchedOrders.length?matchedOrders.map(function(o){
+    ordersBody.innerHTML=buildYourQuoteRowCT('yq-client-orders')+(matchedOrders.length?matchedOrders.map(function(o){
       var ppp=o.qty>0?o.price/o.qty:0;
       return clientHistoryRow(o.name,o.size,o.area,o.colour,o.qty,o.qtyPerSku,ppp);
     }).join(''):'<tr><td colspan="7" class="cc-empty">'+TX.noClientHistory+'</td></tr>');
   }
   var quotesBody=document.getElementById('cq-quotes-tbody');
   if(quotesBody){
-    quotesBody.innerHTML=buildYourQuoteRowCT('yq-sp-client-quotes')+(matchedQuotes.length?matchedQuotes.map(function(q){
+    quotesBody.innerHTML=buildYourQuoteRowCT('yq-client-quotes')+(matchedQuotes.length?matchedQuotes.map(function(q){
       return clientHistoryRow(q.company,q.size,q.area,q.colour,q.qty,q.qtyPerSku,q.ppp);
     }).join(''):'<tr><td colspan="7" class="cc-empty">'+TX.noClientHistory+'</td></tr>');
   }
@@ -2827,7 +2827,7 @@ function calcQ(){
     +'<div style="'+rs+'"><label style="'+ls+'" for="eq-gst-pct">GST (<input id="eq-gst-pct" type="number" step="0.5" value="'+gstPct+'" style="width:36px;background:var(--bg);border:1px solid var(--b2);border-radius:4px;padding:1px 4px;color:var(--amb);font-family:'+mn+';font-size:11px;text-align:center;outline:none" oninput="recalcSummary()">%)</label><span id="eq-gst-amt" style="font-family:'+mn+';font-size:12px;color:var(--amb)">S$'+(Math.round(gstAmt*100)/100).toFixed(2)+'</span></div>'
     +'<div style="'+rs+'font-weight:600"><span style="'+ls+'color:var(--t);font-weight:600">'+TX.totalCost+'</span><span id="eq-tc" style="font-family:'+mn+';font-size:12px;font-weight:600">'+fmt(totCost)+'</span></div>'
     +div
-    +'<div style="'+rs+'"><label style="'+ls+'font-weight:600;color:var(--grn)" for="eq-sp">'+TX.sellingPrice+'</label><input id="eq-sp" type="number" step="1" value="'+Math.round(sell)+'" style="'+is+'color:var(--grn);border-color:rgba(110,231,183,.4)" oninput="syncSellPriceFrom(\'eq\')"></div>'
+    +'<div style="'+rs+'"><label style="'+ls+'font-weight:600;color:var(--grn)" for="eq-sp">'+TX.sellingPrice+'</label><input id="eq-sp" type="number" step="1" value="'+Math.round(sell)+'" style="'+is+'color:var(--grn);border-color:rgba(110,231,183,.4)" oninput="syncSellPriceFrom(\'eq-sp\')"></div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.profit+'</span><span id="eq-pr" style="font-family:'+mn+';font-size:12px;color:var(--grn)">'+fmt(profit)+'</span></div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.profitMargin+'</span><span id="eq-mg" style="font-family:'+mn+';font-size:12px;color:var(--grn)">'+Math.round(margin)+'%</span></div>'
     +'<div style="'+rs+'border-bottom:none"><span style="'+ls+'">'+TX.pricePerPc+'</span><span id="eq-pp" style="font-family:'+mn+';font-size:12px">S$'+ppp.toFixed(5)+'</span></div>'
@@ -2874,7 +2874,7 @@ function calcQ(){
 // ANY of them updates all the others, plus the original Quote Summary box, via
 // syncSellPriceFrom() below. Reading current job details from #q-result's dataset (set just
 // above) means these rows don't need calcQ() to pass anything in directly.
-var YOUR_QUOTE_SP_IDS=['eq-sp','yq-sp-hist','yq-sp-lost','yq-sp-client-orders','yq-sp-client-quotes'];
+var YOUR_QUOTE_SP_IDS=['eq-sp','yq-sp-hist','yq-sp-lost'];
 function getYourQuoteData(){
   var qrEl=document.getElementById('q-result');
   var totalQty=parseFloat(qrEl.dataset.qty)||0;
@@ -2909,7 +2909,7 @@ function buildYourQuoteRowHT(inputId,showColourCol){
 }
 // Builds the highlighted row for the .comp-table-style Client Order & Quote History tables
 // (Company/Size/Area/Colour/Qty/QTY-SKU/Price-per-piece columns — no Diff or SKU column there).
-function buildYourQuoteRowCT(inputId){
+function buildYourQuoteRowCT(idSuffix){
   var d=getYourQuoteData();if(!d)return '';
   var ppp=d.totalQty>0?d.sell/d.totalQty:0;
   return '<tr style="background:rgba(110,231,183,.12);border-top:2px solid var(--grn);border-bottom:2px solid var(--grn)">'
@@ -2919,7 +2919,7 @@ function buildYourQuoteRowCT(inputId){
     +'<td style="font-weight:700">'+(d.colour==='c'?TX.colourOpt:TX.black)+'</td>'
     +'<td style="font-weight:700">'+d.totalQty.toLocaleString()+'</td>'
     +'<td style="font-weight:700">'+d.qtyPerSku.toLocaleString()+'</td>'
-    +'<td><input id="'+inputId+'" type="number" step="1" value="'+Math.round(d.sell)+'" style="width:95px;background:var(--bg);border:2px solid var(--grn);border-radius:6px;padding:3px 6px;color:var(--grn);font-family:\'JetBrains Mono\',monospace;font-size:12px;font-weight:700;text-align:right;outline:none" oninput="syncSellPriceFrom(\''+inputId+'\')"></td>'
+    +'<td id="'+idSuffix+'-pp" style="font-family:\'JetBrains Mono\',monospace;font-weight:700;color:var(--grn)">S$'+ppp.toFixed(4)+'</td>'
     +'</tr>';
 }
 // Keeps every Sell Price SGD input across the Quote Summary box and all three comparison
@@ -2934,9 +2934,11 @@ function syncSellPriceFrom(sourceId){
   if(sourceId==='eq-sp')recalcSummary();
   var totalQty=parseFloat(document.getElementById('q-result').dataset.qty)||1;
   var sellVal=parseFloat(val)||0;
-  var pppTxt='S$'+(totalQty>0?(sellVal/totalQty).toFixed(5):'0.00000');
   ['yq-sp-hist','yq-sp-lost'].forEach(function(id){
-    var ppEl=document.getElementById(id+'-pp');if(ppEl)ppEl.textContent=pppTxt;
+    var ppEl=document.getElementById(id+'-pp');if(ppEl)ppEl.textContent='S$'+(totalQty>0?(sellVal/totalQty).toFixed(5):'0.00000');
+  });
+  ['yq-client-orders','yq-client-quotes'].forEach(function(id){
+    var ppEl=document.getElementById(id+'-pp');if(ppEl)ppEl.textContent='S$'+(totalQty>0?(sellVal/totalQty).toFixed(4):'0.0000');
   });
 }
 
