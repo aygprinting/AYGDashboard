@@ -1706,7 +1706,12 @@ function renderLostClientQuotes(){
   LOST_QUOTE_ROWS=buildLostClientQuoteRows();
   if(!LOST_QUOTE_ROWS.length){
     var wrap=document.getElementById('crm-lost-quotes-wrap');
-    if(wrap)wrap.innerHTML='<div class="cc-empty">'+TX.noLostQuoteMatches+'</div>';
+    var lostCount=CLIENTS.filter(function(c){return c.stage==='Lost';}).length;
+    var diag='<div class="cc-empty">'+TX.noLostQuoteMatches
+      +'<div style="margin-top:6px;font-size:10px;color:var(--dim)">'
+      +'Debug: '+lostCount+' lost client(s) in Contacts \u00b7 '+QUOTES_RAW.length+' quote row(s) loaded from Custom Sizes &amp; Quotes'
+      +'</div></div>';
+    if(wrap)wrap.innerHTML=diag;
     return;
   }
   var q=(document.getElementById('lostq-search').value||'').toLowerCase();
