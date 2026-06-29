@@ -707,6 +707,7 @@ button{cursor:pointer}
       <div style="overflow-x:auto;margin-bottom:14px">
         <table class="comp-table" id="cq-orders-table">
           <thead><tr>
+            <th data-tx="company">Company</th>
             <th data-tx="sizeCol">Size</th>
             <th data-tx="areaCol">Area</th>
             <th data-tx="colour">Colour</th>
@@ -721,6 +722,7 @@ button{cursor:pointer}
       <div style="overflow-x:auto">
         <table class="comp-table" id="cq-quotes-table">
           <thead><tr>
+            <th data-tx="company">Company</th>
             <th data-tx="sizeCol">Size</th>
             <th data-tx="areaCol">Area</th>
             <th data-tx="colour">Colour</th>
@@ -2721,33 +2723,38 @@ function applyLQF(){
 // ── Client Order & Quote History (Quote Estimator) ───────────────────────
 // Typing a company name into the Client field looks it up against every past ORDER and every
 // past QUOTE (any client, not just lost ones) and shows two separate tables.
-function clientHistoryRow(size,area,colour,qty,qtyPerSku,ppp){
+function clientHistoryRow(company,size,area,colour,qty,qtyPerSku,ppp){
   var areaTxt=area?area.toLocaleString()+' mm\u00b2':'\u2014';
   var pppTxt=isFinite(ppp)&&ppp?'S$'+ppp.toFixed(4):'\u2014';
-  return '<tr><td>'+(size||'\u2014')+'</td><td>'+areaTxt+'</td><td>'+(colour||'\u2014')+'</td><td>'+(qty?qty.toLocaleString():'\u2014')+'</td><td>'+(qtyPerSku?Math.round(qtyPerSku).toLocaleString():'\u2014')+'</td><td>'+pppTxt+'</td></tr>';
+  return '<tr><td>'+(company||'\u2014')+'</td><td>'+(size||'\u2014')+'</td><td>'+areaTxt+'</td><td>'+(colour||'\u2014')+'</td><td>'+(qty?qty.toLocaleString():'\u2014')+'</td><td>'+(qtyPerSku?Math.round(qtyPerSku).toLocaleString():'\u2014')+'</td><td>'+pppTxt+'</td></tr>';
 }
 function renderClientHistory(){
   var box=document.getElementById('cq-history-box');
   var rawName=(document.getElementById('q-client').value||'').trim();
   var name=rawName.toLowerCase();
   if(!name){if(box)box.style.display='none';return;}
-  var hd=document.getElementById('cq-history-hd');
-  if(hd)hd.textContent=TX.clientHistoryHd+' \u2014 '+rawName;
   var matchedOrders=ORDERS.filter(function(o){return o.name&&o.name.toLowerCase().indexOf(name)>-1;});
   var matchedQuotes=QUOTES_RAW.filter(function(q){return q.company&&q.company.toLowerCase().indexOf(name)>-1;});
   if(box)box.style.display='';
+  // Header shows the actual matched company name(s) found in the data — never the raw search
+  // text — since a substring search can match a different/additional company than intended.
+  var hd=document.getElementById('cq-history-hd');
+  if(hd){
+    var matchedNames=Array.from(new Set(matchedOrders.map(function(o){return o.name;}).concat(matchedQuotes.map(function(q){return q.company;}))));
+    hd.textContent=matchedNames.length?(TX.clientHistoryHd+' \u2014 '+matchedNames.join(', ')):TX.clientHistoryHd;
+  }
   var ordersBody=document.getElementById('cq-orders-tbody');
   if(ordersBody){
     ordersBody.innerHTML=matchedOrders.length?matchedOrders.map(function(o){
       var ppp=o.qty>0?o.price/o.qty:0;
-      return clientHistoryRow(o.size,o.area,o.colour,o.qty,o.qtyPerSku,ppp);
-    }).join(''):'<tr><td colspan="6" class="cc-empty">'+TX.noClientHistory+'</td></tr>';
+      return clientHistoryRow(o.name,o.size,o.area,o.colour,o.qty,o.qtyPerSku,ppp);
+    }).join(''):'<tr><td colspan="7" class="cc-empty">'+TX.noClientHistory+'</td></tr>';
   }
   var quotesBody=document.getElementById('cq-quotes-tbody');
   if(quotesBody){
     quotesBody.innerHTML=matchedQuotes.length?matchedQuotes.map(function(q){
-      return clientHistoryRow(q.size,q.area,q.colour,q.qty,q.qtyPerSku,q.ppp);
-    }).join(''):'<tr><td colspan="6" class="cc-empty">'+TX.noClientHistory+'</td></tr>';
+      return clientHistoryRow(q.company,q.size,q.area,q.colour,q.qty,q.qtyPerSku,q.ppp);
+    }).join(''):'<tr><td colspan="7" class="cc-empty">'+TX.noClientHistory+'</td></tr>';
   }
 }
 
