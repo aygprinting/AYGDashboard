@@ -1011,49 +1011,85 @@ button{cursor:pointer}
 </div>
 <div id="page-staffquotes" class="page">
   <div class="sh" style="margin-bottom:10px">
-    <div class="stitle" data-tx="quoteEstimator">Quote Estimator</div>
-    <div style="font-size:11px;color:var(--t)" data-tx="staffQuotesTab">Quote History</div>
+    <div class="stitle" data-tx="staffQuotesTab">Quotes</div>
   </div>
-  <div style="display:grid;grid-template-columns:220px 1fr;gap:11px;align-items:start;margin-bottom:16px">
-    <div style="width:100%;min-width:0">
-      <div class="qres">
-        <div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" data-tx="jobDetails">Job Details</div>
-        <div class="frow">
-          <div class="field"><label data-tx="widthMM">Width (mm)</label><input id="sq-w" type="number" oninput="calcStaffQ()"></div>
-          <div class="field"><label data-tx="heightMM">Height (mm)</label><input id="sq-h" type="number" oninput="calcStaffQ()"></div>
+  <div class="qtab-row" style="display:flex;gap:3px;margin-bottom:11px;border-bottom:1px solid var(--b);padding-bottom:8px;flex-wrap:wrap">
+    <button class="qtab on" onclick="switchSQ('est',this)" data-tx="quoteEstimator">Quote Estimator</button>
+    <button class="qtab" onclick="switchSQ('std',this)" data-tx="standardPricing">Standard Pricing</button>
+    <button class="qtab" onclick="switchSQ('cmp',this)" data-tx="competitorSato">Competitor (Sato)</button>
+    <button class="qtab" onclick="switchSQ('hist',this)" data-tx="staffQuotesTab">Quotes</button>
+  </div>
+  <div id="sqt-est">
+    <div style="display:grid;grid-template-columns:220px 1fr;gap:11px;align-items:start">
+      <div style="width:100%;min-width:0">
+        <div class="qres">
+          <div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" data-tx="jobDetails">Job Details</div>
+          <div class="field"><label data-tx="client">Client</label><input id="sq-client" type="text" oninput="renderStaffClientHistory()"></div>
+          <div class="frow">
+            <div class="field"><label data-tx="widthMM">Width (mm)</label><input id="sq-w" type="number" oninput="calcStaffQ()"></div>
+            <div class="field"><label data-tx="heightMM">Height (mm)</label><input id="sq-h" type="number" oninput="calcStaffQ()"></div>
+          </div>
+          <div class="frow">
+            <div class="field"><label data-tx="qtyPcs">Total Qty (pcs)</label><input id="sq-qty" type="number" oninput="calcStaffQ()"></div>
+            <div class="field"><label data-tx="skus">No. of SKUs</label><input id="sq-sku" type="number" value="1" oninput="calcStaffQ()"></div>
+          </div>
+          <div class="field"><label data-tx="colour">Colour</label><select id="sq-col" onchange="calcStaffQ()"><option value="b" data-tx="black">1C Black</option><option value="c" data-tx="colourOpt">Colour</option></select></div>
+          <button class="btn btn-g" style="width:100%;justify-content:center;padding:9px;margin-top:8px" onclick="calcStaffQ()"><span data-tx="calculate">Calculate</span></button>
         </div>
-        <div class="frow">
-          <div class="field"><label data-tx="qtyPcs">Total Qty (pcs)</label><input id="sq-qty" type="number" oninput="calcStaffQ()"></div>
-          <div class="field"><label data-tx="skus">No. of SKUs</label><input id="sq-sku" type="number" value="1" oninput="calcStaffQ()"></div>
+      </div>
+      <div style="width:100%;min-width:0">
+        <div class="qres" id="sq-result" style="margin-bottom:9px"><div class="dempty" data-tx="fillForm">Fill in the form to calculate</div></div>
+        <div class="qres" id="sq-std-est" style="display:none;margin-bottom:9px"></div>
+        <div class="qres" id="sq-hist-box" style="display:none">
+          <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" id="sq-hist-hd" data-tx="nearestHist">10 Nearest Historical Orders</div>
+          <div id="sq-hist"></div>
         </div>
-        <div class="field"><label data-tx="colour">Colour</label><select id="sq-col" onchange="calcStaffQ()"><option value="b" data-tx="black">1C Black</option><option value="c" data-tx="colourOpt">Colour</option></select></div>
-        <button class="btn btn-g" style="width:100%;justify-content:center;padding:9px;margin-top:8px" onclick="calcStaffQ()"><span data-tx="calculate">Calculate</span></button>
+        <div class="qres" id="sq-clienthist-box" style="display:none;margin-top:9px">
+          <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" data-tx="clientHistoryHd">Client Order &amp; Quote History</div>
+          <div id="sq-clienthist"></div>
+        </div>
       </div>
     </div>
-    <div style="width:100%;min-width:0">
-      <div class="qres" id="sq-result" style="margin-bottom:9px"><div class="dempty" data-tx="fillForm">Fill in the form to calculate</div></div>
-      <div class="qres" id="sq-std" style="display:none"></div>
+  </div>
+  <div id="sqt-std" style="display:none">
+    <div style="font-size:11px;color:var(--m);margin-bottom:10px" data-tx="stdPricingDesc">BCRS Ltd \u00b7 1C Black \u00b7 PP White \u00b7 Core 4cm \u00b7 excl. GST</div>
+    <div id="sq-std-tables" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+  </div>
+  <div id="sqt-cmp" style="display:none">
+    <div style="font-size:11px;color:var(--m);margin-bottom:10px" data-tx="satoPricingDesc">Sato pricing \u00b7 SGD per piece</div>
+    <div id="sq-cmp-tables" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px"></div>
+  </div>
+  <div id="sqt-hist" style="display:none">
+    <div class="qres" id="sq-lost-box" style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" data-tx="lostClientQuotes">Lost Clients \u2014 Matched Quotes</div>
+      <div style="overflow-x:auto"><table class="comp-table" id="sq-lost-table">
+        <thead><tr>
+          <th style="min-width:150px" data-tx="company">Company</th>
+          <th style="min-width:90px" data-tx="sizeCol">Size</th>
+          <th style="min-width:70px" data-tx="qty">Qty</th>
+          <th style="min-width:80px" data-tx="qtyPerSkuCol">QTY/SKU</th>
+          <th style="min-width:110px" data-tx="pricePerPcSgdCol">Price per piece (SGD)</th>
+        </tr></thead>
+        <tbody id="sq-lost-tbody"></tbody>
+      </table></div>
     </div>
-  </div>
-  <div class="sh" style="margin-bottom:10px">
-    <div class="stitle" data-tx="staffQuotesTab">Quote History</div>
-    <div style="font-size:11px;color:var(--t)" id="staffquotes-count"></div>
-  </div>
-  <input class="ipt" id="staffquotes-q" data-tx-ph="searchCompanyPh" placeholder="Search company..." oninput="renderStaffQuotes()" style="width:100%;margin-bottom:10px;box-sizing:border-box">
-  <div style="overflow-x:auto">
-    <table class="comp-table" id="staffquotes-table">
-      <thead><tr>
-        <th style="min-width:160px" data-tx="company">Company</th>
-        <th style="min-width:90px" data-tx="sizeCol">Size</th>
-        <th style="min-width:80px" data-tx="qty">Qty</th>
-        <th style="min-width:80px" data-tx="qtyPerSkuCol">QTY/SKU</th>
-        <th style="min-width:90px" data-tx="colour">Colour</th>
-        <th style="min-width:110px" data-tx="priceSgd">Sell Price SGD</th>
-        <th style="min-width:110px" data-tx="quotedDateLbl">Quoted Date</th>
-        <th style="min-width:100px" data-tx="validityCol">Validity</th>
-      </tr></thead>
-      <tbody id="staffquotes-tbody"></tbody>
-    </table>
+    <div style="font-size:11px;color:var(--t);margin-bottom:8px" id="staffquotes-count"></div>
+    <input class="ipt" id="staffquotes-q" data-tx-ph="searchCompanyPh" placeholder="Search company..." oninput="renderStaffQuotes()" style="width:100%;margin-bottom:10px;box-sizing:border-box">
+    <div style="overflow-x:auto">
+      <table class="comp-table" id="staffquotes-table">
+        <thead><tr>
+          <th style="min-width:160px" data-tx="company">Company</th>
+          <th style="min-width:90px" data-tx="sizeCol">Size</th>
+          <th style="min-width:80px" data-tx="qty">Qty</th>
+          <th style="min-width:80px" data-tx="qtyPerSkuCol">QTY/SKU</th>
+          <th style="min-width:90px" data-tx="colour">Colour</th>
+          <th style="min-width:110px" data-tx="priceSgd">Sell Price SGD</th>
+          <th style="min-width:110px" data-tx="quotedDateLbl">Quoted Date</th>
+          <th style="min-width:100px" data-tx="validityCol">Validity</th>
+        </tr></thead>
+        <tbody id="staffquotes-tbody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 </div>
@@ -1901,7 +1937,7 @@ function goTab(tab,btn){
   if(tab==='competitors'){renderSato();renderJewel();}
   if(tab==='bcrsportal'){renderBcrsPortal();}
   if(tab==='access'){renderAccessPage();}
-  if(tab==='staffquotes'){renderStaffQuotes();calcStaffQ();}
+  if(tab==='staffquotes'){renderStaffQuotes();calcStaffQ();renderStaffStd();renderStaffCmp();renderStaffLostQuotes();}
   if(window.innerWidth<=768){var sbNav=document.getElementById('sidebar-nav');if(sbNav)sbNav.classList.add('collapsed');}
 }
 
@@ -3349,10 +3385,11 @@ function calcStaffQ(){
   var sku=parseInt(document.getElementById('sq-sku').value)||1;
   var col=document.getElementById('sq-col').value;
   var resEl=document.getElementById('sq-result');
-  var stdEl=document.getElementById('sq-std');
+  var stdEl=document.getElementById('sq-std-est');
   if(!w||!h||!qty){
     if(resEl)resEl.innerHTML='<div class="dempty">'+TX.fillForm+'</div>';
     if(stdEl)stdEl.style.display='none';
+    var hb0=document.getElementById('sq-hist-box');if(hb0)hb0.style.display='none';
     return;
   }
   var area=w*h,totalQty=qty,SGD_RMB=5.3;
@@ -3407,6 +3444,97 @@ function calcStaffQ(){
       }else{stdEl.style.display='none';}
     }
   }
+  // 10 nearest historical orders/quotes by area (from ORDER_HIST — AYG Ops in staff mode).
+  var hb=document.getElementById('sq-hist-box');
+  var histEl=document.getElementById('sq-hist');
+  var hd=document.getElementById('sq-hist-hd');
+  if(hb&&histEl){
+    var pool=(ORDER_HIST||[]).filter(function(r){return r.area&&r.ppp;});
+    if(!pool.length){hb.style.display='none';}
+    else{
+      hb.style.display='';
+      if(hd)hd.textContent=TX.nearestHist+' ('+Math.round(area).toLocaleString()+'mm\u00b2)';
+      var near=pool.map(function(r){return{r:r,d:Math.abs((r.area||0)-area)};}).sort(function(a,b){return a.d-b.d;}).slice(0,10);
+      histEl.innerHTML='<div style="overflow-x:auto"><table class="comp-table"><thead><tr>'
+        +'<th>'+TX.company+'</th><th>'+TX.sizeCol+'</th><th>'+TX.areaCol+'</th><th>'+TX.qty+'</th><th>'+TX.pricePc+'</th></tr></thead><tbody>'
+        +near.map(function(x){var r=x.r;return '<tr><td>'+(r.company||'\u2014')+'</td><td>'+(r.size||'\u2014')+'</td><td>'+(r.area||0).toLocaleString()+'</td><td>'+(r.qty||0).toLocaleString()+'</td><td>S$'+(r.ppp||0).toFixed(5)+'</td></tr>';}).join('')
+        +'</tbody></table></div>';
+    }
+  }
+}
+// Staff sub-tab switcher (mirrors switchQ but for the staff page).
+function switchSQ(which,btn){
+  ['est','std','cmp','hist'].forEach(function(k){var el=document.getElementById('sqt-'+k);if(el)el.style.display=k===which?'':'none';});
+  var row=btn&&btn.parentElement;if(row)row.querySelectorAll('.qtab').forEach(function(b){b.classList.toggle('on',b===btn);});
+  if(which==='std')renderStaffStd();
+  if(which==='cmp')renderStaffCmp();
+  if(which==='hist'){renderStaffQuotes();renderStaffLostQuotes();}
+}
+// Standard Pricing tables (AYG Ops Standard Pricing → STD). Separate DOM from management.
+function renderStaffStd(){
+  var box=document.getElementById('sq-std-tables');if(!box)return;
+  var sizes=['75x30','65x24','75x65','65x59','27x17'];
+  box.innerHTML=sizes.map(function(sz){
+    var rows=STD[sz]||[];
+    return'<div class="qres"><div style="font-size:13px;font-weight:600;margin-bottom:1px">'+sz+'mm</div>'
+      +'<div style="font-size:10px;color:var(--m);margin-bottom:8px">'+(STD_AREAS[sz]||0).toLocaleString()+'mm\u00b2</div>'
+      +'<table class="ht"><thead><tr><th>Qty</th><th>Price SGD</th><th>Per piece</th></tr></thead><tbody>'
+      +(rows.length?rows.map(function(r){return'<tr><td>'+r.qty.toLocaleString()+'</td><td>S$'+r.price.toLocaleString()+'</td><td class="hpp">S$'+r.ppp.toFixed(4)+'</td></tr>';}).join(''):'<tr><td colspan="3" class="dempty">'+TX.noDataShort+'</td></tr>')
+      +'</tbody></table></div>';
+  }).join('');
+}
+// Competitor (Sato) pricing tables (AYG Ops Competitor Pricing → COMP_PRICING).
+function renderStaffCmp(){
+  var box=document.getElementById('sq-cmp-tables');if(!box)return;
+  var sizes=['75x30','65x24','75x65','65x59','27x17'];
+  box.innerHTML=sizes.map(function(sz){
+    var rows=COMP_PRICING[sz]||[];
+    return'<div class="qres"><div style="font-size:13px;font-weight:600;margin-bottom:1px">'+sz+'mm (Sato)</div>'
+      +'<div style="font-size:10px;color:var(--m);margin-bottom:8px">'+(CMP_AREAS[sz]||0).toLocaleString()+'mm\u00b2</div>'
+      +'<table class="ht"><thead><tr><th>Packs</th><th>Pcs</th><th>Per pc SGD</th></tr></thead><tbody>'
+      +(rows.length?rows.map(function(r){return'<tr><td>'+r.packs+'</td><td>'+r.pcs.toLocaleString()+'</td><td style="font-family:\'JetBrains Mono\',monospace;font-weight:500;color:var(--amb)">S$'+(r.ppp||0).toFixed(5)+'</td></tr>';}).join(''):'<tr><td colspan="3" class="dempty">'+TX.noDataShort+'</td></tr>')
+      +'</tbody></table></div>';
+  }).join('');
+}
+// Lost-client matched quotes (reuses buildLostClientQuoteRows → QUOTES_RAW, AYG Ops in staff mode).
+function renderStaffLostQuotes(){
+  var tbody=document.getElementById('sq-lost-tbody');if(!tbody)return;
+  var rows=(typeof buildLostClientQuoteRows==='function')?buildLostClientQuoteRows():[];
+  if(!rows.length){tbody.innerHTML='<tr><td colspan="5" class="cc-empty">'+TX.noLostQuoteMatches+'</td></tr>';return;}
+  tbody.innerHTML=rows.map(function(x){var q=x.quote;return '<tr>'
+    +'<td>'+(x.client.name||'\u2014')+'</td>'
+    +'<td>'+(q.size||'\u2014')+'</td>'
+    +'<td>'+(q.qty?q.qty.toLocaleString():'\u2014')+'</td>'
+    +'<td>'+(q.qtyPerSku?q.qtyPerSku.toLocaleString():'\u2014')+'</td>'
+    +'<td>S$'+(q.ppp||0).toFixed(5)+'</td>'
+  +'</tr>';}).join('');
+}
+// Client order+quote history for the typed client name (staff estimator).
+function renderStaffClientHistory(){
+  var box=document.getElementById('sq-clienthist-box');
+  var el=document.getElementById('sq-clienthist');
+  if(!box||!el)return;
+  var name=(document.getElementById('sq-client').value||'').toLowerCase().trim();
+  calcStaffQ();
+  if(!name){box.style.display='none';return;}
+  var orders=(ORDERS||[]).filter(function(o){return o.name&&o.name.toLowerCase().indexOf(name)>-1;});
+  var quotes=(QUOTES_RAW||[]).filter(function(q){return q.company&&q.company.toLowerCase().indexOf(name)>-1;});
+  if(!orders.length&&!quotes.length){box.style.display='';el.innerHTML='<div class="dempty">'+TX.noClientHistory+'</div>';return;}
+  box.style.display='';
+  var html='';
+  if(orders.length){
+    html+='<div style="font-size:10px;font-weight:600;color:var(--grn);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+TX.pastOrdersHd+'</div>'
+      +'<div style="overflow-x:auto;margin-bottom:10px"><table class="comp-table"><thead><tr><th>'+TX.sizeCol+'</th><th>'+TX.qty+'</th><th>'+TX.priceSgd+'</th></tr></thead><tbody>'
+      +orders.map(function(o){return '<tr><td>'+(o.size||'\u2014')+'</td><td>'+(o.qty||0).toLocaleString()+'</td><td>S$'+(o.price||0).toLocaleString()+'</td></tr>';}).join('')
+      +'</tbody></table></div>';
+  }
+  if(quotes.length){
+    html+='<div style="font-size:10px;font-weight:600;color:var(--amb);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+TX.pastQuotesHd+'</div>'
+      +'<div style="overflow-x:auto"><table class="comp-table"><thead><tr><th>'+TX.sizeCol+'</th><th>'+TX.qty+'</th><th>'+TX.priceSgd+'</th></tr></thead><tbody>'
+      +quotes.map(function(q){return '<tr><td>'+(q.size||'\u2014')+'</td><td>'+(q.qty||0).toLocaleString()+'</td><td>S$'+(q.sell||0).toLocaleString()+'</td></tr>';}).join('')
+      +'</tbody></table></div>';
+  }
+  el.innerHTML=html;
 }
 function renderStaffQuotes(){
   var tbody=document.getElementById('staffquotes-tbody');
