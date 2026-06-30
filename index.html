@@ -957,6 +957,11 @@ button{cursor:pointer}
     <div id="admin-sync-status" style="font-size:11px;margin-top:2px">—</div>
   </div>
   <div id="admin-staff-note" style="display:none;margin-top:10px;padding:8px 10px;background:rgba(251,191,36,.1);border:1px solid var(--amb);border-radius:var(--r);font-size:11px;color:var(--amb)">&#9888; Staff view: sensitive financial data is restricted. Request management access to see full data.</div>
+  <div id="admin-preview-section" style="display:none;border-top:1px solid var(--b);padding-top:10px;margin-top:10px">
+    <div style="font-size:10px;color:var(--t);margin-bottom:8px">Preview staff view</div>
+    <div id="admin-preview-banner" style="display:none;margin-bottom:8px;padding:6px 10px;background:rgba(251,191,36,.15);border:1px solid var(--amb);border-radius:var(--r);font-size:11px;color:var(--amb);font-weight:600">&#128065; Previewing staff view — not your real access level</div>
+    <button id="admin-preview-btn" onclick="toggleStaffPreview()" style="width:100%;background:var(--s3);border:1px solid var(--b2);border-radius:var(--r);padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;color:var(--m);text-align:center">Switch to staff view</button>
+  </div>
 </div>
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
@@ -979,6 +984,9 @@ var ORDERS=[];
 // 'staff' = BCRS file returned 403 (sensitive data restricted).
 // Set once during sync and never changes until next page load.
 var ACCESS_LEVEL='management';
+// REAL_ACCESS_LEVEL stores what was actually synced (never changes after sync).
+// ACCESS_LEVEL can be temporarily overridden by the preview toggle in the admin panel.
+var REAL_ACCESS_LEVEL='management';
 var ADMIN_USER={name:'',email:'',syncTime:'',syncStatus:''};
 var ORDER_HIST=[];
 var QUOTES_RAW=[]; // Full quote line items from "Custom Sizes & Quotes" (kept separate from ORDER_HIST, which strips date/margin/validity fields it doesn't need)
@@ -1093,7 +1101,7 @@ async function fetchExcelFromSharePoint(){
     // Treat this as a valid "staff" session rather than an error — load AYG Operations only.
     if(dr1.status===403){
       ACCESS_LEVEL='staff';
-      ADMIN_USER.syncStatus='staff';
+      REAL_ACCESS_LEVEL='staff';
       ADMIN_USER.syncTime=new Date().toLocaleString();
       showSyncStatus(TX.downloadingAyg,'loading');
       var dr2s=await graphFetch('/drives/'+opsDriveId+'/items/'+opsFileId+'/content',token);
@@ -1117,7 +1125,7 @@ async function fetchExcelFromSharePoint(){
     if(typeof XLSX==='undefined')throw new Error('XLSX library not loaded');
     showSyncStatus(TX.parsingData,'loading');
     ACCESS_LEVEL='management';
-    ADMIN_USER.syncStatus='management';
+    REAL_ACCESS_LEVEL='management';
     ADMIN_USER.syncTime=new Date().toLocaleString();
     parseAndRender(buf1,buf2);
     applyAccessLevel();
@@ -1197,11 +1205,11 @@ function updateAdminPanel(){
   var label=document.getElementById('admin-level-label');
   var note=document.getElementById('admin-staff-note');
   if(badge){
-    badge.textContent=isStaff?'Staff':'Management';
+    badge.textContent=isStaff?(REAL_ACCESS_LEVEL==='management'?'Staff (preview)':'Staff'):'Management';
     badge.style.background=isStaff?'rgba(251,191,36,.2)':'rgba(110,231,183,.2)';
     badge.style.color=isStaff?'var(--amb)':'var(--grn)';
   }
-  if(label)label.textContent=isStaff?'(BCRS file not accessible)':'(Full access — both files loaded)';
+  if(label)label.textContent=isStaff?(REAL_ACCESS_LEVEL==='management'?'(previewing staff restrictions)':'(BCRS file not accessible)'):'(Full access \u2014 both files loaded)';
   if(note)note.style.display=isStaff?'block':'none';
   var nameEl=document.getElementById('admin-account-name');
   var emailEl=document.getElementById('admin-account-email');
@@ -1215,7 +1223,41 @@ function updateAdminPanel(){
     statusEl.textContent=st==='management'?'\u2705 Management sync complete':st==='staff'?'\u26a0 Staff sync (BCRS restricted)':st==='error'?'\u274c Sync error':'—';
     statusEl.style.color=st==='management'?'var(--grn)':st==='staff'?'var(--amb)':st==='error'?'var(--red)':'var(--m)';
   }
+  // Preview section: only visible when the real account is management
+  var previewSection=document.getElementById('admin-preview-section');
+  var previewBanner=document.getElementById('admin-preview-banner');
+  var previewBtn=document.getElementById('admin-preview-btn');
+  var isPreviewing=REAL_ACCESS_LEVEL==='management'&&ACCESS_LEVEL==='staff';
+  if(previewSection)previewSection.style.display=REAL_ACCESS_LEVEL==='management'?'block':'none';
+  if(previewBanner)previewBanner.style.display=isPreviewing?'flex':'none';
+  if(previewBtn){
+    previewBtn.textContent=isPreviewing?'Switch back to management view':'Switch to staff view preview';
+    previewBtn.style.background=isPreviewing?'rgba(110,231,183,.15)':'var(--s3)';
+    previewBtn.style.color=isPreviewing?'var(--grn)':'var(--m)';
+    previewBtn.style.borderColor=isPreviewing?'var(--grn)':'var(--b2)';
+  }
+  // Also update the topbar admin button to signal preview mode
+  var adminBtn=document.getElementById('admin-panel-btn');
+  if(adminBtn){
+    adminBtn.textContent=isPreviewing?'\uD83D\uDC41 Staff preview':'\uD83D\uDD12 Access';
+    adminBtn.style.color=isPreviewing?'var(--amb)':'var(--m)';
+    adminBtn.style.borderColor=isPreviewing?'var(--amb)':'var(--b2)';
+  }
 }
+// Toggles between management's real view and a live preview of what staff see.
+// All access restrictions (card masking, hidden tabs, modal "--" values) apply
+// immediately via applyAccessLevel(), so management gets an accurate picture of
+// the staff experience without needing to log in on a separate account.
+function toggleStaffPreview(){
+  if(REAL_ACCESS_LEVEL!=='management')return; // only management can toggle
+  ACCESS_LEVEL=ACCESS_LEVEL==='staff'?'management':'staff';
+  applyAccessLevel();
+  // Re-render the orders section since some values (modal fields, chart bodies) are
+  // populated at render time rather than being live-reactive DOM nodes
+  renderOrders();
+  updateAdminPanel();
+}
+
 function showSyncStatus(msg,state){
   var el=document.getElementById('sync-status');if(!el)return;
   el.textContent=msg;el.style.color=state==='error'?'var(--red)':state==='loading'?'var(--amb)':'var(--grn)';
