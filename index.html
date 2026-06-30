@@ -1352,6 +1352,7 @@ function parseAndRender(buf1,buf2){
       var lcDate=null;
       if(lcRaw instanceof Date&&!isNaN(lcRaw.getTime())){
         lcDate=lcRaw.getFullYear()*10000+(lcRaw.getMonth()+1)*100+lcRaw.getDate();
+        if(CLIENTS.length<3)console.log('[DATE DEBUG] Contact raw Date: iso='+lcRaw.toISOString()+' local='+lcRaw.getFullYear()+'/'+(lcRaw.getMonth()+1)+'/'+lcRaw.getDate()+' utc='+lcRaw.getUTCFullYear()+'/'+( lcRaw.getUTCMonth()+1)+'/'+lcRaw.getUTCDate()+' -> lcDate='+lcDate);
       }else if(lcRaw){
         var parsed=parseFlexDate(String(lcRaw).trim());
         if(parsed&&!isNaN(parsed.getTime()))lcDate=parsed.getFullYear()*10000+(parsed.getMonth()+1)*100+parsed.getDate();
@@ -1481,7 +1482,9 @@ function parseAndRender(buf1,buf2){
     // Store SGT calendar date as a yyyymmdd integer for timezone-safe day comparisons.
     // h8 = now + 8hrs, so h8.getUTC* gives the SGT wall-clock date correctly.
     SYNC_DATE={y:h8.getUTCFullYear(),m:h8.getUTCMonth()+1,d:h8.getUTCDate(),
-               ymd:h8.getUTCFullYear()*10000+(h8.getUTCMonth()+1)*100+h8.getUTCDate()};  });
+               ymd:h8.getUTCFullYear()*10000+(h8.getUTCMonth()+1)*100+h8.getUTCDate()};
+    console.log('[DATE DEBUG] SYNC_DATE='+SYNC_DATE.ymd+' (now='+now.toISOString()+' h8='+h8.toISOString()+')');
+  });
 
   showSyncStatus(TX.liveDataLoaded,'ok');
   hideLoginScreen();
@@ -1879,8 +1882,6 @@ function daysSince(dateStr){
 // Both sides use the same convention so SGT "today" always matches SGT contact dates.
 function daysSinceRaw(c){
   if(!c.lastContactRaw||!SYNC_DATE.ymd)return daysSince(c.lastContact);
-  // Convert both yyyymmdd integers to Date objects at noon (avoids any midnight edge)
-  // so we can do simple subtraction in whole days.
   var cy=Math.floor(c.lastContactRaw/10000);
   var cm=Math.floor((c.lastContactRaw%10000)/100)-1; // 0-based month
   var cd=c.lastContactRaw%100;
@@ -1888,7 +1889,10 @@ function daysSinceRaw(c){
   // Use UTC noon to avoid any DST or midnight edge cases
   var t0=Date.UTC(sy,sm,sd,12,0,0);
   var t1=Date.UTC(cy,cm,cd,12,0,0);
-  return Math.round((t0-t1)/86400000);
+  var diff=Math.round((t0-t1)/86400000);
+  if(!window._dsr_logged){window._dsr_logged=0;}
+  if(window._dsr_logged<8){window._dsr_logged++;console.log('[DATE DEBUG] '+c.name+' | lastContact="'+c.lastContact+'" | lastContactRaw='+c.lastContactRaw+' | SYNC_DATE.ymd='+SYNC_DATE.ymd+' | diff='+diff);}
+  return diff;
 }
 function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
 // ── Vertical column chart builder (for time-series dashboards) ──
