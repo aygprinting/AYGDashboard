@@ -1028,7 +1028,7 @@ var ACCESS_LEVEL='management';
 var REAL_ACCESS_LEVEL='management';
 var ADMIN_USER={name:'',email:'',syncTime:'',syncStatus:''};
 // SYNC_DATE: SGT date strings set at sync time, used for today/yesterday contact matching.
-var SYNC_DATE={todayStr:'',yesterStr:''};
+var SYNC_DATE={todayStr:'',yesterStr:'',todayKey:0,yesterKey:0};
 var ORDER_HIST=[];
 var QUOTES_RAW=[]; // Full quote line items from "Custom Sizes & Quotes" (kept separate from ORDER_HIST, which strips date/margin/validity fields it doesn't need)
 // Manual aliases for cases where a quote was placed under a different/related company name
@@ -1310,7 +1310,7 @@ function parseAndRender(buf1,buf2){
   // buf1=null in staff mode (no BCRS access) — skip all BCRS sheet parsing
   var wbBcrs=buf1?XLSX.read(buf1,{type:'array',cellDates:true}):null;
   var wbOps=XLSX.read(buf2,{type:'array',cellDates:true});
-  function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date){var _MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return String(v.getUTCDate()).padStart(2,'0')+' '+_MN[v.getUTCMonth()]+' '+v.getUTCFullYear();}var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
+  function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
   function fn(v){try{return parseFloat(String(v).replace(/,/g,''));}catch(e){return 0;}}
   function ri(v){return Math.round(fn(v));}
   function safely(label,fn){try{fn();}catch(e){console.error('Sheet parse error ['+label+']:',e);}}
@@ -1481,7 +1481,9 @@ function parseAndRender(buf1,buf2){
     function fmtSgtDate(d,m,y){return String(d).padStart(2,'0')+' '+MON_NAMES[m]+' '+y;}
     SYNC_DATE={
       todayStr: fmtSgtDate(sgtD,sgtM,sgtY),
-      yesterStr: fmtSgtDate(sgtYestD,sgtYestM,sgtYestY)
+      yesterStr: fmtSgtDate(sgtYestD,sgtYestM,sgtYestY),
+      todayKey: sgtY*10000+(sgtM+1)*100+sgtD,
+      yesterKey: sgtYestY*10000+(sgtYestM+1)*100+sgtYestD
     };
   });
 
@@ -1879,13 +1881,16 @@ function daysSince(dateStr){
 // SYNC_DATE.ymd is computed from h8 (now+8hrs) which gives SGT wall-clock date.
 // Both sides use the same convention so SGT "today" always matches SGT contact dates.
 // contactedDaysAgo: returns 0 if contacted today (SGT), 1 if yesterday, else -1.
-// Compares lastContact display string directly against SYNC_DATE strings —
-// same format ("30 Jun 2026"), no Date objects, no timezone conversion at all.
+// Parses lastContact via parseFlexDate (handles "30 Jun 2026", "30/06/2026", ISO),
+// then compares numeric Y*10000+M*100+D keys against SYNC_DATE. Format- and
+// timezone-independent — no reliance on display-string equality.
 function contactedDaysAgo(c){
-  if(!SYNC_DATE.todayStr)return -1;
+  if(!SYNC_DATE.todayKey)return -1;
   var lc=c.lastContact;if(!lc)return -1;
-  if(lc===SYNC_DATE.todayStr)return 0;
-  if(lc===SYNC_DATE.yesterStr)return 1;
+  var d=parseFlexDate(lc);if(!d||isNaN(d.getTime()))return -1;
+  var key=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  if(key===SYNC_DATE.todayKey)return 0;
+  if(key===SYNC_DATE.yesterKey)return 1;
   return -1;
 }
 function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
