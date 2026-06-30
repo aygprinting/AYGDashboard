@@ -1027,9 +1027,8 @@ var ACCESS_LEVEL='management';
 // ACCESS_LEVEL can be temporarily overridden by the preview toggle in the admin panel.
 var REAL_ACCESS_LEVEL='management';
 var ADMIN_USER={name:'',email:'',syncTime:'',syncStatus:''};
-// SYNC_DATE: SGT calendar date captured at sync time — used as the authoritative
-// "today" for date comparisons, avoiding browser timezone issues entirely.
-var SYNC_DATE={y:0,m:0,d:0}; // y=year, m=month(0-based), d=day
+// SYNC_DATE: SGT date strings set at sync time, used for today/yesterday contact matching.
+var SYNC_DATE={todayStr:'',yesterStr:''};
 var ORDER_HIST=[];
 var QUOTES_RAW=[]; // Full quote line items from "Custom Sizes & Quotes" (kept separate from ORDER_HIST, which strips date/margin/validity fields it doesn't need)
 // Manual aliases for cases where a quote was placed under a different/related company name
@@ -1344,20 +1343,7 @@ function parseAndRender(buf1,buf2){
     cr.slice(1,116).forEach(function(row,i){
       if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;
       var st=cv(row[1]);if(vs.indexOf(st)<0)return;
-      // Store lastContact as a yyyymmdd integer using LOCAL date methods.
-      // XLSX.js creates dates as local midnight (e.g. Jun 30 00:00 SGT),
-      // so we MUST use getFullYear/Month/Date (local), NOT getUTCDate (UTC).
-      // Storing as integer avoids all Date object timezone issues on comparison.
-      var lcRaw=row[2];
-      var lcDate=null;
-      if(lcRaw instanceof Date&&!isNaN(lcRaw.getTime())){
-        lcDate=lcRaw.getFullYear()*10000+(lcRaw.getMonth()+1)*100+lcRaw.getDate();
-        if(CLIENTS.length<3)console.log('[DATE DEBUG] Contact raw Date: iso='+lcRaw.toISOString()+' local='+lcRaw.getFullYear()+'/'+(lcRaw.getMonth()+1)+'/'+lcRaw.getDate()+' utc='+lcRaw.getUTCFullYear()+'/'+( lcRaw.getUTCMonth()+1)+'/'+lcRaw.getUTCDate()+' -> lcDate='+lcDate);
-      }else if(lcRaw){
-        var parsed=parseFlexDate(String(lcRaw).trim());
-        if(parsed&&!isNaN(parsed.getTime()))lcDate=parsed.getFullYear()*10000+(parsed.getMonth()+1)*100+parsed.getDate();
-      }
-      CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),lastContactRaw:lcDate,pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
+      CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
     });
   });
 
@@ -1479,11 +1465,24 @@ function parseAndRender(buf1,buf2){
     var hh=String(h8.getUTCHours()).padStart(2,'0'),mi=String(h8.getUTCMinutes()).padStart(2,'0');
     var ts=dd+'/'+mm+' '+hh+':'+mi;
     var el=document.getElementById('sync-time');if(el){el.textContent=ts;el.title=TX.gmtTooltipPrefix+h8.toISOString().slice(0,16).replace('T',' ');}
-    // Store SGT calendar date as a yyyymmdd integer for timezone-safe day comparisons.
-    // h8 = now + 8hrs, so h8.getUTC* gives the SGT wall-clock date correctly.
-    SYNC_DATE={y:h8.getUTCFullYear(),m:h8.getUTCMonth()+1,d:h8.getUTCDate(),
-               ymd:h8.getUTCFullYear()*10000+(h8.getUTCMonth()+1)*100+h8.getUTCDate()};
-    console.log('[DATE DEBUG] SYNC_DATE='+SYNC_DATE.ymd+' (now='+now.toISOString()+' h8='+h8.toISOString()+')');
+    // Store SGT today and yesterday as strings in the EXACT same format cv() produces
+    // ("30 Jun 2026") so comparison with lastContact is just string equality — no Date
+    // objects, no timezone, no parsing needed.
+    var MON_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var sgtD=h8.getUTCDate(), sgtM=h8.getUTCMonth(), sgtY=h8.getUTCFullYear();
+    var sgtYestD=sgtD-1, sgtYestM=sgtM, sgtYestY=sgtY;
+    if(sgtYestD<1){
+      sgtYestM--;
+      if(sgtYestM<0){sgtYestM=11;sgtYestY--;}
+      var daysInPrevMonth=[31,28,31,30,31,30,31,31,30,31,30,31];
+      if(sgtYestM===1&&((sgtYestY%4===0&&sgtYestY%100!==0)||sgtYestY%400===0))daysInPrevMonth[1]=29;
+      sgtYestD=daysInPrevMonth[sgtYestM];
+    }
+    function fmtSgtDate(d,m,y){return String(d).padStart(2,'0')+' '+MON_NAMES[m]+' '+y;}
+    SYNC_DATE={
+      todayStr: fmtSgtDate(sgtD,sgtM,sgtY),
+      yesterStr: fmtSgtDate(sgtYestD,sgtYestM,sgtYestY)
+    };
   });
 
   showSyncStatus(TX.liveDataLoaded,'ok');
@@ -1875,24 +1874,19 @@ function daysSince(dateStr){
   var now=new Date();
   return Math.floor((now.setHours(0,0,0,0)-d.setHours(0,0,0,0))/86400000);
 }
-// daysSinceRaw: compares contact date against SYNC_DATE using plain yyyymmdd integers.
 // XLSX dates are local-midnight in the browser, so lastContactRaw is stored as
 // getFullYear()*10000+(getMonth()+1)*100+getDate() — local methods only.
 // SYNC_DATE.ymd is computed from h8 (now+8hrs) which gives SGT wall-clock date.
 // Both sides use the same convention so SGT "today" always matches SGT contact dates.
-function daysSinceRaw(c){
-  if(!c.lastContactRaw||!SYNC_DATE.ymd)return daysSince(c.lastContact);
-  var cy=Math.floor(c.lastContactRaw/10000);
-  var cm=Math.floor((c.lastContactRaw%10000)/100)-1; // 0-based month
-  var cd=c.lastContactRaw%100;
-  var sy=SYNC_DATE.y, sm=SYNC_DATE.m-1, sd=SYNC_DATE.d;
-  // Use UTC noon to avoid any DST or midnight edge cases
-  var t0=Date.UTC(sy,sm,sd,12,0,0);
-  var t1=Date.UTC(cy,cm,cd,12,0,0);
-  var diff=Math.round((t0-t1)/86400000);
-  if(!window._dsr_logged){window._dsr_logged=0;}
-  if(window._dsr_logged<8){window._dsr_logged++;console.log('[DATE DEBUG] '+c.name+' | lastContact="'+c.lastContact+'" | lastContactRaw='+c.lastContactRaw+' | SYNC_DATE.ymd='+SYNC_DATE.ymd+' | diff='+diff);}
-  return diff;
+// contactedDaysAgo: returns 0 if contacted today (SGT), 1 if yesterday, else -1.
+// Compares lastContact display string directly against SYNC_DATE strings —
+// same format ("30 Jun 2026"), no Date objects, no timezone conversion at all.
+function contactedDaysAgo(c){
+  if(!SYNC_DATE.todayStr)return -1;
+  var lc=c.lastContact;if(!lc)return -1;
+  if(lc===SYNC_DATE.todayStr)return 0;
+  if(lc===SYNC_DATE.yesterStr)return 1;
+  return -1;
 }
 function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
 // ── Vertical column chart builder (for time-series dashboards) ──
@@ -2063,8 +2057,8 @@ function renderCRM(){
   var pst=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});
   var stale30=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;});
   var zhClients=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});
-  var contactedToday=CLIENTS.filter(function(c){var d=daysSinceRaw(c);return d===0;});
-  var contactedYest=CLIENTS.filter(function(c){var d=daysSinceRaw(c);return d===1;});
+  var contactedToday=CLIENTS.filter(function(c){return contactedDaysAgo(c)===0;});
+  var contactedYest=CLIENTS.filter(function(c){return contactedDaysAgo(c)===1;});
   document.getElementById('crm-stats').innerHTML=
     statCard('crm-total',TX.total,CLIENTS.length)+
     statCard('crm-enquiries',TX.enquiries,enq.length,'var(--blu)',"crmDrill('Enquiry')",TX.clickView)+
@@ -2085,8 +2079,8 @@ function renderCRM(){
 function renderCrmContactedRecent(){
   var el=document.getElementById('crm-contacted-recent');
   if(!el)return;
-  var todayList=CLIENTS.filter(function(c){return daysSinceRaw(c)===0;}).sort(function(a,b){return a.name.localeCompare(b.name);});
-  var yesterList=CLIENTS.filter(function(c){return daysSinceRaw(c)===1;}).sort(function(a,b){return a.name.localeCompare(b.name);});
+  var todayList=CLIENTS.filter(function(c){return contactedDaysAgo(c)===0;}).sort(function(a,b){return a.name.localeCompare(b.name);});
+  var yesterList=CLIENTS.filter(function(c){return contactedDaysAgo(c)===1;}).sort(function(a,b){return a.name.localeCompare(b.name);});
   function makeCol(title,color,list){
     if(!list.length)return '<div><div style="font-size:11px;font-weight:700;color:'+color+';margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid '+color+'40">'+title+' <span style="font-weight:400;color:var(--t)">('+list.length+')</span></div><div style="font-size:11px;color:var(--t);padding:6px 0">—</div></div>';
     return '<div><div style="font-size:11px;font-weight:700;color:'+color+';margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid '+color+'40">'+title+' <span style="font-weight:400;color:var(--t)">('+list.length+')</span></div>'+
@@ -2113,8 +2107,8 @@ function crmDrill(f){
   else if(f==='pasting'){list=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});title=TX.reqPasting;}
   else if(f==='stale30'){list=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;}).sort(function(a,b){return daysSince(b.lastContact)-daysSince(a.lastContact);});title=TX.lastContact30;}
   else if(f==='zh'){list=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});title=TX.langChinese;}
-  else if(f==='contactedToday'){list=CLIENTS.filter(function(c){return daysSinceRaw(c)===0;}).sort(function(a,b){return a.name.localeCompare(b.name);});title=TX.contactedToday;}
-  else if(f==='contactedYest'){list=CLIENTS.filter(function(c){return daysSinceRaw(c)===1;}).sort(function(a,b){return a.name.localeCompare(b.name);});title=TX.contactedYest;}
+  else if(f==='contactedToday'){list=CLIENTS.filter(function(c){return contactedDaysAgo(c)===0;}).sort(function(a,b){return a.name.localeCompare(b.name);});title=TX.contactedToday;}
+  else if(f==='contactedYest'){list=CLIENTS.filter(function(c){return contactedDaysAgo(c)===1;}).sort(function(a,b){return a.name.localeCompare(b.name);});title=TX.contactedYest;}
   else{list=CLIENTS.filter(function(c){return c.stage===f;});var stage=CRM_STAGES.find(function(s){return s.id===f;});title=lang==='zh'?(stage?stage.zh:f):f;}
   openListModal(title,fmtCount(list.length),list.map(function(c){var d=daysSince(c.lastContact);var right=(f==='stale30'&&d!==null)?(lang==='zh'?(d+TX.daysAgo):(d+' '+TX.daysAgo)):TX.lastLbl+' '+(c.lastContact||'\u2014');return{left:c.name,right:right,cb:function(){openModal(c.id,'crm');}};}));
 }
