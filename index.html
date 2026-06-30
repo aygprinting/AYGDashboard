@@ -1344,12 +1344,18 @@ function parseAndRender(buf1,buf2){
     cr.slice(1,116).forEach(function(row,i){
       if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;
       var st=cv(row[1]);if(vs.indexOf(st)<0)return;
-      // Store both display string (lastContact) and a clean Date object (lastContactRaw) for date math.
-      // cv() converts Date→string which can vary by locale; lastContactRaw avoids the round-trip.
+      // Store lastContact as a yyyymmdd integer using LOCAL date methods.
+      // XLSX.js creates dates as local midnight (e.g. Jun 30 00:00 SGT),
+      // so we MUST use getFullYear/Month/Date (local), NOT getUTCDate (UTC).
+      // Storing as integer avoids all Date object timezone issues on comparison.
       var lcRaw=row[2];
       var lcDate=null;
-      if(lcRaw instanceof Date&&!isNaN(lcRaw.getTime())){lcDate=new Date(Date.UTC(lcRaw.getUTCFullYear(),lcRaw.getUTCMonth(),lcRaw.getUTCDate()));}
-      else if(lcRaw){var parsed=parseFlexDate(String(lcRaw).trim());if(parsed&&!isNaN(parsed.getTime()))lcDate=parsed;}
+      if(lcRaw instanceof Date&&!isNaN(lcRaw.getTime())){
+        lcDate=lcRaw.getFullYear()*10000+(lcRaw.getMonth()+1)*100+lcRaw.getDate();
+      }else if(lcRaw){
+        var parsed=parseFlexDate(String(lcRaw).trim());
+        if(parsed&&!isNaN(parsed.getTime()))lcDate=parsed.getFullYear()*10000+(parsed.getMonth()+1)*100+parsed.getDate();
+      }
       CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),lastContactRaw:lcDate,pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
     });
   });
@@ -1472,8 +1478,10 @@ function parseAndRender(buf1,buf2){
     var hh=String(h8.getUTCHours()).padStart(2,'0'),mi=String(h8.getUTCMinutes()).padStart(2,'0');
     var ts=dd+'/'+mm+' '+hh+':'+mi;
     var el=document.getElementById('sync-time');if(el){el.textContent=ts;el.title=TX.gmtTooltipPrefix+h8.toISOString().slice(0,16).replace('T',' ');}
-    // Store SGT calendar date as authoritative "today" for date comparisons
-    SYNC_DATE={y:h8.getUTCFullYear(),m:h8.getUTCMonth(),d:h8.getUTCDate()};  });
+    // Store SGT calendar date as a yyyymmdd integer for timezone-safe day comparisons.
+    // h8 = now + 8hrs, so h8.getUTC* gives the SGT wall-clock date correctly.
+    SYNC_DATE={y:h8.getUTCFullYear(),m:h8.getUTCMonth()+1,d:h8.getUTCDate(),
+               ymd:h8.getUTCFullYear()*10000+(h8.getUTCMonth()+1)*100+h8.getUTCDate()};  });
 
   showSyncStatus(TX.liveDataLoaded,'ok');
   hideLoginScreen();
@@ -1864,16 +1872,23 @@ function daysSince(dateStr){
   var now=new Date();
   return Math.floor((now.setHours(0,0,0,0)-d.setHours(0,0,0,0))/86400000);
 }
-// daysSinceRaw: compares lastContactRaw against SYNC_DATE (SGT calendar date captured
-// at sync time) — no browser timezone ambiguity, no locale issues.
-// Both dates are normalised to UTC midnight for a clean integer day count.
+// daysSinceRaw: compares contact date against SYNC_DATE using plain yyyymmdd integers.
+// XLSX dates are local-midnight in the browser, so lastContactRaw is stored as
+// getFullYear()*10000+(getMonth()+1)*100+getDate() — local methods only.
+// SYNC_DATE.ymd is computed from h8 (now+8hrs) which gives SGT wall-clock date.
+// Both sides use the same convention so SGT "today" always matches SGT contact dates.
 function daysSinceRaw(c){
-  var d=c.lastContactRaw;
-  if(!d||isNaN(d.getTime()))return daysSince(c.lastContact); // fallback to string parse
-  if(!SYNC_DATE.y)return daysSince(c.lastContact); // not yet synced, fall back
-  var t0=Date.UTC(SYNC_DATE.y,SYNC_DATE.m,SYNC_DATE.d); // SGT "today" at UTC midnight
-  var t1=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()); // contact date
-  return Math.floor((t0-t1)/86400000);
+  if(!c.lastContactRaw||!SYNC_DATE.ymd)return daysSince(c.lastContact);
+  // Convert both yyyymmdd integers to Date objects at noon (avoids any midnight edge)
+  // so we can do simple subtraction in whole days.
+  var cy=Math.floor(c.lastContactRaw/10000);
+  var cm=Math.floor((c.lastContactRaw%10000)/100)-1; // 0-based month
+  var cd=c.lastContactRaw%100;
+  var sy=SYNC_DATE.y, sm=SYNC_DATE.m-1, sd=SYNC_DATE.d;
+  // Use UTC noon to avoid any DST or midnight edge cases
+  var t0=Date.UTC(sy,sm,sd,12,0,0);
+  var t1=Date.UTC(cy,cm,cd,12,0,0);
+  return Math.round((t0-t1)/86400000);
 }
 function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
 // ── Vertical column chart builder (for time-series dashboards) ──
