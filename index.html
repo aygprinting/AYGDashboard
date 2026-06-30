@@ -1539,6 +1539,22 @@ function parseAndRender(buf1,buf2){
     cr.slice(1,116).forEach(function(row,i){
       if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;
       var st=cv(row[1]);if(vs.indexOf(st)<0)return;
+      // ── DATE DIAGNOSTIC ── capture the raw last-contact cell for a sample client
+      // so we can inspect timezone behaviour live (survives after sync, unlike the workbook).
+      if(/radha|value shop/i.test(co)){
+        var rawv=row[2];
+        window.__dateDebug={
+          company:co,
+          isDate:rawv instanceof Date,
+          iso:(rawv instanceof Date&&!isNaN(rawv.getTime()))?rawv.toISOString():null,
+          localDay:(rawv instanceof Date)?rawv.getDate():null,
+          utcDay:(rawv instanceof Date)?rawv.getUTCDate():null,
+          rawString:(rawv instanceof Date)?null:String(rawv),
+          cvOutput:cv(rawv),
+          dayKeyOutput:dayKey(rawv),
+          browserTZOffsetMin:new Date().getTimezoneOffset()
+        };
+      }
       CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),lastContactKey:dayKey(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
     });
   });
