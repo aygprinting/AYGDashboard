@@ -1027,6 +1027,9 @@ var ACCESS_LEVEL='management';
 // ACCESS_LEVEL can be temporarily overridden by the preview toggle in the admin panel.
 var REAL_ACCESS_LEVEL='management';
 var ADMIN_USER={name:'',email:'',syncTime:'',syncStatus:''};
+// SYNC_DATE: SGT calendar date captured at sync time — used as the authoritative
+// "today" for date comparisons, avoiding browser timezone issues entirely.
+var SYNC_DATE={y:0,m:0,d:0}; // y=year, m=month(0-based), d=day
 var ORDER_HIST=[];
 var QUOTES_RAW=[]; // Full quote line items from "Custom Sizes & Quotes" (kept separate from ORDER_HIST, which strips date/margin/validity fields it doesn't need)
 // Manual aliases for cases where a quote was placed under a different/related company name
@@ -1469,7 +1472,8 @@ function parseAndRender(buf1,buf2){
     var hh=String(h8.getUTCHours()).padStart(2,'0'),mi=String(h8.getUTCMinutes()).padStart(2,'0');
     var ts=dd+'/'+mm+' '+hh+':'+mi;
     var el=document.getElementById('sync-time');if(el){el.textContent=ts;el.title=TX.gmtTooltipPrefix+h8.toISOString().slice(0,16).replace('T',' ');}
-  });
+    // Store SGT calendar date as authoritative "today" for date comparisons
+    SYNC_DATE={y:h8.getUTCFullYear(),m:h8.getUTCMonth(),d:h8.getUTCDate()};  });
 
   showSyncStatus(TX.liveDataLoaded,'ok');
   hideLoginScreen();
@@ -1860,16 +1864,15 @@ function daysSince(dateStr){
   var now=new Date();
   return Math.floor((now.setHours(0,0,0,0)-d.setHours(0,0,0,0))/86400000);
 }
-// daysSinceRaw: uses the stored Date object directly — no string parsing, no locale issues.
-// Uses UTC methods so date comparisons are timezone-agnostic regardless of where XLSX
-// stored the date (UTC midnight vs local midnight) or what timezone the browser is in.
+// daysSinceRaw: compares lastContactRaw against SYNC_DATE (SGT calendar date captured
+// at sync time) — no browser timezone ambiguity, no locale issues.
+// Both dates are normalised to UTC midnight for a clean integer day count.
 function daysSinceRaw(c){
   var d=c.lastContactRaw;
   if(!d||isNaN(d.getTime()))return daysSince(c.lastContact); // fallback to string parse
-  var now=new Date();
-  // Strip to UTC midnight for both dates to get a clean day count
-  var t0=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate());
-  var t1=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate());
+  if(!SYNC_DATE.y)return daysSince(c.lastContact); // not yet synced, fall back
+  var t0=Date.UTC(SYNC_DATE.y,SYNC_DATE.m,SYNC_DATE.d); // SGT "today" at UTC midnight
+  var t1=Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()); // contact date
   return Math.floor((t0-t1)/86400000);
 }
 function fmtCount(n){return lang==='zh'?(n+TX.clientsCount):(n+' '+TX.clientsCount);}
