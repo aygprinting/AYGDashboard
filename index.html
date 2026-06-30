@@ -1310,7 +1310,7 @@ function parseAndRender(buf1,buf2){
   // buf1=null in staff mode (no BCRS access) — skip all BCRS sheet parsing
   var wbBcrs=buf1?XLSX.read(buf1,{type:'array',cellDates:true}):null;
   var wbOps=XLSX.read(buf2,{type:'array',cellDates:true});
-  function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
+  function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date){if(isNaN(v.getTime()))return '';var _MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return String(v.getDate()).padStart(2,'0')+' '+_MN[v.getMonth()]+' '+v.getFullYear();}var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
   function fn(v){try{return parseFloat(String(v).replace(/,/g,''));}catch(e){return 0;}}
   function ri(v){return Math.round(fn(v));}
   function safely(label,fn){try{fn();}catch(e){console.error('Sheet parse error ['+label+']:',e);}}
@@ -1343,7 +1343,7 @@ function parseAndRender(buf1,buf2){
     cr.slice(1,116).forEach(function(row,i){
       if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;
       var st=cv(row[1]);if(vs.indexOf(st)<0)return;
-      CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
+      CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),lastContactKey:dayKey(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
     });
   });
 
@@ -1855,6 +1855,18 @@ function toggleSec(key,i){secDone[key+i]=!secDone[key+i];if(activeSection)showSe
 
 // ── Date parsing helper (handles mixed formats: "21 Jun 2026", "15/06/2026", "2026-06-21") ──
 var MON3={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+// dayKey: numeric Y*10000+M*100+D for a RAW cell value, computed at parse time.
+// For Date cells we read LOCAL components (getDate etc.) — these reflect the
+// calendar day the user sees in Excel, immune to SheetJS UTC-vs-local serial
+// parsing differences across browsers. For strings we fall back to parseFlexDate.
+function dayKey(v){
+  if(v instanceof Date && !isNaN(v.getTime())){
+    return v.getFullYear()*10000+(v.getMonth()+1)*100+v.getDate();
+  }
+  var d=parseFlexDate(v);
+  if(d&&!isNaN(d.getTime()))return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  return 0;
+}
 function parseFlexDate(s){
   if(!s)return null;
   s=String(s).trim();
@@ -1881,14 +1893,13 @@ function daysSince(dateStr){
 // SYNC_DATE.ymd is computed from h8 (now+8hrs) which gives SGT wall-clock date.
 // Both sides use the same convention so SGT "today" always matches SGT contact dates.
 // contactedDaysAgo: returns 0 if contacted today (SGT), 1 if yesterday, else -1.
-// Parses lastContact via parseFlexDate (handles "30 Jun 2026", "30/06/2026", ISO),
-// then compares numeric Y*10000+M*100+D keys against SYNC_DATE. Format- and
-// timezone-independent — no reliance on display-string equality.
+// Uses lastContactKey (numeric Y*10000+M*100+D captured from the raw cell at parse
+// time via dayKey) compared against SYNC_DATE keys. Local date components are used
+// for Date cells so the SheetJS UTC/local serial quirk can't shift the day.
 function contactedDaysAgo(c){
   if(!SYNC_DATE.todayKey)return -1;
-  var lc=c.lastContact;if(!lc)return -1;
-  var d=parseFlexDate(lc);if(!d||isNaN(d.getTime()))return -1;
-  var key=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+  var key=c.lastContactKey;
+  if(!key){var d=parseFlexDate(c.lastContact);if(!d||isNaN(d.getTime()))return -1;key=d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}
   if(key===SYNC_DATE.todayKey)return 0;
   if(key===SYNC_DATE.yesterKey)return 1;
   return -1;
