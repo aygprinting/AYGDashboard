@@ -766,7 +766,7 @@ button{cursor:pointer}
     </div>
     </div>
   </div>
-  <div class="sh"><div class="stitle" data-tx="ordersPipeline">Orders Pipeline</div><div><input class="ipt" id="ord-q" placeholder="Search..." oninput="renderOrders()"></div></div>
+  <div class="sh" id="ord-pipeline-head"><div class="stitle" data-tx="ordersPipeline">Orders Pipeline</div><div><input class="ipt" id="ord-q" placeholder="Search..." oninput="renderOrders()"></div></div>
   <div class="board" id="ord-board"></div>
 </div>
 
@@ -1850,9 +1850,12 @@ function applyOrdSectionOrder(){
   var first=document.getElementById('ord-sec-'+order[0]);
   if(!first||!first.parentNode)return;
   var parent=first.parentNode;
+  // Anchor: the Orders Pipeline always stays last, so insert sections BEFORE it.
+  // (Using appendChild would move sections to the parent's end — past the pipeline.)
+  var anchor=document.getElementById('ord-pipeline-head');
   order.forEach(function(sid){
     var sec=document.getElementById('ord-sec-'+sid);
-    if(sec)parent.appendChild(sec); // re-append in saved order
+    if(sec){if(anchor&&anchor.parentNode===parent)parent.insertBefore(sec,anchor);else parent.appendChild(sec);}
   });
 }
 function moveOrdSection(sid,dir){
