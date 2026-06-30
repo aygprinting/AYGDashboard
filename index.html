@@ -1506,7 +1506,7 @@ function parseAndRender(buf1,buf2){
       if(m&&o.qty>0&&o.price>0)ORDER_HIST.push({company:o.name,size:o.size,w:parseFloat(m[1]),h:parseFloat(m[2]),area:Math.round(parseFloat(m[1])*parseFloat(m[2])),qty:o.qty,sku:o.sku||1,colour:o.colour||'',sell:o.price,ppp:Math.round(o.price/o.qty*1e5)/1e5,pricePerPcRmb:0});
     });
   }
-  function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date){if(isNaN(v.getTime()))return '';var _MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return String(v.getDate()).padStart(2,'0')+' '+_MN[v.getMonth()]+' '+v.getFullYear();}var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
+  function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date){if(isNaN(v.getTime()))return '';var _MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];var _p=cellDateParts(v);return _p?(String(_p.d).padStart(2,'0')+' '+_MN[_p.m]+' '+_p.y):'';}var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
   function fn(v){try{return parseFloat(String(v).replace(/,/g,''));}catch(e){return 0;}}
   function ri(v){return Math.round(fn(v));}
   function safely(label,fn){try{fn();}catch(e){console.error('Sheet parse error ['+label+']:',e);}}
@@ -1566,7 +1566,7 @@ function parseAndRender(buf1,buf2){
     var or=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
     var hi=or.findIndex(function(r){return r&&r.indexOf('Status')>-1;});
     ORDERS=[];
-    function fd(v){if(!v)return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim();return(s==='None'||s==='nan')?'':s.slice(0,12);}
+    function fd(v){if(!v)return '';if(v instanceof Date){var _M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];var _p=cellDateParts(v);return _p?(String(_p.d).padStart(2,'0')+' '+_M[_p.m]+' '+_p.y):'';}var s=String(v).trim();return(s==='None'||s==='nan')?'':s.slice(0,12);}
     or.slice(hi+1).forEach(function(row,i){
       if(!row[5]||!cv(row[5]))return;var co=cv(row[5]);if(!co)return;
       var st=cv(row[18])||'Pending';
@@ -2070,13 +2070,24 @@ function toggleSec(key,i){secDone[key+i]=!secDone[key+i];if(activeSection)showSe
 
 // ── Date parsing helper (handles mixed formats: "21 Jun 2026", "15/06/2026", "2026-06-21") ──
 var MON3={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+// cellDateParts: turn a raw SheetJS Date into clean local calendar parts {y,m,d}.
+// Excel "date-only" cells sometimes store a serial a hair BELOW the integer day
+// (e.g. 30 Jun is stored as ...T23:59:35 of 29 Jun), so a literal read floors to the
+// previous day. We read browser-LOCAL components (which match the user's SGT wall
+// clock), then if the time sits within the last 5 minutes before midnight we treat
+// it as drifted and bump to the next day. Genuine mid-day times are left untouched.
+function cellDateParts(dt){
+  if(!(dt instanceof Date)||isNaN(dt.getTime()))return null;
+  var d=new Date(dt.getTime());
+  if(d.getHours()===23&&d.getMinutes()>=55){d=new Date(d.getTime()+6*60000);}
+  return{y:d.getFullYear(),m:d.getMonth(),d:d.getDate()};
+}
 // dayKey: numeric Y*10000+M*100+D for a RAW cell value, computed at parse time.
-// For Date cells we read LOCAL components (getDate etc.) — these reflect the
-// calendar day the user sees in Excel, immune to SheetJS UTC-vs-local serial
-// parsing differences across browsers. For strings we fall back to parseFlexDate.
+// Uses cellDateParts for Date cells (drift-corrected); parseFlexDate for strings.
 function dayKey(v){
   if(v instanceof Date && !isNaN(v.getTime())){
-    return v.getFullYear()*10000+(v.getMonth()+1)*100+v.getDate();
+    var p=cellDateParts(v);
+    return p?p.y*10000+(p.m+1)*100+p.d:0;
   }
   var d=parseFlexDate(v);
   if(d&&!isNaN(d.getTime()))return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
