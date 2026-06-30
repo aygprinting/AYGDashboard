@@ -363,6 +363,7 @@ button{cursor:pointer}
   </button>
   <div class="fs-bar"><span data-tx="textLabel">Text</span><input type="range" min="11" max="30" value="14" step="1" oninput="setFs(this.value)"><span id="fs-val">14px</span></div>
   <div class="lang-wrap"><button class="lang on" onclick="setLang('en')">EN</button><button class="lang" onclick="setLang('zh')">&#20013;&#25991;</button></div>
+  <button id="admin-panel-btn" onclick="toggleAdminPanel()" style="display:none;background:none;border:1px solid var(--b2);border-radius:var(--r);padding:2px 8px;font-size:10px;font-weight:600;cursor:pointer;color:var(--m);margin-right:6px;flex-shrink:0" title="Access level & account info">&#128274; Access</button>
   <div class="sync-box">
     <div class="pulse"></div>
     <button id="sync-btn" onclick="fetchExcelFromSharePoint()" style="display:none;background:var(--grn);border:none;border-radius:var(--r);padding:2px 9px;color:#0c0c0e;font-size:11px;font-weight:600;cursor:pointer;margin-right:4px;flex-shrink:0">&#8635; <span data-tx="syncBtnLbl">Sync</span></button>
@@ -938,6 +939,25 @@ button{cursor:pointer}
 </div>
 
 <!-- MODAL -->
+<div id="admin-panel-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:900;background:rgba(0,0,0,.45)" onclick="toggleAdminPanel()"></div>
+<div id="admin-panel" style="display:none;position:fixed;top:44px;right:12px;z-index:901;background:var(--s2);border:1px solid var(--b2);border-radius:var(--rl);padding:16px 18px;min-width:280px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.35)">
+  <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--m);margin-bottom:12px">&#128274; Access Information</div>
+  <div id="admin-access-level" style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+    <span id="admin-level-badge" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">—</span>
+    <span id="admin-level-label" style="font-size:11px;color:var(--m)"></span>
+  </div>
+  <div style="border-top:1px solid var(--b);padding-top:10px;margin-bottom:10px">
+    <div style="font-size:10px;color:var(--t);margin-bottom:4px">Logged-in account</div>
+    <div id="admin-account-name" style="font-size:12px;font-weight:600;color:var(--fg)">—</div>
+    <div id="admin-account-email" style="font-size:11px;color:var(--m)">—</div>
+  </div>
+  <div style="border-top:1px solid var(--b);padding-top:10px">
+    <div style="font-size:10px;color:var(--t);margin-bottom:4px">Last synced</div>
+    <div id="admin-sync-time" style="font-size:11px;color:var(--m)">—</div>
+    <div id="admin-sync-status" style="font-size:11px;margin-top:2px">—</div>
+  </div>
+  <div id="admin-staff-note" style="display:none;margin-top:10px;padding:8px 10px;background:rgba(251,191,36,.1);border:1px solid var(--amb);border-radius:var(--r);font-size:11px;color:var(--amb)">&#9888; Staff view: sensitive financial data is restricted. Request management access to see full data.</div>
+</div>
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <h3 id="m-name"></h3><div class="msub" id="m-sub"></div>
@@ -955,6 +975,11 @@ var DAILY=[];
 var TASKS={"general":[],"enquiries":[],"quotations":[],"orders":[],"invoicing":[],"unpaid":[],"shipping":[]};
 var CLIENTS=[];
 var ORDERS=[];
+// Access level: 'management' = both files loaded (full access),
+// 'staff' = BCRS file returned 403 (sensitive data restricted).
+// Set once during sync and never changes until next page load.
+var ACCESS_LEVEL='management';
+var ADMIN_USER={name:'',email:'',syncTime:'',syncStatus:''};
 var ORDER_HIST=[];
 var QUOTES_RAW=[]; // Full quote line items from "Custom Sizes & Quotes" (kept separate from ORDER_HIST, which strips date/margin/validity fields it doesn't need)
 // Manual aliases for cases where a quote was placed under a different/related company name
@@ -1043,6 +1068,17 @@ async function fetchExcelFromSharePoint(){
   try{
     var token=getAccessToken();
     if(!token){await spLogin();return;}
+
+    // Fetch the logged-in user's profile for the admin panel (non-fatal if it fails)
+    try{
+      var meResp=await graphFetch('/me',token);
+      if(meResp.ok){
+        var me=await meResp.json();
+        ADMIN_USER.name=me.displayName||me.givenName||'';
+        ADMIN_USER.email=me.mail||me.userPrincipalName||'';
+      }
+    }catch(e){/* non-fatal — admin panel will show '—' for user fields */}
+
     // BCRS file: site AYGManagement — To-Do-List, Custom Sizes & Quotes, Orders
     var bcrsSiteId = 'aygprinting3.sharepoint.com,e91681c4-2c51-4d4e-8b82-f64b431b5f8f,ddf8c702-75a3-4d6b-8a06-e0a16a378730';
     var bcrsFileId = '01F2SUMRC3PLMJ3HIRCBB3UNPAVWYLBNIE';
@@ -1052,6 +1088,24 @@ async function fetchExcelFromSharePoint(){
 
     showSyncStatus(TX.downloadingBcrs,'loading');
     var dr1=await graphFetch('/sites/'+bcrsSiteId+'/drive/items/'+bcrsFileId+'/content',token);
+
+    // 403 on the BCRS file = staff account with no permission to financial data.
+    // Treat this as a valid "staff" session rather than an error — load AYG Operations only.
+    if(dr1.status===403){
+      ACCESS_LEVEL='staff';
+      ADMIN_USER.syncStatus='staff';
+      ADMIN_USER.syncTime=new Date().toLocaleString();
+      showSyncStatus(TX.downloadingAyg,'loading');
+      var dr2s=await graphFetch('/drives/'+opsDriveId+'/items/'+opsFileId+'/content',token);
+      if(!dr2s.ok)throw new Error('AYG Operations download failed ('+dr2s.status+')');
+      var buf2s=await dr2s.arrayBuffer();
+      if(typeof XLSX==='undefined')throw new Error('XLSX library not loaded');
+      showSyncStatus(TX.parsingData,'loading');
+      parseAndRender(null,buf2s); // buf1=null signals staff mode inside parseAndRender
+      applyAccessLevel();
+      return;
+    }
+
     if(!dr1.ok)throw new Error('BCRS download failed ('+dr1.status+')');
     var buf1=await dr1.arrayBuffer();
 
@@ -1062,15 +1116,106 @@ async function fetchExcelFromSharePoint(){
 
     if(typeof XLSX==='undefined')throw new Error('XLSX library not loaded');
     showSyncStatus(TX.parsingData,'loading');
+    ACCESS_LEVEL='management';
+    ADMIN_USER.syncStatus='management';
+    ADMIN_USER.syncTime=new Date().toLocaleString();
     parseAndRender(buf1,buf2);
+    applyAccessLevel();
   }catch(e){
     console.error('SP error:',e);
+    ADMIN_USER.syncTime=new Date().toLocaleString();
+    ADMIN_USER.syncStatus='error';
     showSyncStatus('\u26a0 '+e.message,'error');
     document.getElementById('sync-btn').style.display='flex';
     renderAll();
+    applyAccessLevel();
   }
 }
 
+// ── Access-level enforcement ─────────────────────────────────────────────────
+// Called after every sync. Applies staff-mode "--" masking or management-mode
+// visibility based on ACCESS_LEVEL ('management' or 'staff').
+// During testing we SHOW "--" for restricted data rather than hiding cards
+// entirely, so staff can see what exists but not the actual figures.
+// When going live, replace the masking blocks with card.style.display='none'.
+
+// Cards that contain margin/profit/RMB/supplier data — hidden entirely in
+// full staff mode (for now they stay visible but populated with "--").
+var STAFF_RESTRICTED_CARD_IDS=[
+  'ord-chart-margins','ord-chart-margintrend','ord-chart-marginclients',
+  'ord-chart-rmbtrend','ord-chart-printerstat','ord-chart-shipperstat',
+  'ord-chart-shipperkg'
+];
+// Nav tab buttons that staff cannot access (Quotes & Pricing, Competitors)
+var STAFF_HIDDEN_TABS=['quotes','competitors'];
+
+function applyAccessLevel(){
+  var isStaff=ACCESS_LEVEL==='staff';
+  // Show/hide the admin panel button once we know the access level
+  var btn=document.getElementById('admin-panel-btn');
+  if(btn)btn.style.display='flex';
+  updateAdminPanel();
+  // Nav tabs — hide restricted tabs entirely for staff
+  document.querySelectorAll('.tabs .tab').forEach(function(tabBtn){
+    var onclick=tabBtn.getAttribute('onclick')||'';
+    var match=onclick.match(/goTab\('(\w+)'/);
+    if(!match)return;
+    var tabName=match[1];
+    if(isStaff&&STAFF_HIDDEN_TABS.indexOf(tabName)>-1){
+      tabBtn.style.display='none';
+    }else{
+      tabBtn.style.display='';
+    }
+  });
+  // Restricted cards — testing mode: keep visible but mask values with "--"
+  // (replace style.display='none' below with the masking block when going live)
+  STAFF_RESTRICTED_CARD_IDS.forEach(function(id){
+    var card=document.querySelector('[data-card-id="'+id+'"]');
+    if(!card)return;
+    if(isStaff){
+      // Testing: show a "--" placeholder inside the card body instead of hiding
+      var body=card.querySelector('.cc-body,.chart-body,#ord-margins-chart,#ord-printer-stats,#ord-shipper-stats,#ord-shipper-kg-chart,#ord-ppc-scatter,#ord-margin-trend-chart,#ord-margin-clients-chart');
+      if(body)body.innerHTML='<div style="padding:12px;font-size:13px;color:var(--t);text-align:center">\u2014\u2014</div>';
+    }
+    // For go-live: replace the above with — card.style.display=isStaff?'none':'';
+  });
+  // Order modal: mask Price, Shipping, Profit, Printer, Shipper for staff
+  // (done at render time inside openModal via isStaff flag — see openModal patch below)
+}
+function toggleAdminPanel(){
+  var panel=document.getElementById('admin-panel');
+  var overlay=document.getElementById('admin-panel-overlay');
+  if(!panel||!overlay)return;
+  var open=panel.style.display!=='none';
+  panel.style.display=open?'none':'block';
+  overlay.style.display=open?'none':'block';
+  if(!open)updateAdminPanel();
+}
+function updateAdminPanel(){
+  var isStaff=ACCESS_LEVEL==='staff';
+  var badge=document.getElementById('admin-level-badge');
+  var label=document.getElementById('admin-level-label');
+  var note=document.getElementById('admin-staff-note');
+  if(badge){
+    badge.textContent=isStaff?'Staff':'Management';
+    badge.style.background=isStaff?'rgba(251,191,36,.2)':'rgba(110,231,183,.2)';
+    badge.style.color=isStaff?'var(--amb)':'var(--grn)';
+  }
+  if(label)label.textContent=isStaff?'(BCRS file not accessible)':'(Full access — both files loaded)';
+  if(note)note.style.display=isStaff?'block':'none';
+  var nameEl=document.getElementById('admin-account-name');
+  var emailEl=document.getElementById('admin-account-email');
+  var timeEl=document.getElementById('admin-sync-time');
+  var statusEl=document.getElementById('admin-sync-status');
+  if(nameEl)nameEl.textContent=ADMIN_USER.name||'\u2014';
+  if(emailEl)emailEl.textContent=ADMIN_USER.email||'\u2014';
+  if(timeEl)timeEl.textContent=ADMIN_USER.syncTime||'\u2014';
+  if(statusEl){
+    var st=ADMIN_USER.syncStatus;
+    statusEl.textContent=st==='management'?'\u2705 Management sync complete':st==='staff'?'\u26a0 Staff sync (BCRS restricted)':st==='error'?'\u274c Sync error':'—';
+    statusEl.style.color=st==='management'?'var(--grn)':st==='staff'?'var(--amb)':st==='error'?'var(--red)':'var(--m)';
+  }
+}
 function showSyncStatus(msg,state){
   var el=document.getElementById('sync-status');if(!el)return;
   el.textContent=msg;el.style.color=state==='error'?'var(--red)':state==='loading'?'var(--amb)':'var(--grn)';
@@ -1078,7 +1223,8 @@ function showSyncStatus(msg,state){
 }
 
 function parseAndRender(buf1,buf2){
-  var wbBcrs=XLSX.read(buf1,{type:'array',cellDates:true});
+  // buf1=null in staff mode (no BCRS access) — skip all BCRS sheet parsing
+  var wbBcrs=buf1?XLSX.read(buf1,{type:'array',cellDates:true}):null;
   var wbOps=XLSX.read(buf2,{type:'array',cellDates:true});
   function cv(v){if(v===null||v===undefined)return '';if(v instanceof Date)return v.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;}
   function fn(v){try{return parseFloat(String(v).replace(/,/g,''));}catch(e){return 0;}}
@@ -1087,6 +1233,7 @@ function parseAndRender(buf1,buf2){
   var ws;
 
   safely('To-Do-List',function(){
+    if(!wbBcrs)return; // staff mode: no BCRS
     ws=wbBcrs.Sheets['To-Do-List'];if(!ws)return;
     var r=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
     DAILY=r.slice(1).map(function(x){return cv(x[0]);}).filter(function(v){return v&&!v.startsWith('Open daily')&&v.length<120;});
@@ -1117,6 +1264,7 @@ function parseAndRender(buf1,buf2){
   });
 
   safely('Orders',function(){
+    if(!wbBcrs)return; // staff mode: no BCRS
     var ok=Object.keys(wbBcrs.Sheets).find(function(k){return k.indexOf('Orders')>-1||k.indexOf('\u8ba2\u5355')>-1;});
     ws=wbBcrs.Sheets[ok];if(!ws)return;
     var or=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
@@ -1175,6 +1323,7 @@ function parseAndRender(buf1,buf2){
   });
 
   safely('Custom Sizes & Quotes',function(){
+    if(!wbBcrs)return; // staff mode: no BCRS
     ws=wbBcrs.Sheets['Custom Sizes & Quotes'];if(!ws)return;
     var csq=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
     QUOTES_RAW=[];
@@ -2722,7 +2871,7 @@ function clearDrag(){document.querySelectorAll('.col').forEach(function(c){c.cla
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
 function openListModal(title,sub,rows){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}document.getElementById('m-name').textContent=title;document.getElementById('m-sub').textContent=sub;document.getElementById('m-rows').innerHTML=rows.map(function(r,i){return'<div class="mrow" style="cursor:pointer" id="mrow'+i+'"><span class="ml" style="color:var(--t);font-weight:500">'+r.left+'</span><span class="mv" style="color:var(--m)">'+r.right+'</span></div>';}).join('');rows.forEach(function(r,i){var el=document.getElementById('mrow'+i);if(el&&r.cb)el.addEventListener('click',function(){closeModal();setTimeout(r.cb,80);});});document.getElementById('m-sel').style.display='none';document.getElementById('m-save').style.display='none';document.getElementById('modal-bg').classList.add('on');}
-function openModal(id,type){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}editId=id;editType=type;var selEl=document.getElementById('m-sel'),saveEl=document.getElementById('m-save');selEl.innerHTML='';selEl.style.display='';saveEl.style.display='';if(type==='crm'){var c=CLIENTS.find(function(c){return c.id===id;});document.getElementById('m-name').textContent=c.name;document.getElementById('m-sub').textContent='Client \u2014 '+c.stage;var fields=[['Last contact',c.lastContact],['PIC 1',c.contact],['PIC 2',c.pic2],['Position',c.position],['Mobile',c.mobile],['Office',c.office],['Email',c.email],['Website',c.website],['Address',c.address],['Pasting',c.pasting],['Language',c.language],['Comment',c.comment]];document.getElementById('m-rows').innerHTML=fields.map(function(r){var val=r[1]||'\u2014';if(r[1]&&r[0]==='Email')val='<a href="mailto:'+r[1]+'" style="color:var(--blu)">'+r[1]+'</a>';if(r[1]&&r[0]==='Website')val='<a href="http://'+r[1].replace(/^https?:\/\//,'')+'" target="_blank" style="color:var(--blu)">'+r[1]+'</a>';return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+val+'</span></div>';}).join('');CRM_STAGES.forEach(function(s){var o=document.createElement('option');o.value=s.id;o.textContent=s.id;if(s.id===c.stage)o.selected=true;selEl.appendChild(o);});}else{var o=ORDERS.find(function(o){return o.id===id;});document.getElementById('m-name').textContent=o.name;document.getElementById('m-sub').textContent=(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.loc+' \u00b7 '+o.size+' \u00b7 '+o.qty.toLocaleString()+' pcs';var ofields=[['Invoice',o.invoice],['Payment',o.payment||TX.unpaidTxt],['Price','S$'+(o.price||0).toLocaleString()],['Shipping','S$'+(o.shipping||0).toLocaleString()],['Profit','S$'+(o.profit||0).toLocaleString()],['Received',o.received],['Est. delivery',o.delivery],['Tracking',o.tracking],['Delivery address',o.address],['Contact',o.contact],['Mobile',o.mobile],['Printer',o.printer],['Shipper',o.shipper],['Lead time',o.days?o.days+' days':'\u2014'],['Comment',o.comment]];document.getElementById('m-rows').innerHTML=ofields.filter(function(r){return r[1]&&r[1]!=='NA';}).map(function(r){return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+r[1]+'</span></div>';}).join('');ORD_STAGES.forEach(function(s){var op=document.createElement('option');op.value=s.id;op.textContent=s.id;if(s.id===o.status)op.selected=true;selEl.appendChild(op);});}document.getElementById('modal-bg').classList.add('on');}
+function openModal(id,type){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}editId=id;editType=type;var selEl=document.getElementById('m-sel'),saveEl=document.getElementById('m-save');selEl.innerHTML='';selEl.style.display='';saveEl.style.display='';if(type==='crm'){var c=CLIENTS.find(function(c){return c.id===id;});document.getElementById('m-name').textContent=c.name;document.getElementById('m-sub').textContent='Client \u2014 '+c.stage;var fields=[['Last contact',c.lastContact],['PIC 1',c.contact],['PIC 2',c.pic2],['Position',c.position],['Mobile',c.mobile],['Office',c.office],['Email',c.email],['Website',c.website],['Address',c.address],['Pasting',c.pasting],['Language',c.language],['Comment',c.comment]];document.getElementById('m-rows').innerHTML=fields.map(function(r){var val=r[1]||'\u2014';if(r[1]&&r[0]==='Email')val='<a href="mailto:'+r[1]+'" style="color:var(--blu)">'+r[1]+'</a>';if(r[1]&&r[0]==='Website')val='<a href="http://'+r[1].replace(/^https?:\/\//,'')+'" target="_blank" style="color:var(--blu)">'+r[1]+'</a>';return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+val+'</span></div>';}).join('');CRM_STAGES.forEach(function(s){var o=document.createElement('option');o.value=s.id;o.textContent=s.id;if(s.id===c.stage)o.selected=true;selEl.appendChild(o);});}else{var o=ORDERS.find(function(o){return o.id===id;});document.getElementById('m-name').textContent=o.name;document.getElementById('m-sub').textContent=(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.loc+' \u00b7 '+o.size+' \u00b7 '+o.qty.toLocaleString()+' pcs';var ofields=[['Invoice',o.invoice],['Payment',o.payment||TX.unpaidTxt],['Price',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.price||0).toLocaleString()],['Shipping',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.shipping||0).toLocaleString()],['Profit',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.profit||0).toLocaleString()],['Received',o.received],['Est. delivery',o.delivery],['Tracking',o.tracking],['Delivery address',o.address],['Contact',o.contact],['Mobile',o.mobile],['Printer',ACCESS_LEVEL==='staff'?'\u2014\u2014':o.printer],['Shipper',o.shipper],['Lead time',o.days?o.days+' days':'\u2014'],['Comment',o.comment]];document.getElementById('m-rows').innerHTML=ofields.filter(function(r){return r[1]&&r[1]!=='NA';}).map(function(r){return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+r[1]+'</span></div>';}).join('');ORD_STAGES.forEach(function(s){var op=document.createElement('option');op.value=s.id;op.textContent=s.id;if(s.id===o.status)op.selected=true;selEl.appendChild(op);});}document.getElementById('modal-bg').classList.add('on');}
 function closeModal(){document.getElementById('modal-bg').classList.remove('on');editId=null;editType=null;}
 function saveModal(){var val=document.getElementById('m-sel').value;if(editType==='crm'){var c=CLIENTS.find(function(c){return c.id===editId;});if(c)c.stage=val;closeModal();renderCRM();}else{var o=ORDERS.find(function(o){return o.id===editId;});if(o)o.status=val;closeModal();renderOrders();}}
 document.getElementById('modal-bg').addEventListener('click',function(e){if(e.target===this)closeModal();});
