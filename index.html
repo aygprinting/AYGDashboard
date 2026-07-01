@@ -2558,9 +2558,10 @@ function trackBtnsHtml(raw,size){
     var html='';
     // UPS/FedEx: their own page resolves from a URL — show it as the primary button.
     if(l.hasCarrier)html+=a(l.url,'\ud83d\udce6 '+l.carrier,'var(--tel)');
-    // SF/ZTO (China-domestic): no reliable deep-link, so show a plain carrier tag (not a link) so
-    // you can still see which courier it is, then the tracker front-doors including Kuaidi100.
-    else if(l.isChina)html+='<span style="display:inline-flex;align-items:center;font-size:'+fs+';padding:'+pad+';margin:1px 3px 1px 0;border:1px solid var(--b2);color:var(--m);border-radius:11px;white-space:nowrap">\ud83d\udce6 '+l.carrier+'</span>';
+    // SF/ZTO (China-domestic): no reliable deep-link. Show the courier name as a plain text label
+    // (no border/pill, no 📦) so it clearly reads as a label rather than a tappable button, then
+    // the tracker front-doors including Kuaidi100.
+    else if(l.isChina)html+='<span style="display:inline-flex;align-items:center;font-size:'+fs+';margin:1px 5px 1px 1px;color:var(--dim);white-space:nowrap;font-weight:600;letter-spacing:.02em">'+l.carrier+'</span>';
     // Kuaidi100 first for China-domestic (best odds), then the two cross-border aggregators.
     if(l.isChina)html+=chip(l.urlKd,'\u5feb\u9012100');
     html+=chip(l.url17,'17T')+chip(l.urlPa,'PA');
