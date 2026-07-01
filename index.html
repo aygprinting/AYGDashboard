@@ -129,11 +129,14 @@ button{cursor:pointer}
 .layout-reset-btn{display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r);border:1px solid var(--b2);background:transparent;color:var(--m);font-size:12px;cursor:pointer}
 .layout-reset-btn:hover{color:var(--t);background:var(--s2)}
 .layout-reset-btn.show{display:inline-flex}
-.edit-mode .sc,.edit-mode .crm-chart-card{position:relative;cursor:grab;outline:1px dashed var(--b2);outline-offset:2px;user-select:none}
-.edit-mode .sc.dragging,.edit-mode .crm-chart-card.dragging{opacity:.4;cursor:grabbing}
-.edit-mode .sc.drag-over,.edit-mode .crm-chart-card.drag-over{outline:2px dashed var(--grn);outline-offset:2px}
+.edit-mode .sc,.edit-mode .crm-chart-card,.edit-mode .tcol{position:relative;cursor:grab;outline:1px dashed var(--b2);outline-offset:2px;user-select:none}
+.edit-mode .sc.dragging,.edit-mode .crm-chart-card.dragging,.edit-mode .tcol.dragging{opacity:.4;cursor:grabbing}
+.edit-mode .sc.drag-over,.edit-mode .crm-chart-card.drag-over,.edit-mode .tcol.drag-over{outline:2px dashed var(--grn);outline-offset:2px}
 .edit-mode .sc.clk,.edit-mode .crm-chart-card{pointer-events:auto}
 .edit-mode .sc.clk{cursor:grab}
+.edit-mode #todo-pills .pill{cursor:grab;outline:1px dashed var(--b2);outline-offset:2px}
+.edit-mode #todo-pills .pill.tab-dragging{opacity:.4;cursor:grabbing}
+.edit-mode #todo-pills .pill.tab-drag-over{outline:2px dashed var(--grn);outline-offset:2px}
 .resize-handle{display:none;position:absolute;right:1px;bottom:1px;width:14px;height:14px;cursor:nwse-resize;color:var(--m);z-index:5;touch-action:none}
 /* Prevent the mobile browser's native pull-to-refresh (which reloads + auto-syncs). */
 html,body{overscroll-behavior-y:contain}
@@ -218,7 +221,7 @@ html,body{overscroll-behavior-y:contain}
 .phnt{font-size:10px;color:var(--dim);margin-top:1px}
 .todo-body{display:flex;flex-direction:column;gap:8px}
 .todo-checklists{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-items:start}
-.tcol{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:10px;overflow-y:auto;max-height:340px}
+.tcol{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:10px;position:relative}
 .tctitle{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--m);margin-bottom:8px;display:flex;align-items:center;gap:6px}
 .ti{padding:5px 0;border-bottom:1px solid var(--b);font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:6px}
 .ti:last-child{border-bottom:none}
@@ -307,7 +310,6 @@ html,body{overscroll-behavior-y:contain}
   .page{padding:10px 8px}
   /* Todo */
   .todo-checklists{grid-template-columns:1fr 1fr!important;gap:6px}
-  .tcol{max-height:220px}
   .det{max-height:calc(100vh - 420px)}
   .todo-pills{gap:4px}
   .pill{min-width:80px;padding:6px 8px}
@@ -410,13 +412,17 @@ html,body{overscroll-behavior-y:contain}
 
 <!-- TODO -->
 <div id="page-todo" class="page on">
+  <div class="layout-toolbar">
+    <button class="layout-reset-btn" id="todo-reset-btn" onclick="resetTodoLayout()" data-tx="resetLayout">Reset layout</button>
+    <button class="layout-edit-btn" id="todo-edit-btn" onclick="toggleEditMode('todo')" data-tx="customizeLayout">Customize layout</button>
+  </div>
   <div class="todo-pills" id="todo-pills"></div>
   <div class="todo-body">
-    <div class="todo-checklists">
-      <div class="tcol"><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--pur)"></div><span data-tx="todoChecklistHd">To-do</span></div><div id="todo-list"></div></div>
-      <div class="tcol"><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--amb)"></div><span data-tx="dailyCheck">Daily checklist</span></div><div id="daily-list"></div></div>
-      <div class="tcol"><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--tel)"></div><span data-tx="checklistMonthlyShort">Monthly</span></div><div id="monthly-list"></div></div>
-      <div class="tcol"><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--blu)"></div><span data-tx="checklistAnnualShort">Annual</span></div><div id="annual-list"></div></div>
+    <div class="todo-checklists" id="todo-checklists">
+      <div class="tcol" data-card-id="todo-card-todo"><span class="drag-handle" data-grip="todo-card-todo"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--pur)"></div><span data-tx="todoChecklistHd">To-do</span></div><div id="todo-list"></div></div>
+      <div class="tcol" data-card-id="todo-card-daily"><span class="drag-handle" data-grip="todo-card-daily"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--amb)"></div><span data-tx="dailyCheck">Daily checklist</span></div><div id="daily-list"></div></div>
+      <div class="tcol" data-card-id="todo-card-monthly"><span class="drag-handle" data-grip="todo-card-monthly"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--tel)"></div><span data-tx="checklistMonthlyShort">Monthly</span></div><div id="monthly-list"></div></div>
+      <div class="tcol" data-card-id="todo-card-annual"><span class="drag-handle" data-grip="todo-card-annual"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--blu)"></div><span data-tx="checklistAnnualShort">Annual</span></div><div id="annual-list"></div></div>
     </div>
     <div class="det" id="det-panel">
       <div class="deth"><div class="dettitle" id="det-title"><div style="width:7px;height:7px;border-radius:50%;background:var(--m)"></div><span data-tx="clickSection">Click a section above</span></div><span class="detcnt" id="det-cnt" style="display:none"></span></div>
@@ -1883,6 +1889,7 @@ CRM_SECTION_GRIDS.forEach(function(g){captureDefaultOrder(g);});
 // Orders dashboard is split into 6 collapsible sections, each its own drag grid.
 var ORD_SECTION_GRIDS=['ord-grid-fulfillment','ord-grid-profile','ord-grid-payments','ord-grid-profit','ord-grid-logistics','ord-grid-sourcing'];
 ORD_SECTION_GRIDS.forEach(function(g){captureDefaultOrder(g);});
+captureDefaultOrder('todo-checklists');
 // Collapse/expand an Orders section; state persists per browser.
 var ORD_SEC_KEY='aygops-ord-sections';
 function getOrdSecState(){try{return JSON.parse(localStorage.getItem(ORD_SEC_KEY))||{};}catch(e){return {};}}
@@ -2056,7 +2063,7 @@ function applyLayout(containerId){
     });
   }
   // If this container's page is currently in edit mode, freshly-rendered cards need handlers re-bound
-  var pageKeyMap={'crm-stats':'crm','crm-grid-overview':'crm','crm-grid-activity':'crm','crm-grid-lost':'crm','ord-stats':'ord','ord-grid-fulfillment':'ord','ord-grid-profile':'ord','ord-grid-payments':'ord','ord-grid-profit':'ord','ord-grid-logistics':'ord','ord-grid-sourcing':'ord','comp-stats':'comp'};
+  var pageKeyMap={'crm-stats':'crm','crm-grid-overview':'crm','crm-grid-activity':'crm','crm-grid-lost':'crm','ord-stats':'ord','ord-grid-fulfillment':'ord','ord-grid-profile':'ord','ord-grid-payments':'ord','ord-grid-profit':'ord','ord-grid-logistics':'ord','ord-grid-sourcing':'ord','comp-stats':'comp','todo-checklists':'todo'};
   var pk=pageKeyMap[containerId];
   if(pk&&EDIT_MODE_PAGES[pk]){container.classList.add('edit-mode');wireCardInteractions(containerId);}
 }
@@ -2076,7 +2083,7 @@ function captureLayout(containerId){
   saveLayout(containerId,{order:order,sizes:sizes,minimized:minimized});
 }
 function toggleEditMode(pageKey){
-  var containerMap={crm:['crm-stats','crm-grid-overview','crm-grid-activity','crm-grid-lost'],ord:['ord-stats','ord-grid-fulfillment','ord-grid-profile','ord-grid-payments','ord-grid-profit','ord-grid-logistics','ord-grid-sourcing'],comp:['comp-stats']};
+  var containerMap={crm:['crm-stats','crm-grid-overview','crm-grid-activity','crm-grid-lost'],ord:['ord-stats','ord-grid-fulfillment','ord-grid-profile','ord-grid-payments','ord-grid-profit','ord-grid-logistics','ord-grid-sourcing'],comp:['comp-stats'],todo:['todo-checklists']};
   var containers=containerMap[pageKey]||[];
   var nowOn=!EDIT_MODE_PAGES[pageKey];
   EDIT_MODE_PAGES[pageKey]=nowOn;
@@ -2090,6 +2097,7 @@ function toggleEditMode(pageKey){
     container.classList.toggle('edit-mode',nowOn);
     if(nowOn)wireCardInteractions(cid);
   });
+  if(pageKey==='todo')renderTodo(); // re-render pills so drag attributes toggle on/off
 }
 var dragState=null;
 function wireCardInteractions(containerId){
@@ -2267,7 +2275,10 @@ var UNPAID=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.payment!=='NA'
 function sCount(k){if(k==='unpaid')return UNPAID.length;return(TASKS[k]||[]).length;}
 function renderTodo(){
   var pills=document.getElementById('todo-pills');if(!pills)return;
-  pills.innerHTML=SECS.map(function(s){var isOn=activeSection===s.key;var label=lang==='zh'?s.zh:s.en;var cnt=sCount(s.key);return'<button class="pill'+(isOn?' on':'')+'" onclick="showSec(\''+s.key+'\')" style="'+(isOn?'border-color:'+s.color+';background:'+s.color+'18':'')+'">'+'<div class="plbl" style="color:'+(isOn?s.color:'')+'">' +label+'</div><div class="pval" style="color:'+s.color+'">'+cnt+'</div><div class="phnt">'+TX.clickView+'</div></button>';}).join('');
+  var editing=!!EDIT_MODE_PAGES.todo;
+  var orderedSecs=applySecOrder(SECS);
+  pills.innerHTML=orderedSecs.map(function(s){var isOn=activeSection===s.key;var label=lang==='zh'?s.zh:s.en;var cnt=sCount(s.key);var dragAttr=editing?' draggable="true" data-pill-key="'+s.key+'"':'';return'<button class="pill'+(isOn?' on':'')+'"'+dragAttr+' onclick="showSec(\''+s.key+'\')" style="'+(isOn?'border-color:'+s.color+';background:'+s.color+'18':'')+'">'+'<div class="plbl" style="color:'+(isOn?s.color:'')+'">' +label+'</div><div class="pval" style="color:'+s.color+'">'+cnt+'</div><div class="phnt">'+TX.clickView+'</div></button>';}).join('');
+  if(editing)wirePillDrag();
   // Four checklist cards, each rendered into its own container. The card title (in the HTML)
   // is the section header, so the body here is just the plain checkbox list. Done-state keys are
   // namespaced by prefix (t/d/m/a) so ticking an item in one card never affects another.
@@ -2281,9 +2292,44 @@ function renderTodo(){
   var dl=document.getElementById('daily-list');if(dl)dl.innerHTML=listHtml(DAILY,'d');
   var ml=document.getElementById('monthly-list');if(ml)ml.innerHTML=listHtml(MONTHLY,'m');
   var al=document.getElementById('annual-list');if(al)al.innerHTML=listHtml(ANNUAL,'a');
+  applyLayout('todo-checklists');
   if(activeSection)showSecDetail(activeSection);
 }
 function toggleDaily(k){dailyDone[k]=!dailyDone[k];renderTodo();}
+// ── To-do pill (stat button) order persistence + drag reordering ─────────────
+var TODO_PILL_ORDER_KEY='aygops-todo-pill-order';
+function applySecOrder(secs){
+  // Return SECS sorted by the saved pill order; unknown/new keys keep their original position.
+  var saved;try{saved=JSON.parse(localStorage.getItem(TODO_PILL_ORDER_KEY)||'null');}catch(e){saved=null;}
+  if(!saved||!saved.length)return secs.slice();
+  var byKey={};secs.forEach(function(s){byKey[s.key]=s;});
+  var out=[];
+  saved.forEach(function(k){if(byKey[k]){out.push(byKey[k]);delete byKey[k];}});
+  secs.forEach(function(s){if(byKey[s.key])out.push(s);}); // append any not in saved order
+  return out;
+}
+var _pillDragging=null;
+function wirePillDrag(){
+  var pills=document.getElementById('todo-pills');if(!pills)return;
+  Array.prototype.forEach.call(pills.children,function(pill){
+    if(pill.dataset.pillWired)return;pill.dataset.pillWired='1';
+    pill.addEventListener('dragstart',function(e){if(!EDIT_MODE_PAGES.todo){e.preventDefault();return;}_pillDragging=pill;pill.classList.add('tab-dragging');});
+    pill.addEventListener('dragend',function(){_pillDragging=null;pill.classList.remove('tab-dragging');Array.prototype.forEach.call(pills.children,function(p){p.classList.remove('tab-drag-over');});savePillOrder();});
+    pill.addEventListener('dragover',function(e){if(!_pillDragging||pill===_pillDragging)return;e.preventDefault();pill.classList.add('tab-drag-over');});
+    pill.addEventListener('dragleave',function(){pill.classList.remove('tab-drag-over');});
+    pill.addEventListener('drop',function(e){e.preventDefault();pill.classList.remove('tab-drag-over');if(!_pillDragging||pill===_pillDragging)return;var rect=pill.getBoundingClientRect();var after=e.clientX>rect.left+rect.width/2;if(after)pills.insertBefore(_pillDragging,pill.nextSibling);else pills.insertBefore(_pillDragging,pill);savePillOrder();});
+  });
+}
+function savePillOrder(){
+  var pills=document.getElementById('todo-pills');if(!pills)return;
+  var order=Array.prototype.map.call(pills.children,function(p){return p.getAttribute('data-pill-key');}).filter(Boolean);
+  try{localStorage.setItem(TODO_PILL_ORDER_KEY,JSON.stringify(order));}catch(e){}
+}
+function resetTodoLayout(){
+  resetLayout('todo-checklists');
+  try{localStorage.removeItem(TODO_PILL_ORDER_KEY);}catch(e){}
+  renderTodo();
+}
 function showSec(key){if(activeSection===key){activeSection=null;renderTodo();return;}activeSection=key;renderTodo();}
 function showSecDetail(key){
   var s=SECS.find(function(x){return x.key===key;});if(!s)return;
