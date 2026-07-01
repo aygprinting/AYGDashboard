@@ -223,6 +223,11 @@ html,body{overscroll-behavior-y:contain}
 .todo-checklists{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;align-items:start}
 .tcol{background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:10px;position:relative}
 .tctitle{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--m);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.tcol-min{margin-left:auto;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:var(--m);cursor:pointer;border-radius:4px;padding:0;flex-shrink:0}
+.tcol-min:hover{color:var(--t);background:var(--s2)}
+.tcol-min svg{width:13px;height:13px}
+.tcol.collapsed .tctitle{margin-bottom:0}
+.tcol.collapsed .tcol-body{display:none}
 .ti{padding:5px 0;border-bottom:1px solid var(--b);font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:6px}
 .ti:last-child{border-bottom:none}
 .tchk{width:14px;height:14px;border:1px solid var(--b2);border-radius:3px;flex-shrink:0;margin-top:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;background:transparent}
@@ -419,10 +424,10 @@ html,body{overscroll-behavior-y:contain}
   <div class="todo-pills" id="todo-pills"></div>
   <div class="todo-body">
     <div class="todo-checklists" id="todo-checklists">
-      <div class="tcol" data-card-id="todo-card-todo"><span class="drag-handle" data-grip="todo-card-todo"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--pur)"></div><span data-tx="todoChecklistHd">To-do</span></div><div id="todo-list"></div></div>
-      <div class="tcol" data-card-id="todo-card-daily"><span class="drag-handle" data-grip="todo-card-daily"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--amb)"></div><span data-tx="dailyCheck">Daily checklist</span></div><div id="daily-list"></div></div>
-      <div class="tcol" data-card-id="todo-card-monthly"><span class="drag-handle" data-grip="todo-card-monthly"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--tel)"></div><span data-tx="checklistMonthlyShort">Monthly</span></div><div id="monthly-list"></div></div>
-      <div class="tcol" data-card-id="todo-card-annual"><span class="drag-handle" data-grip="todo-card-annual"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--blu)"></div><span data-tx="checklistAnnualShort">Annual</span></div><div id="annual-list"></div></div>
+      <div class="tcol" data-card-id="todo-card-todo"><span class="drag-handle" data-grip="todo-card-todo"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--pur)"></div><span data-tx="todoChecklistHd">To-do</span><button class="tcol-min" onclick="toggleChecklistMin('todo-card-todo')" title="Minimize" aria-label="Minimize"></button></div><div class="tcol-body"><div id="todo-list"></div></div></div>
+      <div class="tcol" data-card-id="todo-card-daily"><span class="drag-handle" data-grip="todo-card-daily"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--amb)"></div><span data-tx="dailyCheck">Daily checklist</span><button class="tcol-min" onclick="toggleChecklistMin('todo-card-daily')" title="Minimize" aria-label="Minimize"></button></div><div class="tcol-body"><div id="daily-list"></div></div></div>
+      <div class="tcol" data-card-id="todo-card-monthly"><span class="drag-handle" data-grip="todo-card-monthly"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--tel)"></div><span data-tx="checklistMonthlyShort">Monthly</span><button class="tcol-min" onclick="toggleChecklistMin('todo-card-monthly')" title="Minimize" aria-label="Minimize"></button></div><div class="tcol-body"><div id="monthly-list"></div></div></div>
+      <div class="tcol" data-card-id="todo-card-annual"><span class="drag-handle" data-grip="todo-card-annual"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><div class="tctitle"><div style="width:7px;height:7px;border-radius:50%;background:var(--blu)"></div><span data-tx="checklistAnnualShort">Annual</span><button class="tcol-min" onclick="toggleChecklistMin('todo-card-annual')" title="Minimize" aria-label="Minimize"></button></div><div class="tcol-body"><div id="annual-list"></div></div></div>
     </div>
     <div class="det" id="det-panel">
       <div class="deth"><div class="dettitle" id="det-title"><div style="width:7px;height:7px;border-radius:50%;background:var(--m)"></div><span data-tx="clickSection">Click a section above</span></div><span class="detcnt" id="det-cnt" style="display:none"></span></div>
@@ -1639,6 +1644,27 @@ function parseAndRender(buf1,buf2){
     });
   });
 
+  // Staff (and any case where the BCRS To-Do-List didn't load): read the AYG Operations
+  // "To-Do" tab, which uses the same one-column, header-row layout but with only three
+  // sections \u2014 Daily / Monthly / Annual (no general "To-do" block). This gives staff three
+  // checklist cards instead of the management view's four.
+  safely('AYG To-Do',function(){
+    if(TODOLIST.length||DAILY.length||MONTHLY.length||ANNUAL.length)return; // BCRS already populated them
+    ws=wbOps.Sheets['To-Do'];if(!ws)return;
+    var r=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+    DAILY=[];MONTHLY=[];ANNUAL=[];TODOLIST=[];
+    var bucket=null;
+    r.forEach(function(x){
+      var v=cv(x[0]);if(!v)return;
+      var low=v.toLowerCase();
+      if(low.indexOf('open daily')===0||low.indexOf('daily')===0||v.indexOf('\u6bcf\u5929')>=0){bucket=DAILY;return;}
+      if(low.indexOf('monthly')===0||v.indexOf('\u6bcf\u6708\u505a\u8d26')>=0){bucket=MONTHLY;return;}
+      if(low.indexOf('annual')===0||v.indexOf('\u62a5\u8d26')>=0){bucket=ANNUAL;return;}
+      if(low.indexOf('things to do')===0){bucket=null;return;} // skip any general block for staff
+      if(bucket&&v.length<120)bucket.push(v);
+    });
+  });
+
   safely('Tasks',function(){
     ws=wbOps.Sheets['Tasks'];if(!ws)return;
     var tr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
@@ -2292,7 +2318,15 @@ function renderTodo(){
   var dl=document.getElementById('daily-list');if(dl)dl.innerHTML=listHtml(DAILY,'d');
   var ml=document.getElementById('monthly-list');if(ml)ml.innerHTML=listHtml(MONTHLY,'m');
   var al=document.getElementById('annual-list');if(al)al.innerHTML=listHtml(ANNUAL,'a');
+  // Staff view has no "To-do" (general) block \u2014 hide that card and drop the checklist grid to
+  // 3 columns so the remaining cards fill the row evenly.
+  var todoCard=document.querySelector('[data-card-id="todo-card-todo"]');
+  var grid=document.getElementById('todo-checklists');
+  var showTodo=TODOLIST.length>0;
+  if(todoCard)todoCard.style.display=showTodo?'':'none';
+  if(grid)grid.style.gridTemplateColumns='repeat('+(showTodo?4:3)+',1fr)';
   applyLayout('todo-checklists');
+  applyChecklistMin();
   if(activeSection)showSecDetail(activeSection);
 }
 function toggleDaily(k){dailyDone[k]=!dailyDone[k];renderTodo();}
@@ -2329,6 +2363,26 @@ function resetTodoLayout(){
   resetLayout('todo-checklists');
   try{localStorage.removeItem(TODO_PILL_ORDER_KEY);}catch(e){}
   renderTodo();
+}
+// ── Checklist card minimize (independent of Customize mode) ──────────────────
+// Each of the checklist cards can be collapsed to just its title via the small toggle in its
+// header \u2014 no need to enter Customize layout. State persists per browser.
+var TODO_MIN_KEY='aygops-todo-checklist-min';
+function getChecklistMin(){try{return JSON.parse(localStorage.getItem(TODO_MIN_KEY)||'{}')||{};}catch(e){return {};}}
+function toggleChecklistMin(cardId){
+  var st=getChecklistMin();st[cardId]=!st[cardId];
+  try{localStorage.setItem(TODO_MIN_KEY,JSON.stringify(st));}catch(e){}
+  applyChecklistMin();
+}
+function applyChecklistMin(){
+  var st=getChecklistMin();
+  ['todo-card-todo','todo-card-daily','todo-card-monthly','todo-card-annual'].forEach(function(cardId){
+    var card=document.querySelector('[data-card-id="'+cardId+'"]');if(!card)return;
+    var min=!!st[cardId];
+    card.classList.toggle('collapsed',min);
+    var btn=card.querySelector('.tcol-min');
+    if(btn){btn.innerHTML=min?MAX_SVG:MIN_SVG;btn.title=min?'Expand':'Minimize';btn.setAttribute('aria-label',min?'Expand':'Minimize');}
+  });
 }
 function showSec(key){if(activeSection===key){activeSection=null;renderTodo();return;}activeSection=key;renderTodo();}
 function showSecDetail(key){
