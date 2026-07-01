@@ -1868,7 +1868,7 @@ function applyOrdSectionState(){
 }
 // Section ordering (per browser). Default order if nothing saved.
 var ORD_SEC_ORDER_KEY='aygops-ord-sec-order';
-var ORD_SEC_DEFAULT=['fulfillment','profile','payments','profit','logistics','sourcing'];
+var ORD_SEC_DEFAULT=['fulfillment','payments','logistics','sourcing','profit','profile'];
 function getOrdSecOrder(){
   try{var o=JSON.parse(localStorage.getItem(ORD_SEC_ORDER_KEY));if(o&&o.length)return o;}catch(e){}
   return ORD_SEC_DEFAULT.slice();
@@ -1900,7 +1900,7 @@ function moveOrdSection(sid,dir){
 // ── CRM dashboard sections (mirror of the Orders section machinery) ──
 var CRM_SEC_KEY='aygops-crm-sections';
 var CRM_SEC_ORDER_KEY='aygops-crm-sec-order';
-var CRM_SEC_DEFAULT=['overview','activity','lost'];
+var CRM_SEC_DEFAULT=['activity','overview','lost'];
 function getCrmSecState(){try{return JSON.parse(localStorage.getItem(CRM_SEC_KEY))||{};}catch(e){return {};}}
 function toggleCrmSection(sid){
   var sec=document.getElementById('crm-sec-'+sid);if(!sec)return;
@@ -2514,14 +2514,16 @@ function renderCrmContactedRecent(){
     el.innerHTML='<div style="font-size:11px;color:var(--t);padding:8px 0">'+TX.noContactedWeek+'</div>';
     return;
   }
-  // Day labels: 0=Today, 1=Yesterday, else the weekday + D/M derived from SGT today.
-  var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  // Day labels: 0=Today, 1=Yesterday, else weekday + D/M. Weekdays are localised.
+  var WD_EN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var WD_ZH=['周日','周一','周二','周三','周四','周五','周六'];
   function dayLabel(n){
     if(n===0)return TX.today;
     if(n===1)return TX.yesterday;
     var base=new Date(Date.UTC(SYNC_DATE.todayY,SYNC_DATE.todayM,SYNC_DATE.todayD));
     var d=new Date(base.getTime()-n*86400000);
-    return WD[d.getUTCDay()]+' '+d.getUTCDate()+'/'+(d.getUTCMonth()+1);
+    var wd=(lang==='zh'?WD_ZH:WD_EN)[d.getUTCDay()];
+    return wd+' '+d.getUTCDate()+'/'+(d.getUTCMonth()+1);
   }
   var maxCount=Math.max.apply(null,buckets.map(function(b){return b.length;}).concat([1]));
   // Top: 7-day mini bar chart (one row per day, today first).
@@ -2531,7 +2533,7 @@ function renderCrmContactedRecent(){
     var pct=Math.max(cnt>0?6:0,Math.round(cnt/maxCount*100));
     var barColor=d0===0?'var(--grn)':d0===1?'var(--tel)':'var(--blu)';
     bars+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;cursor:pointer" onclick="crmDrillDay('+d0+')">'
-      +'<span style="font-size:10px;color:var(--m);width:74px;flex-shrink:0;white-space:nowrap">'+dayLabel(d0)+'</span>'
+      +'<span style="font-size:10px;color:var(--m);width:92px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+dayLabel(d0)+'</span>'
       +'<div style="flex:1;height:14px;background:var(--s2);border-radius:4px;overflow:hidden;min-width:0"><div style="height:100%;width:'+pct+'%;background:'+barColor+';border-radius:4px;transition:width .3s"></div></div>'
       +'<span style="font-size:11px;font-weight:600;font-family:\'JetBrains Mono\',monospace;width:22px;text-align:right;flex-shrink:0;color:'+(cnt?'var(--t)':'var(--dim)')+'">'+cnt+'</span>'
       +'</div>';
