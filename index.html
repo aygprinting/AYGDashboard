@@ -738,18 +738,6 @@ html,body{overscroll-behavior-y:contain}
         <div id="ord-shipper-stats"></div>
       </div>
     </div>
-<div class="crm-chart-card" data-card-id="ord-chart-shipperkg" style="grid-row:span 5">
-      <span class="drag-handle" data-grip="ord-chart-shipperkg"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
-      <span class="resize-handle" data-resize="ord-chart-shipperkg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span><span class="min-handle" data-min="ord-chart-shipperkg" onclick="toggleMinimize(event,'ord-chart-shipperkg')" title="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></span><div class="min-strip"><span>Shipping Cost Per Kg</span></div>
-      <div class="cc-body">
-        <div class="cc-title" data-tx="shippingPerKg">Shipping Cost Per Kg</div>
-        <div style="display:flex;gap:4px;margin-bottom:10px">
-          <button id="skg-tab-shipper" class="qtab on" style="font-size:10px;padding:3px 9px" onclick="setShipKgView('shipper',this)" data-tx="byShipper">By Shipper</button>
-          <button id="skg-tab-dest" class="qtab" style="font-size:10px;padding:3px 9px" onclick="setShipKgView('dest',this)" data-tx="byDestination">By Destination</button>
-        </div>
-        <div id="ord-shipper-kg"></div>
-      </div>
-    </div>
 <div class="crm-chart-card" data-card-id="ord-chart-shipkgtrend" style="grid-column:span 12;grid-row:span 7">
       <span class="drag-handle" data-grip="ord-chart-shipkgtrend"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span>
       <span class="resize-handle" data-resize="ord-chart-shipkgtrend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v6h-6M21 21L13 13"/></svg></span><span class="min-handle" data-min="ord-chart-shipkgtrend" onclick="toggleMinimize(event,'ord-chart-shipkgtrend')" title="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></span><div class="min-strip"><span>Shipping Cost/kg — Trend</span></div>
@@ -1291,7 +1279,6 @@ var TX=TX_EN;
 var activeSection=null,dragId=null,editId=null,editType=null;
 var dailyDone={},secDone={},histArea=0,histCol='b';
 var sqHistArea=0,sqHistCol='b';
-var shipKgView='shipper';
 var shipKgTrendView='shipper';
 var shipKgTrendCur='sgd';
 var shipKgTrendHidden={};
@@ -1439,7 +1426,7 @@ async function fetchExcelFromSharePoint(){
 var STAFF_RESTRICTED_CARD_IDS=[
   'ord-chart-margins','ord-chart-margintrend','ord-chart-marginclients',
   'ord-chart-rmbtrend','ord-chart-printerstat','ord-chart-shipperstat',
-  'ord-chart-shipperkg','ord-chart-shipkgtrend','ord-chart-timeline','ord-chart-costratio',
+  'ord-chart-shipkgtrend','ord-chart-timeline','ord-chart-costratio',
   'ord-chart-logburden','ord-chart-gst'
 ];
 // Nav tab buttons hidden for staff. Only Quotes & Pricing — its quote history
@@ -1914,6 +1901,11 @@ function setLang(l){
   if(themeBtn){var curTheme=document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';themeBtn.title=curTheme==='light'?TX.themeToDark:TX.themeToLight;}
   renderAccessPage();
   renderAll();
+  // The quote estimator panels (Quote Summary, How it was calculated, Historical Shipping) are
+  // built in JS and aren't touched by the data-tx pass above, so re-run the calculators to
+  // rebuild them in the new language. Both early-return when the form is empty, so this is safe.
+  try{if(typeof calcQ==='function')calcQ();}catch(e){}
+  try{if(typeof calcStaffQ==='function')calcStaffQ();}catch(e){}
 }
 // ── Customizable dashboard layout system ──────────────────────────────────
 var LAYOUT_PREFIX='aygops-layout-';
@@ -2981,55 +2973,6 @@ function ordDrill(f){var list=f==='unpaid'?UNPAID:ORDERS.filter(function(o){retu
 
 var ORD_QTY_BUCKETS=[];
 
-// Shipping Cost Per Kg — computes per-order rate (shipping SGD / weight kg) for
-// orders that have a recorded weight, then averages by shipper or by destination.
-// Orders without weight are skipped (data not captured yet).
-function setShipKgView(v,btn){
-  shipKgView=v;
-  var a=document.getElementById('skg-tab-shipper'),b=document.getElementById('skg-tab-dest');
-  if(a)a.classList.toggle('on',v==='shipper');
-  if(b)b.classList.toggle('on',v==='dest');
-  renderShipperKg();
-}
-function renderShipperKg(){
-  var box=document.getElementById('ord-shipper-kg');if(!box)return;
-  // keep only orders with usable weight + shipping; exclude China (rule: China shipping = 0 /
-  // not tracked), so this card's data population matches the Shipping Cost/kg trend card.
-  var rows=(ORDERS||[]).filter(function(o){return o.weight>0&&o.shipping>0&&String(o.loc||'').toLowerCase().indexOf('china')<0&&String(o.loc||'').indexOf('\u4e2d\u56fd')<0;});
-  if(!rows.length){box.innerHTML='<div class="cc-empty" style="padding:24px 14px;line-height:1.6">'+TX.noShipKgData+'</div>';return;}
-  var keyFn=shipKgView==='dest'?function(o){return o.loc||'\u2014';}:function(o){return o.shipper||'\u2014';};
-  var groups={};
-  rows.forEach(function(o){
-    var k=keyFn(o);if(!k||k==='\u2014')return;
-    var rate=o.shipping/o.weight;
-    if(!groups[k])groups[k]={name:k,rateArr:[],count:0,kg:0,cost:0};
-    groups[k].rateArr.push(rate);groups[k].count++;groups[k].kg+=o.weight;groups[k].cost+=o.shipping;
-  });
-  // aggregate avg = total cost / total kg (weighted), more meaningful than mean of ratios
-  var list=Object.keys(groups).map(function(k){var g=groups[k];return{name:g.name,avg:g.kg>0?g.cost/g.kg:0,count:g.count,kg:Math.round(g.kg)};})
-    .filter(function(g){return g.avg>0;})
-    .sort(function(a,b){return b.avg-a.avg;});
-  if(!list.length){box.innerHTML='<div class="cc-empty" style="padding:24px 14px">'+TX.noShipKgData+'</div>';return;}
-  var max=Math.max.apply(null,list.map(function(g){return g.avg;}).concat([1]));
-  var isDest=shipKgView==='dest';
-  var html='<div class="bar-list">'+list.map(function(g){
-    var pct=Math.max(3,Math.round(g.avg/max*100));
-    var label=isDest?((FLAGS[g.name]||'\ud83c\udf10')+' '+g.name):g.name;
-    return '<div class="bar-row" style="margin-bottom:9px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:3px">'
-      +'<span class="cf-name" style="font-size:11px">'+label+'</span>'
-      +'<span style="font-family:\'JetBrains Mono\',monospace;font-size:11px;font-weight:600;white-space:nowrap;display:inline-flex;gap:7px;align-items:baseline">'
-        +'<span style="color:var(--tel)">S$'+g.avg.toFixed(2)+'<span style="color:var(--m);font-weight:400;font-size:9px"> SGD/kg</span></span>'
-        +'<span style="color:var(--amb)">\u00a5'+(g.avg*5.3).toFixed(2)+'<span style="color:var(--m);font-weight:400;font-size:9px"> RMB/kg</span></span>'
-      +'</span>'
-      +'</div>'
-      +'<div style="height:7px;background:var(--s2);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:var(--tel);border-radius:4px"></div></div>'
-      +'<div style="font-size:9px;color:var(--dim);margin-top:2px">'+g.count+' '+TX.ordersLbl+' \u00b7 '+g.kg.toLocaleString()+'kg</div>'
-      +'</div>';
-  }).join('')+'</div>'
-  +'<div style="font-size:9px;color:var(--dim);margin-top:8px;padding-top:8px;border-top:1px solid var(--b)">'+TX.shipKgBasedOn+' ('+rows.length+'/'+(ORDERS||[]).length+')</div>';
-  box.innerHTML=html;
-}
 function setShipKgTrendView(v,btn){
   shipKgTrendView=v;
   shipKgTrendHidden={}; // reset per-view filter when switching shipper<->dest
@@ -3341,7 +3284,6 @@ function renderOrdCharts(){
     return '<div class="cf-row" style="cursor:default"><span class="cf-name">'+s.name+' \u00b7 '+s.count+' '+TX.ordersLbl+'</span><span class="cf-days" style="color:var(--tel)">'+(s.avgDays!==null?(TX.avgLbl+' '+s.avgDays+'d'):'\u2014')+'</span></div>';
   }).join('')+'</div>' : '<div class="cc-empty">'+TX.noShipperData+'</div>';
 
-  renderShipperKg();
   renderShipKgTrend();
 
   // ── Qty / SKU distribution (uses sheet's own qtyPerSku column) ──
@@ -4058,8 +4000,8 @@ function calcStaffQ(){
   var div='<div style="border-top:1px solid var(--b2);margin:6px 0 4px"></div>';
   resEl.innerHTML=
     '<div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+TX.quoteSummary+'</div>'
-    +'<div style="'+rs+'"><span style="'+ls+'">Size</span><span style="font-family:'+mn+';font-size:12px">'+w+'\u00d7'+h+'mm \u00b7 '+Math.round(area).toLocaleString()+'mm\u00b2</span></div>'
-    +'<div style="'+rs+'"><span style="'+ls+'">'+TX.totalQty+'</span><span style="font-family:'+mn+';font-size:12px">'+totalQty.toLocaleString()+' pcs</span></div>'
+    +'<div style="'+rs+'"><span style="'+ls+'">'+TX.sizeCol+'</span><span style="font-family:'+mn+';font-size:12px">'+w+'\u00d7'+h+'mm \u00b7 '+Math.round(area).toLocaleString()+'mm\u00b2</span></div>'
+    +'<div style="'+rs+'"><span style="'+ls+'">'+TX.totalQty+'</span><span style="font-family:'+mn+';font-size:12px">'+totalQty.toLocaleString()+' '+TX.pcsUnit+'</span></div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.qtyPerSku+'</span><span style="font-family:'+mn+';font-size:12px;color:var(--amb)">'+qtyPerSku.toLocaleString()+'</span></div>'
     +div
     +'<div style="'+rs+'font-weight:600"><span style="'+ls+'font-weight:600;color:var(--grn)">'+TX.sellingPrice+'</span><span style="font-family:'+mn+';font-size:13px;font-weight:600;color:var(--grn)">S$'+Math.round(sell).toLocaleString()+'</span></div>'
@@ -4620,8 +4562,8 @@ function calcQ(){
 
   document.getElementById('q-result').innerHTML=
     '<div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+TX.quoteSummary+'</div>'
-    +'<div style="'+rs+'"><span style="'+ls+'">Size</span><span style="font-family:'+mn+';font-size:12px">'+w+'\u00d7'+h+'mm \u00b7 '+Math.round(area).toLocaleString()+'mm\u00b2</span></div>'
-    +'<div style="'+rs+'"><span style="'+ls+'">'+TX.totalQty+'</span><span style="font-family:'+mn+';font-size:12px">'+totalQty.toLocaleString()+' pcs</span></div>'
+    +'<div style="'+rs+'"><span style="'+ls+'">'+TX.sizeCol+'</span><span style="font-family:'+mn+';font-size:12px">'+w+'\u00d7'+h+'mm \u00b7 '+Math.round(area).toLocaleString()+'mm\u00b2</span></div>'
+    +'<div style="'+rs+'"><span style="'+ls+'">'+TX.totalQty+'</span><span style="font-family:'+mn+';font-size:12px">'+totalQty.toLocaleString()+' '+TX.pcsUnit+'</span></div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.qtyPerSku+'</span><span style="font-family:'+mn+';font-size:12px;color:var(--amb)">'+qtyPerSku.toLocaleString()+'</span></div>'
     +div
     +'<div style="'+rs+'"><label style="'+ls+';color:var(--amb)" for="eq-rmb-pc">'+TX.costPerPcRmb+'</label><input id="eq-rmb-pc" type="number" step="0.0001" value="'+rpc.toFixed(4)+'" style="'+is+'color:var(--amb);border-color:rgba(251,191,36,.3)" oninput="syncRmbPriceFrom(\'eq-rmb-pc\')"><span style="font-size:10px;color:var(--amb);margin-left:2px">\u00a5</span></div>'
