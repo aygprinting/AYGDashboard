@@ -2100,6 +2100,11 @@ function applyLayout(containerId){
       var id=card.getAttribute('data-card-id');
       if(id)cards[id]=card;
     });
+    // Cards present in the DOM but missing from the saved order are new (added in an app update
+    // after the user last customised this page). Re-append them first so they never vanish just
+    // because an old saved layout predates them.
+    var inSaved={};layout.order.forEach(function(id){inSaved[id]=1;});
+    Object.keys(cards).forEach(function(id){if(!inSaved[id])container.appendChild(cards[id]);});
     layout.order.forEach(function(id){
       if(cards[id])container.appendChild(cards[id]);
     });
