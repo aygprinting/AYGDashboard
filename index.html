@@ -2521,8 +2521,8 @@ function buildTrackLinks(raw){
       // (Kuaidi100 domestic-China aggregator, plus 17track and ParcelsApp for the cross-border
       // case) and let the number be pasted in. isChina marks SF/ZTO so the UI adds Kuaidi100.
       var primUrl='',primName='',hasCarrier=false,isChina=false;
-      if(carrier==='UPS'){primUrl='https://www.ups.com/track?tracknum='+encodeURIComponent(num);primName='UPS';hasCarrier=true;}
-      else if(carrier==='FEDEX'){primUrl='https://www.fedex.com/fedextrack/?trknbr='+encodeURIComponent(num);primName='FedEx';hasCarrier=true;}
+      if(carrier==='UPS'){primUrl='https://www.ups.com/track?loc=en_US&tracknum='+encodeURIComponent(num);primName='UPS';hasCarrier=true;}
+      else if(carrier==='FEDEX'){primUrl='https://www.fedex.com/fedextrack/?trknbr='+encodeURIComponent(num)+'&locale=en_us&cntry_code=us';primName='FedEx';hasCarrier=true;}
       else if(carrier==='SF'){primName='SF';isChina=true;}
       else if(carrier==='ZTO'){primName='ZTO';isChina=true;}
       else{primName='';}
