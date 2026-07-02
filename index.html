@@ -2562,8 +2562,9 @@ function trackBtnsHtml(raw,size){
     // (no border/pill, no 📦) so it clearly reads as a label rather than a tappable button, then
     // the tracker front-doors including Kuaidi100.
     else if(l.isChina)html+='<span style="display:inline-flex;align-items:center;font-size:'+fs+';margin:1px 5px 1px 1px;color:var(--dim);white-space:nowrap;font-weight:600;letter-spacing:.02em">'+l.carrier+'</span>';
-    // Kuaidi100 first for China-domestic (best odds), then the two cross-border aggregators.
-    if(l.isChina)html+=chip(l.urlKd,'\u5feb\u9012100');
+    // Kuaidi100 first for China-domestic (best odds) — highlighted like a carrier button since
+    // it's the recommended tracker for these parcels; 17T/PA stay as muted fallback chips.
+    if(l.isChina)html+=a(l.urlKd,'\ud83d\udce6 \u5feb\u9012100','var(--tel)');
     html+=chip(l.url17,'17T')+chip(l.urlPa,'PA');
     return '<span style="display:inline-flex;flex-wrap:wrap;align-items:center">'+html+'</span>';
   }).join(' ');
