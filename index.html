@@ -4957,7 +4957,7 @@ function renderClientsUpdate(){
     }).join('');
     ordersColHtml=taskColRaw((TX.ordersToProcessHd||'Orders to Process'),stageColor('order placed'),rowsH,String(pend.length));
   }
-  tasksHtml='<div class="cc-title-row"><div class="cc-title">'+(TX.tasksHd||'Suggested Tasks')+'</div>'
+  var tasksHtml='<div class="cc-title-row"><div class="cc-title">'+(TX.tasksHd||'Suggested Tasks')+'</div>'
       +'<span style="font-size:9px;color:var(--dim)">'+(TX.tasksNote||'')+'</span></div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:8px">'
       +taskCol(TX.taskOnAyg||'Action on AYG',stageColor('order placed'),T.onayg,TX.taskNoneAyg||'Nothing owed by us')
