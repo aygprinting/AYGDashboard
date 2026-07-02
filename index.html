@@ -234,6 +234,9 @@ html,body{overscroll-behavior-y:contain}
 .clients-reader-txt{font-size:12px;line-height:1.65;color:var(--t);white-space:normal;max-height:420px;overflow-y:auto}
 @media(max-width:720px){.clients-reader-grid{grid-template-columns:1fr}}
 .clients-days-row{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:start}
+#clients-grid{grid-auto-rows:auto}
+#clients-grid>.crm-chart-card{grid-column:1/-1;overflow:visible;height:auto}
+#clients-grid>.crm-chart-card.minimized{overflow:hidden}
 @media(max-width:1100px){.clients-days-row{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:640px){.clients-days-row{grid-template-columns:repeat(2,1fr)}}
 .ti{padding:5px 0;border-bottom:1px solid var(--b);font-size:12px;line-height:1.4;display:flex;align-items:flex-start;gap:6px}
@@ -1121,7 +1124,7 @@ html,body{overscroll-behavior-y:contain}
     </div>
   </div>
   <div id="clients-empty"></div>
-  <div class="crm-charts-grid" id="clients-grid" style="grid-template-columns:1fr">
+  <div class="crm-charts-grid" id="clients-grid" style="grid-template-columns:1fr;grid-auto-rows:auto">
     <div class="crm-chart-card" data-card-id="cl-days" style="grid-column:span 12"><span class="drag-handle" data-grip="cl-days"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><span class="min-handle" data-min="cl-days" onclick="toggleMinimize(event,'cl-days')" title="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></span><div class="min-strip"><span data-tx="recent7Hd">Last 14 Days</span></div><div class="cc-body" id="cl-days-body"></div></div>
     <div class="crm-chart-card" data-card-id="cl-check" style="grid-column:span 12"><span class="drag-handle" data-grip="cl-check"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><span class="min-handle" data-min="cl-check" onclick="toggleMinimize(event,'cl-check')" title="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></span><div class="min-strip"><span data-tx="ccHd">Last-Contact Check</span></div><div class="cc-body" id="cl-check-body"></div></div>
     <div class="crm-chart-card" data-card-id="cl-tasks" style="grid-column:span 12"><span class="drag-handle" data-grip="cl-tasks"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="1.6"/><circle cx="12" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/><circle cx="6" cy="18" r="1.6"/><circle cx="12" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg></span><span class="min-handle" data-min="cl-tasks" onclick="toggleMinimize(event,'cl-tasks')" title="Minimize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></span><div class="min-strip"><span data-tx="tasksHd">Suggested Tasks</span></div><div class="cc-body" id="cl-tasks-body"></div></div>
