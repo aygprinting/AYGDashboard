@@ -1463,12 +1463,26 @@ async function fetchExcelFromSharePoint(){
 var _pipeFileId=null; // cached after first filename resolution
 async function resolvePipeFileId(token){
   if(_pipeFileId)return _pipeFileId;
-  // Search the AYGPrinting site drive for the pipeline file by name.
-  var r=await graphFetch('/sites/'+SP3.siteId+'/drive/root/search(q=\''+encodeURIComponent(SP3.fileName)+'\')',token);
-  if(!r.ok)throw new Error('Pipeline lookup failed ('+r.status+')');
-  var j=await r.json();
-  var hit=(j.value||[]).filter(function(f){return f.name&&f.name.toLowerCase()===SP3.fileName.toLowerCase();})[0]||(j.value||[])[0];
-  if(!hit)throw new Error('AYG_Pipeline.xlsx not found on the AYGPrinting site');
+  // AYG_Pipeline lives in the SAME drive as AYG Operations (SP2.siteId is actually the DRIVE id,
+  // used as /drives/{id}/... in the login sync). Search that drive by name. The search term goes
+  // straight into the OData search(q='...') function — spaces/dots are fine unquoted here; we
+  // only strip characters that would break the quoted string.
+  var driveId=SP2.siteId;
+  var term=SP3.fileName.replace(/'/g,'');
+  var hit=null;
+  // Primary: OData search within the drive.
+  try{
+    var r=await graphFetch('/drives/'+driveId+'/root/search(q=\''+term+'\')',token);
+    if(r.ok){var j=await r.json();hit=(j.value||[]).filter(function(f){return f.name&&f.name.toLowerCase()===SP3.fileName.toLowerCase();})[0];}
+  }catch(e){}
+  // Fallback: some drives reject search — list root children and match by name.
+  if(!hit){
+    var r2=await graphFetch('/drives/'+driveId+'/root/children?$top=200',token);
+    if(!r2.ok)throw new Error('Pipeline lookup failed ('+r2.status+')');
+    var j2=await r2.json();
+    hit=(j2.value||[]).filter(function(f){return f.name&&f.name.toLowerCase()===SP3.fileName.toLowerCase();})[0];
+  }
+  if(!hit)throw new Error('AYG_Pipeline.xlsx not found on the AYGPrinting drive');
   _pipeFileId=hit.id;return _pipeFileId;
 }
 async function syncClientsUpdate(){
@@ -1480,7 +1494,7 @@ async function syncClientsUpdate(){
     if(btn){btn.disabled=true;btn.classList.add('syncing');}
     if(stat){stat.textContent=TX.loadingData;stat.className='sync-note loading';}
     var fid=await resolvePipeFileId(token);
-    var dr=await graphFetch('/sites/'+SP3.siteId+'/drive/items/'+fid+'/content',token);
+    var dr=await graphFetch('/drives/'+SP2.siteId+'/items/'+fid+'/content',token);
     if(!dr.ok)throw new Error('Pipeline download failed ('+dr.status+')');
     var buf=await dr.arrayBuffer();
     if(typeof XLSX==='undefined')throw new Error('XLSX library not loaded');
