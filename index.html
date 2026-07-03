@@ -1113,7 +1113,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260702-1547</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260702-1601</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -5798,7 +5798,17 @@ function pullSyncGo(){closePullSync();fetchExcelFromSharePoint();}
 
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
-    navigator.serviceWorker.register('service-worker.js').catch(function(err){
+    navigator.serviceWorker.register('service-worker.js').then(function(reg){
+      // Force an update check on every load so a stale cached build self-heals without the user
+      // needing to clear site data. This only refreshes cached FILES (code/CSS); localStorage
+      // (layout customize settings, sync timestamps) is untouched.
+      try{reg.update();}catch(e){}
+      // When a new worker takes control, reload once to pick up fresh assets.
+      var reloaded=false;
+      navigator.serviceWorker.addEventListener('controllerchange',function(){
+        if(reloaded)return;reloaded=true;location.reload();
+      });
+    }).catch(function(err){
       console.warn('Service worker registration failed (app still works normally):',err);
     });
   });
