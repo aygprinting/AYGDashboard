@@ -1115,7 +1115,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260702-1722</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260702-1740</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -4785,7 +4785,7 @@ function buildPendingOrders(){
 }
 function buildClientTasks(){
   var zh=lang==='zh';
-  var enquiries=[],quotes=[],delivery=[],onayg=[];
+  var quotes=[],onayg=[];
   var WINDOW=30; // only consider clients with email activity in the last 30 days
   CLIENTS_PIPE.forEach(function(c){
     var s=(c.stageEn||'').toLowerCase();
@@ -4804,23 +4804,21 @@ function buildClientTasks(){
     var contentTask=wantsDesign||wantsCall||wantsInfo||wantsPaste;
     var item={c:c,days:days,action:na.text,
       tags:(wantsDesign?'design ':'')+(wantsCall?'call ':'')+(wantsInfo?'info ':'')+(wantsPaste?'pasting':'')};
-    // "Action on AYG" — anything (not closed) where the next step is explicitly on us.
-    if(na.onAyg&&!closed)onayg.push(item);
     if(closed)return;
+    // "Action on AYG" — the next step is explicitly on us, OR a design is required (producing the
+    // design/artwork is AYG's job), OR the pipeline stage is "Design required".
+    var designReq=s.indexOf('design required')>-1||s.indexOf('artwork')>-1||wantsDesign;
+    if((na.onAyg||designReq)){onayg.push(item);}
     var stale=days>=CLIENT_TASK_STALE_DAYS;
     var fresh=days<CLIENT_TASK_STALE_DAYS&&!!na.text; // recent with a clear next action
-    if(s.indexOf('enquiry')>-1){
-      if(stale||fresh||contentTask)enquiries.push(item);
-    }else if(s.indexOf('quotation')>-1||s.indexOf('pending approval')>-1||s.indexOf('design required')>-1||s.indexOf('pending info')>-1||s.indexOf('artwork')>-1){
+    // Quotation / Pending — quotes to chase and approvals pending (design-required already handled above).
+    if(s.indexOf('quotation')>-1||s.indexOf('pending approval')>-1||s.indexOf('pending info')>-1){
       if(stale||fresh||contentTask)quotes.push(item);
-    }else if(s.indexOf('in production')>-1||s.indexOf('out for delivery')>-1){
-      delivery.push(item);
     }
   });
   var byDays=function(a,b){return (b.days||0)-(a.days||0);};
-  enquiries.sort(byDays);quotes.sort(byDays);onayg.sort(byDays);
-  delivery.sort(function(a,b){return (a.days||0)-(b.days||0);});
-  return{enquiries:enquiries,quotes:quotes,delivery:delivery,onayg:onayg};
+  quotes.sort(byDays);onayg.sort(byDays);
+  return{quotes:quotes,onayg:onayg};
 }
 
 // ── Clients Update render: sync prompt → 7-day updates + company summary/history reader ──
@@ -4893,6 +4891,33 @@ function renderClientsUpdate(){
   var days7Html=dayCards.length?dayRow(dayCards.slice(0,7)):'<div class="cc-empty" style="padding:14px">'+(TX.noUpdatesDay||'No updates')+'</div>';
   var days14Html=dayCards.length>7?dayRow(dayCards.slice(7,14)):'<div class="cc-empty" style="padding:14px">'+(TX.noUpdatesDay||'No updates')+'</div>';
   // Reusable reader card: dropdown + search + summary/history for a given data pool.
+  // Parse the "D/M/YY: event → D/M/YY: event" history string into a vertical dated timeline.
+  function renderHistoryTimeline(hist){
+    if(!hist)return '<div style="font-size:11px;color:var(--dim)">\u2014</div>';
+    var parts=String(hist).split('\u2192').map(function(s){return s.trim();}).filter(Boolean);
+    if(parts.length<=1){ // not arrow-structured — fall back to plain text
+      return '<div class="clients-reader-txt">'+String(hist).replace(/\n/g,'<br>')+'</div>';
+    }
+    var rows=parts.map(function(p,i){
+      var m=p.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[:\-]?\s*(.*)$/);
+      var date=m?m[1]:'';var text=m?m[2]:p;
+      var isLast=i===parts.length-1;
+      // AYG-side entries get a subtle accent so you can scan who acted.
+      var isAyg=/^ayg\b/i.test(text);
+      var dotCol=isLast?'var(--blu)':(isAyg?'var(--tel)':'var(--b2)');
+      return '<div style="display:flex;gap:9px;position:relative">'
+          +'<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">'
+            +'<div style="width:9px;height:9px;border-radius:50%;background:'+dotCol+';margin-top:3px;flex-shrink:0"></div>'
+            +(isLast?'':'<div style="width:2px;flex:1;background:var(--b);margin:2px 0"></div>')
+          +'</div>'
+          +'<div style="padding-bottom:'+(isLast?'0':'10px')+';min-width:0">'
+            +(date?'<div style="font-size:9px;font-weight:700;color:var(--blu);letter-spacing:.02em">'+date+'</div>':'')
+            +'<div style="font-size:11px;color:var(--t);line-height:1.5;margin-top:1px">'+text+'</div>'
+          +'</div>'
+        +'</div>';
+    }).join('');
+    return '<div style="padding:2px 0">'+rows+'</div>';
+  }
   function readerCard(cfg){
     var pool2=cfg.data.slice().sort(function(a,b){return a.company.localeCompare(b.company);});
     var sq=(cfg.search||'').toLowerCase().trim();
@@ -4923,7 +4948,7 @@ function renderClientsUpdate(){
         +'</div>'
         +'<div class="clients-reader-grid">'
           +'<div class="clients-reader-col"><div class="clients-reader-hd">'+(TX.summaryHd||'Summary')+'</div><div class="clients-reader-txt">'+(sum||'\u2014').replace(/\n/g,'<br>')+'</div></div>'
-          +'<div class="clients-reader-col"><div class="clients-reader-hd">'+(TX.historyHd||'History')+'</div><div class="clients-reader-txt">'+(hist||'\u2014').replace(/\n/g,'<br>')+'</div></div>'
+          +'<div class="clients-reader-col"><div class="clients-reader-hd">'+(TX.historyHd||'History')+'</div>'+renderHistoryTimeline(hist)+'</div>'
         +'</div>';
     }
     return '<div class="cc-title-row" style="flex-wrap:wrap;gap:8px"><div class="cc-title">'+cfg.title+'</div>'
@@ -4996,9 +5021,7 @@ function renderClientsUpdate(){
       +'<span style="font-size:9px;color:var(--dim)">'+(TX.tasksNote||'')+'</span></div>'
     +'<div style="display:flex;flex-wrap:wrap;gap:8px">'
       +taskCol(TX.taskOnAyg||'Action on AYG',stageColor('order placed'),T.onayg,TX.taskNoneAyg||'Nothing owed by us')
-      +taskCol(TX.taskEnquiries||'Contact Enquiries',stageColor('enquiry'),T.enquiries,TX.taskNoneEnq||'None stale')
       +taskCol(TX.taskQuotes||'Quotation / Pending',stageColor('quotation'),T.quotes,TX.taskNoneQuote||'None stale')
-      +taskCol(TX.taskDelivery||'Delivery Estimates',stageColor('out for delivery'),T.delivery,TX.taskNoneDel||'None in transit')
       +ordersColHtml
     +'</div>'
     +'<div style="font-size:10px;color:var(--m);margin-top:8px">\ud83e\uddfe '+(TX.taskInvoicePtr||'Unpaid invoices')+' \u2192 Xero</div>';
