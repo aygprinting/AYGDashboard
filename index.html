@@ -1113,7 +1113,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260702-1601</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260702-1618</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -1651,8 +1651,12 @@ function applyAccessLevel(){
   // Hide an Orders section header entirely if every card inside it is hidden
   // (e.g. for staff, the all-financial Profitability/Logistics/Sourcing sections).
   // Runs off the live DOM so it self-adjusts to whatever is currently restricted.
+  // NOTE: scope to Orders only — the Clients Update tab reuses the .ord-section class but has no
+  // [data-card-id] cards (it uses .ord-sec-grid bodies), so it must be excluded or it'd hide them all.
   document.querySelectorAll('.ord-section').forEach(function(sec){
+    if(sec.closest('#clients-sections'))return; // not an Orders section
     var cards=sec.querySelectorAll('[data-card-id]');
+    if(!cards.length)return; // no cards to evaluate → leave visible
     var anyVisible=Array.prototype.some.call(cards,function(c){return c.style.display!=='none';});
     sec.style.display=anyVisible?'':'none';
   });
