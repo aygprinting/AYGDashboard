@@ -1151,7 +1151,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM11</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM12</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -5151,7 +5151,7 @@ function buildClientTasks(){
     var days=_pipeDays(c);
     // Skip clients with no recent activity (likely dead or already resolved) and closed states.
     if(days===null||days>WINDOW)return;
-    var closed=s.indexOf('lost')>-1||s.indexOf('stall')>-1||s.indexOf('payment done')>-1||s.indexOf('delivered')>-1||s.indexOf('completed')>-1;
+    var closed=s.indexOf('lost')>-1||s.indexOf('stall')>-1||s.indexOf('payment done')>-1||s.indexOf('paid')>-1||s.indexOf('delivered')>-1||s.indexOf('completed')>-1;
     var na=extractNextAction(c.sumEn,c.sumZh,zh);
     // Content signals from the summary/history — a task can be real regardless of how old it is
     // if the update explicitly asks for something (design, a call, info/specs, samples, pasting).
@@ -5166,12 +5166,12 @@ function buildClientTasks(){
     if(closed)return;
     // "Action on AYG" — the next step is explicitly on us, OR a design is required (producing the
     // design/artwork is AYG's job), OR the pipeline stage is "Design required".
-    var designReq=s.indexOf('design required')>-1||s.indexOf('artwork')>-1||wantsDesign;
+    var designReq=s.indexOf('design')>-1||s.indexOf('artwork')>-1||wantsDesign;
     if((na.onAyg||designReq)){onayg.push(item);}
     var stale=days>=CLIENT_TASK_STALE_DAYS;
     var fresh=days<CLIENT_TASK_STALE_DAYS&&!!na.text; // recent with a clear next action
     // Quotation / Pending — quotes to chase and approvals pending (design-required already handled above).
-    if(s.indexOf('quotation')>-1||s.indexOf('pending approval')>-1||s.indexOf('pending info')>-1){
+    if(s.indexOf('quot')>-1||s.indexOf('pending approval')>-1||s.indexOf('pending info')>-1){
       if(stale||fresh||contentTask)quotes.push(item);
     }
   });
@@ -5185,7 +5185,7 @@ function buildClientTasks(){
 function stageColor(stageEn){
   var s=(stageEn||'').toLowerCase();
   if(s.indexOf('enquiry')>-1)return '#60a5fa';
-  if(s.indexOf('quotation')>-1)return '#38bdf8';
+  if(s.indexOf('quot')>-1)return '#38bdf8';
   if(s.indexOf('design')>-1)return '#a78bfa';
   if(s.indexOf('pending approval')>-1)return '#c084fc';
   if(s.indexOf('order placed')>-1)return '#fbbf24';
@@ -5193,7 +5193,9 @@ function stageColor(stageEn){
   if(s.indexOf('production')>-1)return '#f472b6';
   if(s.indexOf('out for delivery')>-1)return '#2dd4bf';
   if(s.indexOf('delivered')>-1)return '#6ee7b7';
+  if(s.indexOf('delivery')>-1)return '#2dd4bf';
   if(s.indexOf('payment')>-1)return '#34d399';
+  if(s.indexOf('paid')>-1)return '#34d399';
   if(s.indexOf('completed')>-1)return '#22c55e';
   if(s.indexOf('lost')>-1||s.indexOf('stall')>-1)return '#ef4444';
   return 'var(--m)';
