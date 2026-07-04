@@ -1155,7 +1155,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM16</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM17</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -1858,8 +1858,31 @@ function jumpToXero(invoice,filter){
   if(btn)goTab('xero',btn);
   else renderXero();
 }
-function parseClientsPipeline(buf){
+// Read an .xlsx and repair phantom used-ranges. The Contacts and BCRS Orders sheets carry a
+// used-range stretched to column XFD (16384) padded with ~385k empty style-only cells. SheetJS
+// doesn't materialise the empty cells, but sheet_to_json still walks the whole declared range —
+// e.g. 1085 rows x 16384 cols = ~17.8M empty iterations per sheet. Here we recompute each sheet's
+// !ref from its REAL cells (only ~2k exist) so parsing touches actual data only. This never drops
+// data: it can only shrink empty padding. (The download + XML tokenisation cost is separate — that
+// needs the source sheets cleaned; this fixes the in-browser parse.)
+function readWB(buf){
   var wb=XLSX.read(buf,{type:'array',cellDates:true});
+  try{
+    Object.keys(wb.Sheets).forEach(function(nm){
+      var ws=wb.Sheets[nm];if(!ws||!ws['!ref'])return;
+      var maxR=0,maxC=0,has=false;
+      for(var k in ws){
+        if(k.charCodeAt(0)===33)continue; // skip '!ref', '!cols', etc.
+        var cell=XLSX.utils.decode_cell(k);
+        if(cell.r>maxR)maxR=cell.r;if(cell.c>maxC)maxC=cell.c;has=true;
+      }
+      if(has)ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:maxR,c:maxC}});
+    });
+  }catch(e){}
+  return wb;
+}
+function parseClientsPipeline(buf){
+  var wb=readWB(buf);
   function cvp(v){return v===null||v===undefined?'':String(v).trim();}
   // Customers sheet → per-company summary/history
   CLIENTS_PIPE=[];
@@ -2061,8 +2084,8 @@ function showSyncStatus(msg,state){
 
 function parseAndRender(buf1,buf2){
   // buf1=null in staff mode (no BCRS access) — skip all BCRS sheet parsing
-  var wbBcrs=buf1?XLSX.read(buf1,{type:'array',cellDates:true}):null;
-  var wbOps=XLSX.read(buf2,{type:'array',cellDates:true});
+  var wbBcrs=buf1?readWB(buf1):null;
+  var wbOps=readWB(buf2);
   // Staff mode: hard-reset every BCRS-derived global BEFORE parsing. The per-sheet
   // guards (if(!wbBcrs)return) skip parsing, but the array resets live INSIDE those
   // blocks — so without this, a management->staff transition would leave stale
