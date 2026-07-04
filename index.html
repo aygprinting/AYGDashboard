@@ -1151,7 +1151,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM14</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM15</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -5285,29 +5285,18 @@ function renderClientsUpdate(){
   // Parse the "D/M/YY: event → D/M/YY: event" history string into a vertical dated timeline.
   function renderHistoryTimeline(hist){
     if(!hist)return '<div style="font-size:11px;color:var(--dim)">\u2014</div>';
-    var parts=String(hist).split('\u2192').map(function(s){return s.trim();}).filter(Boolean);
-    if(parts.length<=1){ // not arrow-structured — fall back to plain text
-      return '<div class="clients-reader-txt">'+String(hist).replace(/\n/g,'<br>')+'</div>';
-    }
+    // History is a list of "D/M/YY: event" entries separated by arrows (\u2192) OR newlines
+    // (Cowork writes newline-separated). Render each row as a blue date followed by the description beside it.
+    var parts=String(hist).split(/\u2192|\n/).map(function(s){return s.trim();}).filter(Boolean);
     var rows=parts.map(function(p,i){
-      var m=p.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[:\-]?\s*(.*)$/);
+      var m=p.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[:\-]?\s*([\s\S]*)$/);
       var date=m?m[1]:'';var text=m?m[2]:p;
-      var isLast=i===parts.length-1;
-      // AYG-side entries get a subtle accent so you can scan who acted.
-      var isAyg=/^ayg\b/i.test(text);
-      var dotCol=isLast?'var(--blu)':(isAyg?'var(--tel)':'var(--b2)');
-      return '<div style="display:flex;gap:9px;position:relative">'
-          +'<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">'
-            +'<div style="width:9px;height:9px;border-radius:50%;background:'+dotCol+';margin-top:3px;flex-shrink:0"></div>'
-            +(isLast?'':'<div style="width:2px;flex:1;background:var(--b);margin:2px 0"></div>')
-          +'</div>'
-          +'<div style="padding-bottom:'+(isLast?'0':'10px')+';min-width:0">'
-            +(date?'<div style="font-size:9px;font-weight:700;color:var(--blu);letter-spacing:.02em">'+date+'</div>':'')
-            +'<div style="font-size:11px;color:var(--t);line-height:1.5;margin-top:1px">'+text+'</div>'
-          +'</div>'
+      return '<div style="display:flex;gap:8px;padding:3px 0;font-size:11px;line-height:1.55;'+(i?'border-top:1px solid var(--b)':'')+'">'
+          +(date?'<span style="color:var(--blu);font-weight:700;white-space:nowrap;flex-shrink:0">'+date+'</span>':'')
+          +'<span style="color:var(--t);min-width:0">'+text+'</span>'
         +'</div>';
     }).join('');
-    return '<div style="padding:2px 0">'+rows+'</div>';
+    return '<div style="max-height:420px;overflow-y:auto;padding:2px 0">'+rows+'</div>';
   }
   function readerCard(cfg){
     var pool2=cfg.data.slice().sort(function(a,b){return a.company.localeCompare(b.company);});
