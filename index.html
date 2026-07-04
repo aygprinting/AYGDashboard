@@ -1151,7 +1151,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260703-CRM9b</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM10</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -2168,14 +2168,34 @@ function parseAndRender(buf1,buf2){
     var cr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
     var vs=['Enquiry','Quoting','Design & Approval','Order Placed','In Production','Delivery','Pending Payment','Paid','Lost / Stalled','1st print','Lost','Repeat print','Pending Quote Approval','Registering with BCRS','Pending info'];
     CLIENTS=[];
+    // Resolve columns by HEADER TEXT, not fixed position. The Contacts sheet gets
+    // columns inserted/reordered periodically (e.g. a "Type" column was moved to the
+    // front), which silently broke fixed-index reads. hcol() finds each column by a
+    // header substring; if a header is missing it falls back to the default index so
+    // parsing degrades gracefully instead of shifting every field.
+    var HROW=(cr[0]||[]).map(function(h){return (h==null?'':String(h)).toLowerCase();});
+    function hcol(sub,notSub,dflt){
+      for(var k=0;k<HROW.length;k++){if(HROW[k].indexOf(sub)>-1&&(!notSub||HROW[k].indexOf(notSub)<0))return k;}
+      return (dflt==null?-1:dflt);
+    }
+    var COL={
+      company:hcol('company',null,0), stage:hcol('stage',null,1), type:hcol('type',null,2),
+      lastc:hcol('last date of contact',null,3), pasting:hcol('pasting',null,4),
+      comment:hcol('comment',null,5), language:hcol('language',null,6),
+      pic1:hcol('pic','2',7), pic2:(function(){for(var k=0;k<HROW.length;k++){if(HROW[k].indexOf('pic')>-1&&HROW[k].indexOf('2')>-1)return k;}return 8;})(),
+      position:hcol('position',null,9), mobile:hcol('mobile',null,10),
+      office:hcol('office',null,11), email:hcol('email',null,12),
+      website:hcol('website',null,13), address:hcol('address',null,14)
+    };
+    function g(row,idx){return idx>=0?row[idx]:null;}
     // No row cap: reads every row; per-row guards (company name + valid stage) skip blanks/junk, so the CRM grows freely.
     cr.slice(1).forEach(function(row,i){
-      if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;
-      var st=cv(row[1]);if(vs.indexOf(st)<0)return;
+      var co=cv(g(row,COL.company));if(!co||co.length>80)return;
+      var st=cv(g(row,COL.stage));if(vs.indexOf(st)<0)return;
       // ── DATE DIAGNOSTIC ── capture the raw last-contact cell for a sample client
       // so we can inspect timezone behaviour live (survives after sync, unlike the workbook).
       if(/radha|value shop/i.test(co)){
-        var rawv=row[2];
+        var rawv=g(row,COL.lastc);
         window.__dateDebug={
           company:co,
           isDate:rawv instanceof Date,
@@ -2188,7 +2208,7 @@ function parseAndRender(buf1,buf2){
           browserTZOffsetMin:new Date().getTimezoneOffset()
         };
       }
-      CLIENTS.push({id:i+1,name:co,stage:normStage(st),stageRaw:st,lastContact:cv(row[2]),lastContactKey:dayKey(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150),ctype:cv(row[14])||'',lastEmailDate:cv(row[15])||''});
+      CLIENTS.push({id:i+1,name:co,stage:normStage(st),stageRaw:st,lastContact:cv(g(row,COL.lastc)),lastContactKey:dayKey(g(row,COL.lastc)),pasting:cv(g(row,COL.pasting)),comment:cv(g(row,COL.comment)).slice(0,150),language:cv(g(row,COL.language)),contact:cv(g(row,COL.pic1)),pic2:cv(g(row,COL.pic2)),position:cv(g(row,COL.position)),mobile:cv(g(row,COL.mobile)),office:cv(g(row,COL.office))||'',email:cv(g(row,COL.email))||'',website:cv(g(row,COL.website))||'',address:(cv(g(row,COL.address))||'').slice(0,150),notes:cv(g(row,COL.comment)).slice(0,150),ctype:cv(g(row,COL.type))||'',lastEmailDate:''});
     });
   });
 
