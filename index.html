@@ -1151,7 +1151,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260703-XERO4</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260703-CRM9b</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -1370,7 +1370,12 @@ var HONSEN_PRICING={"75x30":[{"min":1,"max":5000,"ppp":0.063},{"min":5001,"max":
 /* HONSEN_V2 */
 var HONSEN_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
 var CMP_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
-var CRM_STAGES=[{id:'Enquiry',zh:'\u8be2\u76d8',color:'#60a5fa'},{id:'Registering with BCRS',zh:'\u6ce8\u518cBCRS',color:'#a78bfa'},{id:'Pending info',zh:'\u5f85\u4fe1\u606f',color:'#fbbf24'},{id:'Pending Quote Approval',zh:'\u5f85\u62a5\u4ef7',color:'#f472b6'},{id:'1st print',zh:'\u9996\u6b21\u5370\u5237',color:'#2dd4bf'},{id:'Repeat print',zh:'\u91cd\u590d\u5370\u5237',color:'#6ee7b7'},{id:'Lost',zh:'\u5df2\u6d41\u5931',color:'#45454f'}];
+var CRM_STAGES=[{id:'Enquiry',zh:'\u8be2\u76d8',color:'#60a5fa'},{id:'Quoting',zh:'\u62a5\u4ef7\u4e2d',color:'#f472b6'},{id:'Design & Approval',zh:'\u8bbe\u8ba1\u4e0e\u5ba1\u6279',color:'#a78bfa'},{id:'Order Placed',zh:'\u5df2\u4e0b\u5355',color:'#818cf8'},{id:'In Production',zh:'\u751f\u4ea7\u4e2d',color:'#2dd4bf'},{id:'Delivery',zh:'\u914d\u9001\u4e2d',color:'#22d3ee'},{id:'Pending Payment',zh:'\u5f85\u4ed8\u6b3e',color:'#fbbf24'},{id:'Paid',zh:'\u5df2\u4ed8\u6b3e',color:'#6ee7b7'},{id:'Lost / Stalled',zh:'\u5df2\u6d41\u5931/\u505c\u6ede',color:'#45454f'}];
+var STAGE_ALIAS={'Pending Quote Approval':'Quoting','Registering with BCRS':'Design & Approval','Pending info':'Quoting','1st print':'In Production','Repeat print':'In Production','Lost':'Lost / Stalled','Quotation sent/requested':'Quoting','Design required':'Design & Approval','Artwork pending final approval':'Design & Approval','Pending approval from BCRS':'Design & Approval','Order placed':'Order Placed','Out for delivery':'Delivery','Delivered':'Delivery','Payment done':'Paid','Completed':'Paid','Lead/RFQ lost or stalled':'Lost / Stalled','Stalled':'Lost / Stalled'};
+function normStage(v){v=(v||'').trim();return STAGE_ALIAS[v]||v;}
+var STAGE_GROUP={'Enquiry':'Lead','Quoting':'Lead','Design & Approval':'Setup','Order Placed':'Setup','In Production':'Fulfilment','Delivery':'Fulfilment','Pending Payment':'Fulfilment','Paid':'Closed \u2013 Won','Lost / Stalled':'Closed \u2013 Lost'};
+var GROUP_META=[{id:'Lead',color:'#60a5fa'},{id:'Setup',color:'#a78bfa'},{id:'Fulfilment',color:'#2dd4bf'},{id:'Closed \u2013 Won',color:'#6ee7b7'},{id:'Closed \u2013 Lost',color:'#45454f'}];
+var CUST_TYPES=[{id:'New',zh:'\u65b0\u5ba2\u6237',color:'#60a5fa'},{id:'Repeat',zh:'\u56de\u5934\u5ba2',color:'#6ee7b7'},{id:'Supplier',zh:'\u4f9b\u5e94\u5546',color:'#fbbf24'},{id:'Other',zh:'\u5176\u4ed6',color:'#45454f'}];
 var CRM_MONTHS=[];
 var ORD_STAGES=[{id:'Pending',zh:'待处理',color:'#ef4444'},{id:'In Production',zh:'\u751f\u4ea7\u4e2d',color:'#a78bfa'},{id:'Out for Delivery',zh:'\u8fd0\u8f93\u4e2d',color:'#2dd4bf'},{id:'Delivered',zh:'\u5df2\u4ea4\u8d27',color:'#6ee7b7'},{id:'Paid',zh:'\u5df2\u4ed8\u6b3e',color:'#45454f'}];
 var FLAGS={Singapore:'\ud83c\uddf8\ud83c\uddec',Malaysia:'\ud83c\uddf2\ud83c\uddfe',China:'\ud83c\udde8\ud83c\uddf3',Taiwan:'\ud83c\uddf9\ud83c\uddfc','Hong Kong':'\ud83c\udded\ud83c\uddf0',Indonesia:'\ud83c\uddee\ud83c\udde9',Japan:'\ud83c\uddef\ud83c\uddf5',Thailand:'\ud83c\uddf9\ud83c\udded'};
@@ -2152,8 +2157,8 @@ function parseAndRender(buf1,buf2){
     var tr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
     var tk=['general','enquiries','quotations','orders','invoicing','unpaid','shipping'];
     tk.forEach(function(k){TASKS[k]=[];});
-    // Table bounds A1:G25 \u2014 only rows 1-24 are real data
-    tr.slice(1,25).forEach(function(row){
+    // No row cap: per-cell guards skip blanks/placeholders.
+    tr.slice(1).forEach(function(row){
       tk.forEach(function(k,i){var v=i<row.length?cv(row[i]):'';if(v&&!v.startsWith('*')&&!v.startsWith('Add to')&&v.length>2)TASKS[k].push(v);});
     });
   });
@@ -2161,10 +2166,10 @@ function parseAndRender(buf1,buf2){
   safely('Contacts',function(){
     ws=wbOps.Sheets['Contacts'];if(!ws)return;
     var cr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-    var vs=['Enquiry','1st print','Lost','Repeat print','Pending Quote Approval','Registering with BCRS','Pending info'];
+    var vs=['Enquiry','Quoting','Design & Approval','Order Placed','In Production','Delivery','Pending Payment','Paid','Lost / Stalled','1st print','Lost','Repeat print','Pending Quote Approval','Registering with BCRS','Pending info'];
     CLIENTS=[];
-    // Table bounds A1:N116 \u2014 only rows 1-115 are real data
-    cr.slice(1,116).forEach(function(row,i){
+    // No row cap: reads every row; per-row guards (company name + valid stage) skip blanks/junk, so the CRM grows freely.
+    cr.slice(1).forEach(function(row,i){
       if(!row[0])return;var co=cv(row[0]);if(!co||co.length>80)return;
       var st=cv(row[1]);if(vs.indexOf(st)<0)return;
       // ── DATE DIAGNOSTIC ── capture the raw last-contact cell for a sample client
@@ -2183,7 +2188,7 @@ function parseAndRender(buf1,buf2){
           browserTZOffsetMin:new Date().getTimezoneOffset()
         };
       }
-      CLIENTS.push({id:i+1,name:co,stage:st,lastContact:cv(row[2]),lastContactKey:dayKey(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150)});
+      CLIENTS.push({id:i+1,name:co,stage:normStage(st),stageRaw:st,lastContact:cv(row[2]),lastContactKey:dayKey(row[2]),pasting:cv(row[3]),comment:cv(row[4]).slice(0,150),language:cv(row[5]),contact:cv(row[6]),pic2:cv(row[7]),position:cv(row[8]),mobile:cv(row[9]),office:cv(row[10])||'',email:cv(row[11])||'',website:cv(row[12])||'',address:(cv(row[13])||'').slice(0,150),notes:cv(row[4]).slice(0,150),ctype:cv(row[14])||'',lastEmailDate:cv(row[15])||''});
     });
   });
 
@@ -2229,11 +2234,11 @@ function parseAndRender(buf1,buf2){
     if(!ck)return;
     var compr=XLSX.utils.sheet_to_json(wbOps.Sheets[ck],{header:1,defval:null});
     SATO_LIST=[];JEWEL_LIST=[];
-    // Sato table A1:C46 \u2014 rows 1-45; Jewel table E1:G10 \u2014 rows 1-9
-    compr.slice(1,46).forEach(function(row){
+    // No row caps: each table requires a company name in its own column and skips 'Total Order'.
+    compr.slice(1).forEach(function(row){
       var co=cv(row[0]);if(co&&co!=='Total Order')SATO_LIST.push({company:co,qty:ri(row[1]),comment:cv(row[2])});
     });
-    compr.slice(1,10).forEach(function(row){
+    compr.slice(1).forEach(function(row){
       if(row.length>4){var co2=cv(row[4]);if(co2&&co2!=='Total Order')JEWEL_LIST.push({company:co2,qty:ri(row[5]),comment:cv(row[6])});}
     });
   });
@@ -2296,7 +2301,7 @@ function parseAndRender(buf1,buf2){
   });
 
   safely('Finalize',function(){
-    PQA=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
+    PQA=CLIENTS.filter(function(c){return c.stage==='Quoting';});
     UNPAID=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.price>0;});
     ORDER_COMPANIES=[...new Set(ORDERS.map(function(o){return o.name;}).filter(function(n){return n&&n.length>2&&!/^[\d\/\s:]+$/.test(n);}))];
     satoData=SATO_LIST.slice();jewelData=JEWEL_LIST.slice();
@@ -2825,7 +2830,7 @@ function initTabDrag(){
 
 
 // ── TODO ─────────────────────────────────────────────────────────────────
-var PQA=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
+var PQA=CLIENTS.filter(function(c){return c.stage==='Quoting';});
 var UNPAID=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.payment!=='NA'&&o.payment!=='N/A'&&o.price>0;});
 function sCount(k){if(k==='unpaid')return UNPAID.length;return(TASKS[k]||[]).length;}
 function renderTodo(){
@@ -3172,15 +3177,12 @@ function renderCrmCharts(){
     return{label:mo.label,hasData:true,onclick:'crmDrillMonth('+idx+')',values:[{val:mo.clients.length,color:mo.isOlder?'var(--dim)':'var(--blu)',fmt:String(mo.clients.length)}]};
   }));
 
-  // ── Pie chart: 1st print / Repeat print / Lost / Enquiry-group ──
-  var stage1p=CRM_STAGES.find(function(s){return s.id==='1st print';});
-  var stageRp=CRM_STAGES.find(function(s){return s.id==='Repeat print';});
-  var pieGroups=[
-    {name:lang==='zh'?stage1p.zh:'1st print',color:'#2dd4bf',list:CLIENTS.filter(function(c){return c.stage==='1st print';})},
-    {name:lang==='zh'?stageRp.zh:'Repeat print',color:'#6ee7b7',list:CLIENTS.filter(function(c){return c.stage==='Repeat print';})},
-    {name:TX.lost,color:'#45454f',list:CLIENTS.filter(function(c){return c.stage==='Lost';})},
-    {name:TX.enquiryGroup,color:'#60a5fa',list:CLIENTS.filter(function(c){return['Enquiry','Registering with BCRS','Pending info','Pending Quote Approval'].indexOf(c.stage)>-1;})}
-  ];
+  // ── Pie chart: 5-group stage rollup (Lead/Setup/Fulfilment/Won/Lost) ──
+  var pieGroups=GROUP_META.map(function(gm){
+    var zhmap={'Lead':'\u6f5c\u5728','Setup':'\u7b79\u5907','Fulfilment':'\u5904\u7406\u4e2d','Closed \u2013 Won':'\u5df2\u6210\u4ea4','Closed \u2013 Lost':'\u5df2\u6d41\u5931'};
+    return {name:lang==='zh'?(zhmap[gm.id]||gm.id):gm.id,color:gm.color,
+      list:CLIENTS.filter(function(c){return STAGE_GROUP[c.stage]===gm.id;})};
+  });
   var pieTotal=pieGroups.reduce(function(a,g){return a+g.list.length;},0)||1;
   var gradParts=[];var acc=0;
   pieGroups.forEach(function(g){var pct=(g.list.length/pieTotal)*100;gradParts.push(g.color+' '+acc+'% '+(acc+pct)+'%');acc+=pct;});
@@ -3197,7 +3199,7 @@ function renderCrmCharts(){
   // (e.g. >100%). Instead we show each stage's count and its share of the total pipeline.
   var funnelStages=[
     {name:TX.enquiryGroupShort,color:'#60a5fa',count:pieGroups[3].list.length},
-    {name:TX.pendingQuote,color:'#f472b6',count:CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).length},
+    {name:TX.pendingQuote,color:'#f472b6',count:CLIENTS.filter(function(c){return c.stage==='Quoting';}).length},
     {name:TX.activeFunnel,color:'#2dd4bf',count:pieGroups[0].list.length+pieGroups[1].list.length}
   ];
   var funnelTotal=funnelStages.reduce(function(a,f){return a+f.count;},0)||1;
@@ -3211,8 +3213,8 @@ function renderCrmCharts(){
   // ── Call these first: rendered by its own function (search + sort + scroll) ──
   renderCallFirst();
 
-  // ── Stale Pending Quote Approval (>15 days since contact) ──
-  var staleQ=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};}).filter(function(x){return x.d!==null&&x.d>15;}).sort(function(a,b){return b.d-a.d;});
+  // ── Stale Quoting (>15 days since contact) ──
+  var staleQ=CLIENTS.filter(function(c){return c.stage==='Quoting';}).map(function(c){return{c:c,d:daysSince(c.lastContact)};}).filter(function(x){return x.d!==null&&x.d>15;}).sort(function(a,b){return b.d-a.d;});
   document.getElementById('crm-stale-quotes').innerHTML=staleQ.length?'<div class="cf-list">'+staleQ.map(function(x){
     return '<div class="cf-row" onclick="openModal('+x.c.id+',\'crm\')"><span class="cf-name">'+x.c.name+'</span><span class="cf-days" style="color:var(--amb)">'+(lang==='zh'?(x.d+TX.daysNoMovement):(x.d+' '+TX.daysNoMovement))+'</span></div>';
   }).join('')+'</div>' : '<div class="cc-empty">'+TX.noStaleQuotes+'</div>';
@@ -3256,9 +3258,9 @@ function renderCRM(){
   var q=(document.getElementById('crm-q').value||'').toLowerCase();
   var filtered=q?CLIENTS.filter(function(c){return c.name.toLowerCase().indexOf(q)>-1||c.contact.toLowerCase().indexOf(q)>-1;}):CLIENTS;
   var enq=CLIENTS.filter(function(c){return c.stage==='Enquiry';});
-  var pqa=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
-  var act=CLIENTS.filter(function(c){return c.stage==='1st print'||c.stage==='Repeat print';});
-  var lst=CLIENTS.filter(function(c){return c.stage==='Lost';});
+  var pqa=CLIENTS.filter(function(c){return c.stage==='Quoting';});
+  var act=CLIENTS.filter(function(c){return c.ctype==='New'||c.ctype==='Repeat';});
+  var lst=CLIENTS.filter(function(c){return c.stage==='Lost / Stalled';});
   var pst=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});
   var stale30=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;});
   var zhClients=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});
@@ -3266,7 +3268,7 @@ function renderCRM(){
   document.getElementById('crm-stats').innerHTML=
     statCard('crm-total',TX.total,CLIENTS.length)+
     statCard('crm-enquiries',TX.enquiries,enq.length,'var(--blu)',"crmDrill('Enquiry')",TX.clickView)+
-    statCard('crm-pending',TX.pendingQuote,pqa.length,'var(--pur)',"crmDrill('Pending Quote Approval')",TX.clickView)+
+    statCard('crm-pending',TX.pendingQuote,pqa.length,'var(--pur)',"crmDrill('Quoting')",TX.clickView)+
     statCard('crm-active',TX.activeClients,act.length,'var(--grn)',"crmDrill('active')",TX.clickView)+
     statCard('crm-lost',TX.lost,lst.length,'var(--dim)',"crmDrill('Lost')",TX.clickView)+
     statCard('crm-pasting',TX.reqPasting,pst.length,'var(--tel)',"crmDrill('pasting')",TX.clickView)+
@@ -3336,7 +3338,7 @@ function crmDrillDay(n){
 }
 function crmDrill(f){
   var list,title;
-  if(f==='active'){list=CLIENTS.filter(function(c){return c.stage==='1st print'||c.stage==='Repeat print';});title=TX.activeClients;}
+  if(f==='active'){list=CLIENTS.filter(function(c){return c.ctype==='New'||c.ctype==='Repeat';});title=TX.activeClients;}
   else if(f==='pasting'){list=CLIENTS.filter(function(c){return c.pasting&&c.pasting.trim()&&c.pasting.trim()!=='-'&&c.pasting.trim().toLowerCase()!=='no';});title=TX.reqPasting;}
   else if(f==='stale30'){list=CLIENTS.filter(function(c){var d=daysSince(c.lastContact);return d!==null&&d>30;}).sort(function(a,b){return daysSince(b.lastContact)-daysSince(a.lastContact);});title=TX.lastContact30;}
   else if(f==='zh'){list=CLIENTS.filter(function(c){return c.language&&/chin|mandarin|中文|zh/i.test(c.language);});title=TX.langChinese;}
@@ -3411,7 +3413,7 @@ function findQuotesForLostClient(clientName){
 var LOST_QUOTE_ROWS=[];
 function buildLostClientQuoteRows(){
   var out=[];
-  CLIENTS.filter(function(c){return c.stage==='Lost';}).forEach(function(c){
+  CLIENTS.filter(function(c){return c.stage==='Lost / Stalled';}).forEach(function(c){
     var res=findQuotesForLostClient(c.name);
     res.quotes.forEach(function(q){out.push({client:c,quote:q,matchedName:q.company});});
   });
@@ -3429,7 +3431,7 @@ function renderLostClientQuotes(){
   LOST_QUOTE_ROWS=buildLostClientQuoteRows();
   var diffTh=document.getElementById('lostq-diff-th');
   if(!LOST_QUOTE_ROWS.length){
-    var lostCount=CLIENTS.filter(function(c){return c.stage==='Lost';}).length;
+    var lostCount=CLIENTS.filter(function(c){return c.stage==='Lost / Stalled';}).length;
     if(diffTh)diffTh.style.display='none';
     box.innerHTML='<tr><td colspan="7" class="cc-empty">'+TX.noLostQuoteMatches
       +'<div style="margin-top:6px;font-size:10px;color:var(--dim)">'
@@ -4577,7 +4579,7 @@ function clearDrag(){document.querySelectorAll('.col').forEach(function(c){c.cla
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
 function openListModal(title,sub,rows){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}document.getElementById('m-name').textContent=title;document.getElementById('m-sub').textContent=sub;document.getElementById('m-rows').innerHTML=rows.map(function(r,i){return'<div class="mrow" style="cursor:pointer" id="mrow'+i+'"><span class="ml" style="color:var(--t);font-weight:500">'+r.left+'</span><span class="mv" style="color:var(--m)">'+r.right+'</span></div>';}).join('');rows.forEach(function(r,i){var el=document.getElementById('mrow'+i);if(el&&r.cb)el.addEventListener('click',function(){closeModal();setTimeout(r.cb,80);});});document.getElementById('m-sel').style.display='none';document.getElementById('m-save').style.display='none';document.getElementById('modal-bg').classList.add('on');}
-function openModal(id,type){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}editId=id;editType=type;var selEl=document.getElementById('m-sel'),saveEl=document.getElementById('m-save');selEl.innerHTML='';selEl.style.display='';saveEl.style.display='';if(type==='crm'){var c=CLIENTS.find(function(c){return c.id===id;});document.getElementById('m-name').textContent=c.name;document.getElementById('m-sub').textContent='Client \u2014 '+c.stage;var fields=[['Last contact',c.lastContact],['PIC 1',c.contact],['PIC 2',c.pic2],['Position',c.position],['Mobile',c.mobile],['Office',c.office],['Email',c.email],['Website',c.website],['Address',c.address],['Pasting',c.pasting],['Language',c.language],['Comment',c.comment]];document.getElementById('m-rows').innerHTML=fields.map(function(r){var val=r[1]||'\u2014';if(r[1]&&r[0]==='Email')val='<a href="mailto:'+r[1]+'" style="color:var(--blu)">'+r[1]+'</a>';if(r[1]&&r[0]==='Website')val='<a href="http://'+r[1].replace(/^https?:\/\//,'')+'" target="_blank" style="color:var(--blu)">'+r[1]+'</a>';return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+val+'</span></div>';}).join('');CRM_STAGES.forEach(function(s){var o=document.createElement('option');o.value=s.id;o.textContent=s.id;if(s.id===c.stage)o.selected=true;selEl.appendChild(o);});}else{var o=ORDERS.find(function(o){return o.id===id;});document.getElementById('m-name').textContent=o.name;document.getElementById('m-sub').textContent=(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.loc+' \u00b7 '+o.size+' \u00b7 '+o.qty.toLocaleString()+' pcs';var ofields=[['Invoice',o.invoice],['Payment',o.payment||TX.unpaidTxt],['Price','S$'+(o.price||0).toLocaleString()],['Shipping',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.shipping||0).toLocaleString()],['Profit',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.profit||0).toLocaleString()],['Received',o.received],['Est. delivery',o.delivery],['Tracking',o.tracking],['Delivery address',o.address],['Contact',o.contact],['Mobile',o.mobile],['Printer',ACCESS_LEVEL==='staff'?'\u2014\u2014':o.printer],['Shipper',o.shipper],['Lead time',o.days?o.days+' days':'\u2014'],['Comment',o.comment]];document.getElementById('m-rows').innerHTML=ofields.filter(function(r){return r[1]&&r[1]!=='NA';}).map(function(r){var isInv=r[0]==='Invoice';var isTrk=r[0]==='Tracking';var valHtml=isInv?'<span style="display:flex;align-items:center;gap:6px">'+r[1]+'<button onclick="event.stopPropagation();copyCellText(event,\''+String(r[1]).replace(/'/g,"\\'")+'\')" title="'+TX.copyInvoiceLbl+'" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--m);cursor:pointer">\u29c9</button></span>':r[1];if(isTrk){var tb=trackBtnsHtml(r[1],'sm');valHtml='<span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px">'+r[1]+'</span>'+(tb?'<span>'+tb+'</span>':'')+'</span>';}return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+valHtml+'</span></div>';}).join('');ORD_STAGES.forEach(function(s){var op=document.createElement('option');op.value=s.id;op.textContent=s.id;if(s.id===o.status)op.selected=true;selEl.appendChild(op);});}document.getElementById('modal-bg').classList.add('on');}
+function openModal(id,type){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}editId=id;editType=type;var selEl=document.getElementById('m-sel'),saveEl=document.getElementById('m-save');selEl.innerHTML='';selEl.style.display='';saveEl.style.display='';if(type==='crm'){var c=CLIENTS.find(function(c){return c.id===id;});document.getElementById('m-name').textContent=c.name;document.getElementById('m-sub').textContent='Client \u2014 '+c.stage+(c.ctype?' \u00b7 '+c.ctype:'');var fields=[['Last contact',c.lastContact],['PIC 1',c.contact],['PIC 2',c.pic2],['Position',c.position],['Mobile',c.mobile],['Office',c.office],['Email',c.email],['Website',c.website],['Address',c.address],['Pasting',c.pasting],['Language',c.language],['Comment',c.comment]];document.getElementById('m-rows').innerHTML=fields.map(function(r){var val=r[1]||'\u2014';if(r[1]&&r[0]==='Email')val='<a href="mailto:'+r[1]+'" style="color:var(--blu)">'+r[1]+'</a>';if(r[1]&&r[0]==='Website')val='<a href="http://'+r[1].replace(/^https?:\/\//,'')+'" target="_blank" style="color:var(--blu)">'+r[1]+'</a>';return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+val+'</span></div>';}).join('');CRM_STAGES.forEach(function(s){var o=document.createElement('option');o.value=s.id;o.textContent=s.id;if(s.id===c.stage)o.selected=true;selEl.appendChild(o);});}else{var o=ORDERS.find(function(o){return o.id===id;});document.getElementById('m-name').textContent=o.name;document.getElementById('m-sub').textContent=(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.loc+' \u00b7 '+o.size+' \u00b7 '+o.qty.toLocaleString()+' pcs';var ofields=[['Invoice',o.invoice],['Payment',o.payment||TX.unpaidTxt],['Price','S$'+(o.price||0).toLocaleString()],['Shipping',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.shipping||0).toLocaleString()],['Profit',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.profit||0).toLocaleString()],['Received',o.received],['Est. delivery',o.delivery],['Tracking',o.tracking],['Delivery address',o.address],['Contact',o.contact],['Mobile',o.mobile],['Printer',ACCESS_LEVEL==='staff'?'\u2014\u2014':o.printer],['Shipper',o.shipper],['Lead time',o.days?o.days+' days':'\u2014'],['Comment',o.comment]];document.getElementById('m-rows').innerHTML=ofields.filter(function(r){return r[1]&&r[1]!=='NA';}).map(function(r){var isInv=r[0]==='Invoice';var isTrk=r[0]==='Tracking';var valHtml=isInv?'<span style="display:flex;align-items:center;gap:6px">'+r[1]+'<button onclick="event.stopPropagation();copyCellText(event,\''+String(r[1]).replace(/'/g,"\\'")+'\')" title="'+TX.copyInvoiceLbl+'" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--m);cursor:pointer">\u29c9</button></span>':r[1];if(isTrk){var tb=trackBtnsHtml(r[1],'sm');valHtml='<span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px">'+r[1]+'</span>'+(tb?'<span>'+tb+'</span>':'')+'</span>';}return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+valHtml+'</span></div>';}).join('');ORD_STAGES.forEach(function(s){var op=document.createElement('option');op.value=s.id;op.textContent=s.id;if(s.id===o.status)op.selected=true;selEl.appendChild(op);});}document.getElementById('modal-bg').classList.add('on');}
 function closeModal(){document.getElementById('modal-bg').classList.remove('on');editId=null;editType=null;}
 function saveModal(){var val=document.getElementById('m-sel').value;if(editType==='crm'){var c=CLIENTS.find(function(c){return c.id===editId;});if(c)c.stage=val;closeModal();renderCRM();}else{var o=ORDERS.find(function(o){return o.id===editId;});if(o)o.status=val;closeModal();renderOrders();}}
 document.getElementById('modal-bg').addEventListener('click',function(e){if(e.target===this)closeModal();});
@@ -5043,7 +5045,7 @@ function buildContactCheck(){
       var k=_normInv(v.company);if(invSeen[k])return;invSeen[k]=1;
       var cl=crmIdx[k];
       if(!cl){invMismatch.push({company:v.company,invoice:v.invoice,due:v.due,overdue:v._overdue,reason:'noCrm'});}
-      else if(cl.stage==='Lost'){invMismatch.push({company:v.company,invoice:v.invoice,due:v.due,overdue:v._overdue,reason:'lost'});}
+      else if(cl.stage==='Lost / Stalled'){invMismatch.push({company:v.company,invoice:v.invoice,due:v.due,overdue:v._overdue,reason:'lost'});}
     });
   }
   return{behind:behind,bad:bad,pasting:pasting,invMismatch:invMismatch};
@@ -5974,7 +5976,7 @@ function recalcFromRmb(skipTable){
 
 
 function renderAll(){
-  var PQAl=CLIENTS.filter(function(c){return c.stage==='Pending Quote Approval';});
+  var PQAl=CLIENTS.filter(function(c){return c.stage==='Quoting';});
   var UNPAIDl=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.price>0;});
   PQA=PQAl;UNPAID=UNPAIDl;
   renderTodo();renderCRM();renderOrders();
