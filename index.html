@@ -1151,7 +1151,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM13</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM14</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -1557,9 +1557,9 @@ async function fetchExcelFromSharePoint(){
 }
 
 // ── Clients Update (AYG Pipeline) — on-demand sync, separate from login sync ──────
-var _pipeFileId=null; // cached after first filename resolution
+var _pipeFile=null; // cached {driveId,id} after first filename resolution
 async function resolvePipeFileId(token){
-  if(_pipeFileId)return _pipeFileId;
+  if(_pipeFile)return _pipeFile;
   // AYG_Pipeline lives in the SAME drive as AYG Operations (SP2.siteId is actually the DRIVE id,
   // used as /drives/{id}/... in the login sync). Search that drive by name. The search term goes
   // straight into the OData search(q='...') function — spaces/dots are fine unquoted here; we
@@ -1575,12 +1575,18 @@ async function resolvePipeFileId(token){
     return m[0];
   }
   var hit=null;
-  // Primary: OData search within the drive.
+  // Primary: OData search within the AYG Operations drive.
   try{
     var r=await graphFetch('/drives/'+driveId+'/root/search(q=\''+term+'\')',token);
     if(r.ok){var j=await r.json();hit=pickNewest(j.value);}
   }catch(e){}
-  // Fallback: some drives reject search — list root children and match by prefix.
+  // Secondary: search the signed-in user's OneDrive, in case Cowork wrote the export there
+  // rather than to the shared drive.
+  if(!hit){try{
+    var rm=await graphFetch('/me/drive/root/search(q=\''+term+'\')',token);
+    if(rm.ok){var jm=await rm.json();hit=pickNewest(jm.value);}
+  }catch(e){}}
+  // Fallback: some drives reject search — list the ops-drive root children and match by prefix.
   if(!hit){
     var r2=await graphFetch('/drives/'+driveId+'/root/children?$top=200',token);
     if(!r2.ok)throw new Error('Pipeline lookup failed ('+r2.status+')');
@@ -1588,7 +1594,12 @@ async function resolvePipeFileId(token){
     hit=pickNewest(j2.value);
   }
   if(!hit)throw new Error('No AYG_Pipeline*.xlsx found on the AYGPrinting drive');
-  _pipeFileId=hit.id;return _pipeFileId;
+  // Download must address the item in ITS OWN drive. Search can return items from other
+  // drives/libraries the account can see, whose id is NOT valid under the ops drive (→ 404),
+  // so use the hit's parentReference.driveId when present.
+  var homeDrive=(hit.parentReference&&hit.parentReference.driveId)||driveId;
+  _pipeFile={driveId:homeDrive,id:hit.id};
+  return _pipeFile;
 }
 async function syncClientsUpdate(){
   var btn=document.getElementById('clients-sync-btn');
@@ -1598,8 +1609,8 @@ async function syncClientsUpdate(){
     if(!token){await spLogin();return;}
     if(btn){btn.disabled=true;btn.classList.add('syncing');}
     if(stat){stat.textContent=TX.loadingData;stat.className='sync-note loading';}
-    var fid=await resolvePipeFileId(token);
-    var dr=await graphFetch('/drives/'+SP2.siteId+'/items/'+fid+'/content',token);
+    var pf=await resolvePipeFileId(token);
+    var dr=await graphFetch('/drives/'+pf.driveId+'/items/'+pf.id+'/content',token);
     if(!dr.ok)throw new Error('Pipeline download failed ('+dr.status+')');
     var buf=await dr.arrayBuffer();
     if(typeof XLSX==='undefined')throw new Error('XLSX library not loaded');
