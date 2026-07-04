@@ -1151,7 +1151,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM10</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM11</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -1420,7 +1420,8 @@ var SP2={
 var SP3={
   hostname:'aygprinting3.sharepoint.com',
   sitePath:'/sites/AYGPrinting',
-  fileName:'AYG_Pipeline.xlsx',
+  fileName:'AYG_Pipeline.xlsx',   // legacy exact name (kept for reference)
+  filePrefix:'AYG_Pipeline',      // Cowork exports keep a dated name (e.g. AYG_Pipeline_2026-07-03_v2.xlsx) — match by PREFIX, newest wins
   siteId:'b!8e6iF84emki29zfO8XVMvALH-N2jdWtNigbgoWo3hzBY17-ZBefKSYis6VzBO0n_'
 };
 // Fourth SharePoint source \u2014 Xero Sales Invoices CSV (Xero Invoice Pull + Unpaid column).
@@ -1564,21 +1565,29 @@ async function resolvePipeFileId(token){
   // straight into the OData search(q='...') function — spaces/dots are fine unquoted here; we
   // only strip characters that would break the quoted string.
   var driveId=SP2.siteId;
-  var term=SP3.fileName.replace(/'/g,'');
+  var term=SP3.filePrefix.replace(/'/g,'');
+  // Match any .xlsx whose name STARTS WITH the prefix (e.g. AYG_Pipeline_2026-07-03_v2.xlsx),
+  // then take the most recently modified — Cowork's dated exports need no manual renaming.
+  var pfx=SP3.filePrefix.toLowerCase();
+  function pickNewest(list){
+    var m=(list||[]).filter(function(f){var n=(f.name||'').toLowerCase();return n.indexOf(pfx)===0&&/\.xlsx$/.test(n);});
+    m.sort(function(a,b){return new Date(b.lastModifiedDateTime||0)-new Date(a.lastModifiedDateTime||0);});
+    return m[0];
+  }
   var hit=null;
   // Primary: OData search within the drive.
   try{
     var r=await graphFetch('/drives/'+driveId+'/root/search(q=\''+term+'\')',token);
-    if(r.ok){var j=await r.json();hit=(j.value||[]).filter(function(f){return f.name&&f.name.toLowerCase()===SP3.fileName.toLowerCase();})[0];}
+    if(r.ok){var j=await r.json();hit=pickNewest(j.value);}
   }catch(e){}
-  // Fallback: some drives reject search — list root children and match by name.
+  // Fallback: some drives reject search — list root children and match by prefix.
   if(!hit){
     var r2=await graphFetch('/drives/'+driveId+'/root/children?$top=200',token);
     if(!r2.ok)throw new Error('Pipeline lookup failed ('+r2.status+')');
     var j2=await r2.json();
-    hit=(j2.value||[]).filter(function(f){return f.name&&f.name.toLowerCase()===SP3.fileName.toLowerCase();})[0];
+    hit=pickNewest(j2.value);
   }
-  if(!hit)throw new Error('AYG_Pipeline.xlsx not found on the AYGPrinting drive');
+  if(!hit)throw new Error('No AYG_Pipeline*.xlsx found on the AYGPrinting drive');
   _pipeFileId=hit.id;return _pipeFileId;
 }
 async function syncClientsUpdate(){
