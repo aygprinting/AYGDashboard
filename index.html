@@ -1163,7 +1163,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM22</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM23</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -6259,14 +6259,6 @@ function renderOverview(){
     H+='<div style="background:var(--s2);border-radius:9px;padding:11px 13px"><div style="font-size:11px;color:var(--grn);font-weight:700;text-transform:uppercase;margin-bottom:6px">\u2713 '+(zh?'本周赢单':'Won this week')+'</div><div style="font-size:12.5px;line-height:1.7">'+(wins.length?wins.map(esc).join(' \u00b7 '):'\u2014')+'</div></div>';
     H+='<div style="background:var(--s2);border-radius:9px;padding:11px 13px"><div style="font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;margin-bottom:6px">\u2717 '+(zh?'流失/停滞':'Lost / stalled')+'</div><div style="font-size:12.5px;line-height:1.7">'+(losses.length?losses.map(esc).join(' \u00b7 '):'\u2014')+'</div></div>';
     H+='</div>';
-    // volume trend (up to 4 weeks, oldest→newest)
-    if(weekKeys.length>=2){
-      var vmax=Math.max.apply(null,weekKeys.map(function(k){return weeks[k].total;}).concat([1]));
-      var vk=weekKeys.slice(0,4).slice().reverse();
-      H+='<div style="margin-top:14px"><div style="font-size:11px;color:var(--m);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:8px">'+(zh?'活动量趋势':'Activity volume')+'</div><div style="display:flex;align-items:flex-end;gap:14px;height:56px">';
-      vk.forEach(function(k,idx){var t=weeks[k].total;var last=idx===vk.length-1;H+='<div style="text-align:center;flex:1"><div style="height:'+Math.max(t/vmax*52,3)+'px;background:'+(last?'var(--tel)':'var(--blu)')+';border-radius:3px 3px 0 0;opacity:'+(last?1:.55)+'"></div><div style="font-size:10px;color:var(--dim);margin-top:4px">'+fmtDM(+k)+' \u00b7 '+t+'</div></div>';});
-      H+='</div></div>';
-    }
     H+='<div style="font-size:11px;color:var(--dim);margin-top:12px">'+(zh?'周一至周日 · '+fmtDM(+weekKeys[0])+' 起 · ▲/▼ 对比上周':'Mon\u2013Sun · week of '+fmtDM(+weekKeys[0])+' · ▲/▼ vs last week')+'</div>';
   }else{H+='<div style="font-size:12px;color:var(--dim);margin-bottom:11px">'+(zh?'尚未加载客户数据。':'Clients data not loaded yet.')+'</div>'+syncBtn('clients',TX.clientsSync||'Sync Clients');}
   H+='</div>';
