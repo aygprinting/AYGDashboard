@@ -402,8 +402,8 @@ html,body{overscroll-behavior-y:contain}
   </div>
   <div class="tabs" id="nav-tabs">
     <button class="tab" draggable="true" data-tab="access" onclick="goTab('access',this)" title="Access"><div class="dot" style="background:var(--grn)"></div><span id="access-tab-label" data-tx="accessTab">Access</span></button>
-    <button class="tab on" draggable="true" data-tab="todo" onclick="goTab('todo',this)" title="To-do &amp; Inbox"><div class="dot" style="background:var(--amb)"></div><span data-tx="todoTab">To-do &amp; Inbox</span></button>
     <button class="tab" draggable="true" data-tab="overview" onclick="goTab('overview',this)" title="Overview"><div class="dot" style="background:var(--pur)"></div><span data-tx="overviewTab">Overview</span></button>
+    <button class="tab on" draggable="true" data-tab="todo" onclick="goTab('todo',this)" title="To-do &amp; Inbox"><div class="dot" style="background:var(--amb)"></div><span data-tx="todoTab">To-do &amp; Inbox</span></button>
     <button class="tab" draggable="true" data-tab="crm" onclick="goTab('crm',this)" title="Sales CRM"><div class="dot" style="background:var(--blu)"></div><span data-tx="crmTab">Sales CRM</span></button>
     <button class="tab" draggable="true" data-tab="orders" onclick="goTab('orders',this)" title="Orders"><div class="dot" style="background:var(--tel)"></div><span data-tx="ordersTab">Orders</span></button>
     <button class="tab" draggable="true" data-tab="quotes" onclick="goTab('quotes',this)" title="Quotes &amp; Pricing"><div class="dot" style="background:var(--pur)"></div><span data-tx="quotesTab">Quotes &amp; Pricing</span></button>
@@ -1163,7 +1163,7 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div class="stitle" data-tx="clientsTab">Clients Update</div>
       <div style="font-size:11px;color:var(--m);margin-top:2px" data-tx="clientsSource">Data from admin@aygprinting.com only</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM21</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:1px">build 20260704-CRM22</div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="sync-note" id="clients-sync-status"></span>
@@ -2865,6 +2865,10 @@ function initTabDrag(){
       // add any tabs not in saved order at the end
       tabs.forEach(function(t){if(saved.indexOf(t.dataset.tab)<0)reordered.push(t);});
       reordered.forEach(function(t){container.appendChild(t);});
+      // Overview is a newer tab; if a user's saved order predates it, default it to
+      // directly below Access (not appended at the very end). Users who've moved it
+      // will have it in their saved order, so this leaves their choice untouched.
+      if(saved.indexOf('overview')<0){var ov=map['overview'],ac=map['access'];if(ov&&ac)container.insertBefore(ov,ac.nextSibling);}
     }
   }catch(e){}
   // Attach drag events
@@ -6125,8 +6129,9 @@ function renderOverview(){
   // ===== QUIET (CRM) =====
   var crmLoaded=CLIENTS&&CLIENTS.length>0;
   var activeSt={'Paid':1,'Repeat print':1,'Delivery':1,'In Production':1,'1st print':1,'Order Placed':1};
-  var quiet=[];
-  if(crmLoaded)CLIENTS.forEach(function(c){if(activeSt[c.stage]||activeSt[c.stageRaw]){var d=daysSince(c.lastContact);if(d!==null&&d>=45)quiet.push({name:c.name,days:d});}});
+  var quiet=[],quietAll=[]; // quiet = >=45d (KPI count) · quietAll = all previously-active, sorted (top-10 list)
+  if(crmLoaded)CLIENTS.forEach(function(c){if(activeSt[c.stage]||activeSt[c.stageRaw]){var d=daysSince(c.lastContact);if(d!==null&&d>0){quietAll.push({name:c.name,days:d});if(d>=45)quiet.push({name:c.name,days:d});}}});
+  quietAll.sort(function(a,b){return b.days-a.days;});
   quiet.sort(function(a,b){return b.days-a.days;});
 
   // ===== STAGE MISMATCH (CRM behind pipeline) =====
@@ -6205,7 +6210,7 @@ function renderOverview(){
   // quiet top 10
   H+='<div style="background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:15px">';
   H+='<div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--m);margin-bottom:11px;font-weight:700">'+(zh?'沉默客户 — 前 10':'Quiet customers — top 10')+'</div>';
-  if(crmLoaded&&quiet.length){quiet.slice(0,10).forEach(function(q){var c=q.days>=60?'var(--red)':(q.days>=45?'var(--amb)':'var(--dim)');H+='<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--b);font-size:12.5px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(q.name)+'</span><span style="color:'+c+';white-space:nowrap">'+q.days+(zh?' 天':' days')+'</span></div>';});H+='<div style="font-size:11px;color:var(--dim);margin-top:9px"><span style="color:var(--red)">'+(zh?'红 60天+':'red 60d+')+'</span> · <span style="color:var(--amb)">'+(zh?'橙 45–59天':'amber 45–59d')+'</span></div>';}
+  if(crmLoaded&&quietAll.length){quietAll.slice(0,10).forEach(function(q){var c=q.days>=60?'var(--red)':(q.days>=45?'var(--amb)':'var(--dim)');H+='<div style="display:flex;align-items:center;gap:9px;padding:5px 0;border-top:1px solid var(--b);font-size:12.5px"><span style="width:8px;height:8px;border-radius:50%;background:'+c+';flex-shrink:0"></span><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(q.name)+'</span><span style="color:'+c+';white-space:nowrap;font-weight:600">'+q.days+(zh?' 天':' days')+'</span></div>';});H+='<div style="font-size:11px;color:var(--dim);margin-top:9px"><span style="color:var(--red)">\u25cf '+(zh?'60天+':'60d+')+'</span> \u00b7 <span style="color:var(--amb)">\u25cf '+(zh?'45–59天':'45–59d')+'</span> \u00b7 <span style="color:var(--dim)">\u25cf '+(zh?'渐冷':'cooling')+'</span> \u00b7 '+quietAll.length+(zh?' 位付费客户':' paid clients')+'</div>';}
   else H+='<div style="font-size:12px;color:var(--dim)">'+(zh?'暂无沉默的付费客户 — 做得好':'No quiet paid customers — nice')+'</div>';
   H+='</div></div>';
 
@@ -6229,21 +6234,40 @@ function renderOverview(){
   if(dailyLoaded&&weekKeys.length){
     var w0=weeks[weekKeys[0]],w1=weekKeys[1]?weeks[weekKeys[1]]:null;
     var intake=w0.enq+w0.quote,output=w0.paid+w0.deliv;
-    H+='<div style="font-size:13px;margin-bottom:12px;line-height:1.5">'+(zh?('本周 '+w0.total+' 条动态。流入（询价+报价）'+intake+' 对 流出（付款+交付）'+output+'。'):('<b>'+w0.total+' updates this week.</b> Intake (enquiries + quotes) '+intake+' vs output (paid + delivered) '+output+'.'))+'</div>';
-    function tile(n,lbl,col,delta){var dtxt='';if(delta!=null){var up=delta<=0;dtxt='<div style="font-size:10px;margin-top:4px;font-weight:700;color:'+(up?'var(--grn)':'var(--red)')+'">'+(delta>0?'\u25b2 ':(delta<0?'\u25bc ':''))+Math.abs(delta)+'</div>';}return '<div style="background:var(--s2);border-radius:9px;padding:10px 8px;text-align:center"><div style="font-size:20px;font-weight:700;color:'+col+'">'+n+'</div><div style="font-size:10px;color:var(--dim);margin-top:3px">'+lbl+'</div>'+dtxt+'</div>';}
-    H+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:13px">';
-    H+=tile(intake,zh?'流入':'Intake','var(--t)',w1?intake-(w1.enq+w1.quote):null);
-    H+=tile(w0.order,zh?'下单':'Orders','var(--tel)',w1?w0.order-w1.order:null);
-    H+=tile(w0.paid,zh?'付款':'Paid','var(--grn)',w1?w0.paid-w1.paid:null);
-    H+=tile(output,zh?'流出':'Output','var(--t)',w1?output-(w1.paid+w1.deliv):null);
-    H+=tile(w0.lost,zh?'流失':'Lost','var(--red)',w1?w0.lost-w1.lost:null);
-    H+='</div>';
     var wins=Object.keys(w0.wins),losses=Object.keys(w0.losses);
-    H+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="ov-cols">';
-    H+='<div style="background:var(--s2);border-radius:9px;padding:11px 13px"><div style="font-size:11px;color:var(--grn);font-weight:700;text-transform:uppercase;margin-bottom:6px">\u2713 '+(zh?'本周赢单':'Won this week')+'</div><div style="font-size:12.5px;line-height:1.7">'+(wins.length?wins.map(esc).join(' · '):'\u2014')+'</div></div>';
-    H+='<div style="background:var(--s2);border-radius:9px;padding:11px 13px"><div style="font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;margin-bottom:6px">\u2717 '+(zh?'流失/停滞':'Lost / stalled')+'</div><div style="font-size:12.5px;line-height:1.7">'+(losses.length?losses.map(esc).join(' · '):'\u2014')+'</div></div>';
+    // narrative headline with momentum vs last week
+    var mom='';
+    if(w1){var bits=[];if(w0.order-w1.order!==0)bits.push((zh?'下单 ':'orders ')+w1.order+'\u2192'+w0.order);if(w0.lost-w1.lost!==0)bits.push((zh?'流失 ':'losses ')+w1.lost+'\u2192'+w0.lost);if(bits.length)mom=(zh?' 对比上周：':' vs last week: ')+bits.join(', ')+'.';}
+    var flow=output>intake?(zh?'流出快于流入（清理积压）。':'Work went out faster than it came in.'):(output<intake?(zh?'流入快于流出（管道在扩充）。':'More coming in than going out.'):(zh?'流入与流出持平。':'Intake and output are balanced.'));
+    H+='<div style="font-size:13px;margin-bottom:13px;line-height:1.55"><b>'+w0.total+(zh?' 条动态。':' updates this week.')+'</b> '+flow+' '+wins.length+(zh?' 单成交，':' won, ')+losses.length+(zh?' 单流失。':' lost.')+mom+'</div>';
+    // metric tiles with WoW deltas (for Lost, down is good → inv)
+    function tile(n,lbl,col,delta,inv){var dtxt='';if(delta!=null&&delta!==0){var good=inv?delta<0:delta>0;dtxt='<div style="font-size:10px;margin-top:4px;font-weight:700;color:'+(good?'var(--grn)':'var(--red)')+'">'+(delta>0?'\u25b2 ':'\u25bc ')+Math.abs(delta)+'</div>';}else if(delta===0){dtxt='<div style="font-size:10px;margin-top:4px;color:var(--dim)">\u2013</div>';}return '<div style="background:var(--s2);border-radius:9px;padding:10px 8px;text-align:center"><div style="font-size:20px;font-weight:700;color:'+col+'">'+n+'</div><div style="font-size:10px;color:var(--dim);margin-top:3px">'+lbl+'</div>'+dtxt+'</div>';}
+    H+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:14px">';
+    H+=tile(intake,zh?'流入':'Intake','var(--t)',w1?intake-(w1.enq+w1.quote):null,false);
+    H+=tile(w0.order,zh?'下单':'Orders','var(--tel)',w1?w0.order-w1.order:null,false);
+    H+=tile(w0.paid,zh?'付款':'Paid','var(--grn)',w1?w0.paid-w1.paid:null,false);
+    H+=tile(output,zh?'流出':'Output','var(--t)',w1?output-(w1.paid+w1.deliv):null,false);
+    H+=tile(w0.lost,zh?'流失':'Lost','var(--red)',w1?w0.lost-w1.lost:null,true);
     H+='</div>';
-    H+='<div style="font-size:11px;color:var(--dim);margin-top:10px">'+(zh?'周一至周日 · '+fmtDM(weekKeys[0])+' 起 · ▲/▼ 为对比上周':'Mon–Sun · week of '+fmtDM(weekKeys[0])+' · ▲/▼ vs last week')+'</div>';
+    // funnel balance bar — the headline management read
+    var fmax=Math.max(intake,output,1);
+    H+='<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--m);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:7px">'+(zh?'漏斗平衡 — 在扩充还是在消耗？':'Funnel balance — filling or draining?')+'</div>';
+    H+='<div style="display:flex;align-items:center;gap:9px;font-size:12px;margin-bottom:5px"><span style="width:66px;color:var(--dim);flex-shrink:0">'+(zh?'流入':'Coming in')+'</span><div style="flex:1;height:18px;background:var(--s2);border-radius:5px;overflow:hidden"><div style="width:'+(intake/fmax*100)+'%;height:100%;background:var(--blu);border-radius:5px"></div></div><span style="width:22px;font-weight:700;text-align:right;flex-shrink:0">'+intake+'</span></div>';
+    H+='<div style="display:flex;align-items:center;gap:9px;font-size:12px"><span style="width:66px;color:var(--dim);flex-shrink:0">'+(zh?'流出':'Going out')+'</span><div style="flex:1;height:18px;background:var(--s2);border-radius:5px;overflow:hidden"><div style="width:'+(output/fmax*100)+'%;height:100%;background:var(--grn);border-radius:5px"></div></div><span style="width:22px;font-weight:700;text-align:right;flex-shrink:0">'+output+'</span></div></div>';
+    // wins / losses (named)
+    H+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px" class="ov-cols">';
+    H+='<div style="background:var(--s2);border-radius:9px;padding:11px 13px"><div style="font-size:11px;color:var(--grn);font-weight:700;text-transform:uppercase;margin-bottom:6px">\u2713 '+(zh?'本周赢单':'Won this week')+'</div><div style="font-size:12.5px;line-height:1.7">'+(wins.length?wins.map(esc).join(' \u00b7 '):'\u2014')+'</div></div>';
+    H+='<div style="background:var(--s2);border-radius:9px;padding:11px 13px"><div style="font-size:11px;color:var(--red);font-weight:700;text-transform:uppercase;margin-bottom:6px">\u2717 '+(zh?'流失/停滞':'Lost / stalled')+'</div><div style="font-size:12.5px;line-height:1.7">'+(losses.length?losses.map(esc).join(' \u00b7 '):'\u2014')+'</div></div>';
+    H+='</div>';
+    // volume trend (up to 4 weeks, oldest→newest)
+    if(weekKeys.length>=2){
+      var vmax=Math.max.apply(null,weekKeys.map(function(k){return weeks[k].total;}).concat([1]));
+      var vk=weekKeys.slice(0,4).slice().reverse();
+      H+='<div style="margin-top:14px"><div style="font-size:11px;color:var(--m);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:8px">'+(zh?'活动量趋势':'Activity volume')+'</div><div style="display:flex;align-items:flex-end;gap:14px;height:56px">';
+      vk.forEach(function(k,idx){var t=weeks[k].total;var last=idx===vk.length-1;H+='<div style="text-align:center;flex:1"><div style="height:'+Math.max(t/vmax*52,3)+'px;background:'+(last?'var(--tel)':'var(--blu)')+';border-radius:3px 3px 0 0;opacity:'+(last?1:.55)+'"></div><div style="font-size:10px;color:var(--dim);margin-top:4px">'+fmtDM(+k)+' \u00b7 '+t+'</div></div>';});
+      H+='</div></div>';
+    }
+    H+='<div style="font-size:11px;color:var(--dim);margin-top:12px">'+(zh?'周一至周日 · '+fmtDM(+weekKeys[0])+' 起 · ▲/▼ 对比上周':'Mon\u2013Sun · week of '+fmtDM(+weekKeys[0])+' · ▲/▼ vs last week')+'</div>';
   }else{H+='<div style="font-size:12px;color:var(--dim);margin-bottom:11px">'+(zh?'尚未加载客户数据。':'Clients data not loaded yet.')+'</div>'+syncBtn('clients',TX.clientsSync||'Sync Clients');}
   H+='</div>';
 
