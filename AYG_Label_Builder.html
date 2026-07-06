@@ -518,10 +518,10 @@ function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLE
     {id:"tenc",type:"image",box:[9.5,2,9,9.7],src:"bcrs_10c.png",fit:"contain"},
     {id:"ean",type:"barcode",box:[2.5,14,22.85,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
     {id:"dm",type:"datamatrix",box:[14.5,46,9,9],data:DM}];
-  return [  // 75x30: 10c TOP, barcode CENTRE (ladder), Data Matrix BOTTOM-RIGHT
-    {id:"tenc",type:"image",box:[10,3,10,10.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[3.5,17,22.85,37.29],data:BC,ladder:false,rotate:270,magnification:1.0},
-    {id:"dm",type:"datamatrix",box:[15.9,57,12,12],data:DM}];
+  return [  // 75x30: 10c TOP, barcode CENTRE (ladder), Data Matrix BOTTOM — all centred, 4 equal vertical gaps (~4.0mm)
+    {id:"tenc",type:"image",box:[10,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
+    {id:"ean",type:"barcode",box:[3.5,18.7,22.85,37.29],data:BC,ladder:false,rotate:270,magnification:1.0},
+    {id:"dm",type:"datamatrix",box:[9.5,60,11,11],data:DM}];
 }
 $("#preset").onchange=e=>{const v=e.target.value;const m={"65x59":[65,59],"75x65":[75,65],"75x30":[75,30],"40x40":[40,40],"58x28":[58,28],"65x24":[65,24]}[v];if(!m)return;saveState();state.size={h:m[0],w:m[1]};if(v==="75x30"||v==="40x40"||v==="58x28"){state.blocks=codeTemplate(v);selId=null;selIds=[];}render();};
 $("#delBtn").onclick=()=>{if(selIds.length){saveState();state.blocks=state.blocks.filter(b=>!selIds.includes(b.id));selId=null;selIds=[];render();}};
