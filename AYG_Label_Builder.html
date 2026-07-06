@@ -110,6 +110,7 @@
         <option value="75x65">75 × 65</option>
         <option value="75x30">75 × 30</option>
         <option value="40x40">40 × 40</option>
+        <option value="43x40">43 × 40</option>
         <option value="58x28">58 × 28</option>
         <option value="65x24">65 × 24</option>
       </select>
@@ -296,7 +297,7 @@ function validate(){
     if((needsClear(B[i])||needsClear(B[j]))&&g<c-1e-6){add(B[i].id,`${B[i].id}/${B[j].id}: gap ${g.toFixed(1)}<${c}`);add(B[j].id,`gap`);}
   }
   B.forEach(b=>{if(b.type==="image"&&/10c|bcrs/i.test(b.src||"")){if(b.box[3]<9.7-1e-6||b.box[2]<9.0-1e-6)add(b.id,`${b.id}: 10¢ below min 9.7(H)×9.0(W)mm`);}
-    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);if(lng<29.83-1e-6||shrt<18.28-1e-6)add(b.id,`${b.id}: EAN-13 below 0.80 min magnification`);}});
+    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?14.58:18.28;if(lng<mnL-1e-6||shrt<mnS-1e-6)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
   return bad;
 }
 function drawClearance(b){
@@ -447,10 +448,10 @@ function renderProps(){
     ${sel("Orientation",b.orientation,["horizontal","vertical"],"orientation")}
     ${sel("Style",b.style||"full",["full","simplified"],"style")}
     ${num("Sugar %",b.sugar,"sugar",0.1)}`;
-  else if(b.type==="barcode")f=`${txt("EAN-13 data",b.data,"data")}${chk("Ladder (vertical)",b.ladder,"ladder")}
-    <div class="field"><span>EAN-13 magnification · sets true print size</span><div class="row" style="gap:5px;flex-wrap:wrap">
+  else if(b.type==="barcode"){const sym=b.symbology||"ean13";f=`${sel("Symbology",sym,["ean13","ean8"],"symbology")}${txt(sym==="ean8"?"EAN-8 data":"EAN-13 data",b.data,"data")}${chk("Ladder (vertical)",b.ladder,"ladder")}
+    <div class="field"><span>${sym==="ean8"?"EAN-8":"EAN-13"} magnification · sets true print size</span><div class="row" style="gap:5px;flex-wrap:wrap">
       <button data-mag="0.80">0.80 min</button><button data-mag="0.90">0.90</button><button data-mag="1.00">1.00 nominal</button></div>
-    <div class="f" style="margin-top:5px;font-family:var(--mono)">current: ${b.magnification?(+b.magnification).toFixed(2)+"×":"—"} · ${(Math.max(b.box[2],b.box[3])).toFixed(1)}×${(Math.min(b.box[2],b.box[3])).toFixed(1)} mm</div></div>`;
+    <div class="f" style="margin-top:5px;font-family:var(--mono)">current: ${b.magnification?(+b.magnification).toFixed(2)+"×":"—"} · ${(Math.max(b.box[2],b.box[3])).toFixed(1)}×${(Math.min(b.box[2],b.box[3])).toFixed(1)} mm</div></div>`;}
   else if(b.type==="datamatrix")f=`${txt("Payload",b.data,"data")}
     <div class="field"><span>Data Matrix size H×W (square)</span><div class="row" style="gap:5px;flex-wrap:wrap">
       <button data-dm="9">9×9</button><button data-dm="10">10×10</button><button data-dm="11">11×11</button><button data-dm="12">12×12</button></div></div>`;
@@ -489,7 +490,10 @@ function renderProps(){
   p.querySelectorAll("[data-tenc]").forEach(btn=>btn.onclick=()=>{saveState();const[hh,ww]=btn.dataset.tenc.split(",").map(Number);b.box[3]=hh;b.box[2]=ww;render();});
   const rb=p.querySelector("[data-rotate]");if(rb)rb.onclick=()=>{saveState();b.rotate=((b.rotate||0)+90)%360;render();};
   const up=p.querySelector("[data-upload]");if(up)up.onchange=e=>{const file=e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{saveState();b.src=rd.result;render();};rd.readAsDataURL(file);};
-  p.querySelectorAll("[data-mag]").forEach(btn=>btn.onclick=()=>{saveState();const T={"0.80":[29.83,18.28],"0.90":[33.56,20.57],"1.00":[37.29,22.85]};const[lng,shrt]=T[btn.dataset.mag];const rot=((b.rotate||0)%360);if(rot===90||rot===270){b.box[3]=lng;b.box[2]=shrt;}else{b.box[2]=lng;b.box[3]=shrt;}b.magnification=parseFloat(btn.dataset.mag);render();});
+  p.querySelectorAll("[data-mag]").forEach(btn=>btn.onclick=()=>{saveState();
+    const T13={"0.80":[29.83,18.28],"0.90":[33.56,20.57],"1.00":[37.29,22.85]};
+    const T8={"0.80":[21.38,14.58],"0.90":[24.06,16.41],"1.00":[26.73,18.23]};
+    const T=(b.symbology||"ean13")==="ean8"?T8:T13;const[lng,shrt]=T[btn.dataset.mag];const rot=((b.rotate||0)%360);if(rot===90||rot===270){b.box[3]=lng;b.box[2]=shrt;}else{b.box[2]=lng;b.box[3]=shrt;}b.magnification=parseFloat(btn.dataset.mag);render();});
   p.querySelectorAll("[data-dm]").forEach(btn=>btn.onclick=()=>{saveState();const ssz=+btn.dataset.dm;b.box[2]=ssz;b.box[3]=ssz;render();});
 }
 function sel(l,v,opts,k){return `<div class="field"><span>${l}</span><select data-k="${k}">${opts.map(o=>`<option${o===v?" selected":""}>${o}</option>`).join("")}</select></div>`;}
@@ -514,16 +518,24 @@ function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLE
     {id:"ean",type:"barcode",box:[2,4,23,32],data:BC,ladder:false,rotate:270},
     {id:"tenc",type:"image",box:[27.5,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
     {id:"dm",type:"datamatrix",box:[27,25,11,11],data:DM}];
-  if(v==="58x28")return [  // 10c TOP, barcode CENTRE (ladder), Data Matrix BOTTOM-RIGHT
-    {id:"tenc",type:"image",box:[9.5,2,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[2.5,14,22.85,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
-    {id:"dm",type:"datamatrix",box:[14.5,46,9,9],data:DM}];
+  if(v==="43x40")return [  // as 40x40 but 43 tall: barcode LEFT (ladder), 10c TOP-RIGHT, Data Matrix BOTTOM-RIGHT
+    {id:"ean",type:"barcode",box:[2,4,23,35],data:BC,ladder:false,rotate:270},
+    {id:"tenc",type:"image",box:[27.5,7.1,10,10.7],src:"bcrs_10c.png",fit:"contain"},
+    {id:"dm",type:"datamatrix",box:[27,24.9,11,11],data:DM}];
+  if(v==="58x28")return [  // 10c TOP, EAN-13 CENTRE (ladder, 0.80), Data Matrix BOTTOM — all centred, 4 equal gaps
+    {id:"tenc",type:"image",box:[9.5,2.12,9,9.7],src:"bcrs_10c.png",fit:"contain"},
+    {id:"ean",type:"barcode",box:[4.86,13.93,18.28,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
+    {id:"dm",type:"datamatrix",box:[9,45.88,10,10],data:DM}];
+  if(v==="65x24")return [  // 10c TOP, EAN-8 CENTRE (ladder, 0.80), Data Matrix BOTTOM — all centred, 4 equal gaps
+    {id:"tenc",type:"image",box:[7.5,5.98,9,9.7],src:"bcrs_10c.png",fit:"contain"},
+    {id:"ean",type:"barcode",box:[4.71,21.66,14.58,21.38],data:BC.slice(0,8),ladder:false,rotate:270,magnification:0.80,symbology:"ean8"},
+    {id:"dm",type:"datamatrix",box:[7,49.02,10,10],data:DM}];
   return [  // 75x30: 10c TOP, barcode CENTRE (ladder), Data Matrix BOTTOM — all centred, 4 equal vertical gaps (~4.0mm)
     {id:"tenc",type:"image",box:[10,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
     {id:"ean",type:"barcode",box:[3.5,18.7,22.85,37.29],data:BC,ladder:false,rotate:270,magnification:1.0},
     {id:"dm",type:"datamatrix",box:[9.5,60,11,11],data:DM}];
 }
-$("#preset").onchange=e=>{const v=e.target.value;const m={"65x59":[65,59],"75x65":[75,65],"75x30":[75,30],"40x40":[40,40],"58x28":[58,28],"65x24":[65,24]}[v];if(!m)return;saveState();state.size={h:m[0],w:m[1]};if(v==="75x30"||v==="40x40"||v==="58x28"){state.blocks=codeTemplate(v);selId=null;selIds=[];}render();};
+$("#preset").onchange=e=>{const v=e.target.value;const m={"65x59":[65,59],"75x65":[75,65],"75x30":[75,30],"40x40":[40,40],"43x40":[43,40],"58x28":[58,28],"65x24":[65,24]}[v];if(!m)return;saveState();state.size={h:m[0],w:m[1]};if(["75x30","40x40","43x40","58x28","65x24"].includes(v)){state.blocks=codeTemplate(v);selId=null;selIds=[];}render();};
 $("#delBtn").onclick=()=>{if(selIds.length){saveState();state.blocks=state.blocks.filter(b=>!selIds.includes(b.id));selId=null;selIds=[];render();}};
 $("#dupBtn").onclick=()=>{const b=cur();if(!b)return;saveState();const n=JSON.parse(JSON.stringify(b));n.id=uid(b.type.slice(0,3));n.box[0]+=3;n.box[1]+=3;state.blocks.push(n);selId=n.id;render();};
 $("#undoBtn").onclick=undo;
@@ -570,7 +582,7 @@ function downloadDataUri(uri,name){const a=document.createElement("a");a.href=ur
 function cleanSpec(){
   return {size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",
     blocks:state.blocks.map(b=>{const o={id:b.id,type:b.type,box:b.box.map(Number)};
-      const keys={nutrigrade:["grade","orientation","style","sugar"],barcode:["data","ladder","magnification"],datamatrix:["data"],
+      const keys={nutrigrade:["grade","orientation","style","sugar"],barcode:["symbology","data","ladder","magnification"],datamatrix:["data"],
         image:["src","fit","name"],title:["lines","align","size","weight"],text:["title","body","size","lineGap"],
         nutrition_table:["title","subtitle","header","rows","size"]}[b.type]||[];
       keys.forEach(k=>{if(b[k]!==undefined&&b[k]!=="")o[k]=b[k];});if(b.rotate)o.rotate=b.rotate;
