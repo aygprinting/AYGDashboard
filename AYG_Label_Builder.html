@@ -152,6 +152,9 @@
     <button class="addbtn" id="alignY"><span class="ic">↕</span><span data-i18n="aligny">Align centres Y</span></button>
     <button class="addbtn" id="spreadX"><span class="ic">⇹</span><span data-i18n="spreadx">Spread evenly X</span></button>
     <button class="addbtn" id="spreadY"><span class="ic">⇳</span><span data-i18n="spready">Spread evenly Y</span></button>
+    <button class="addbtn" id="centreLabelX" title="Centre the selection horizontally on the label"><span class="ic">⊹</span><span data-i18n="centrelabelx">Centre on label X</span></button>
+    <button class="addbtn" id="centreLabelY" title="Centre the selection vertically on the label"><span class="ic">⊹</span><span data-i18n="centrelabely">Centre on label Y</span></button>
+    <button class="addbtn" id="centreLabelXY" title="Centre the selection on the label, both axes"><span class="ic">⊕</span><span data-i18n="centrelabelxy">Centre on label (both)</span></button>
     <h4 data-i18n="notes">Notes</h4>
     <p style="font-size:10.5px;color:var(--muted);line-height:1.5" data-i18n="notestext">Drag to move, corners to resize. Arrow keys nudge 0.1 mm. Red outline = clearance/quiet-zone breach. Export the spec, paste it to the Python engine for the exact print PDF.</p>
   </aside>
@@ -192,8 +195,8 @@ const NGIMGS = {"A_h": {"uri": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA6
 const GRADE_COLORS = {A:"#008a45",B:"#81c341",C:"#f5a623",D:"#ba2026"};
 const $ = s=>document.querySelector(s);
 const I18N={
- en:{size:"Size",clearance:"Clearance",zoom:"Zoom",zones:"Clearance zones ▾",undo:"↶ Undo",reset:"Reset",redoBtn:"↷ Redo",alignx:"Align centres X",aligny:"Align centres Y",spreadx:"Spread evenly X",spready:"Spread evenly Y",imagefile:"Image File",redo:"↶ Undo",importj:"Import JSON",exportj:"Export spec JSON",addblock:"Add block",selected:"Selected",duplicate:"Duplicate",delete:"Delete",notes:"Notes",notestext:"Drag to move, corners to resize. Arrow keys nudge 0.1 mm. Red outline = clearance/quiet-zone breach. Export the spec, paste it to the Python engine for the exact print PDF.",ok:"OK",allok:"All clearances satisfied.",applyto:"Apply 2 mm clearance to:",allblocks:"All blocks",nutrigrade:"Nutrigrade",barcode:"Barcode",datamatrix:"Data Matrix",image:"BCRS Deposit Mark 10c",title:"Title",text:"Text",nutrition_table:"Nutrition Table",width:"WIDTH mm",height:"HEIGHT mm",box:"Box  x / y / w / h (mm)"},
- zh:{size:"尺寸",clearance:"间距",zoom:"缩放",zones:"间距区域 ▾",undo:"↶ 撤销",reset:"重置",redoBtn:"↷ 重做",alignx:"居中对齐 X",aligny:"居中对齐 Y",spreadx:"水平均布",spready:"垂直均布",imagefile:"图片文件…",importj:"导入 JSON",exportj:"导出规格 JSON",addblock:"添加元素",selected:"已选元素",duplicate:"复制",delete:"删除",notes:"说明",notestext:"拖动移动，边角缩放。方向键微调 0.1 毫米。红色 = 间距/静区不足。导出规格后粘贴给 Python 引擎生成精确 PDF。",ok:"通过",allok:"所有间距均满足。",applyto:"应用 2 毫米间距于：",allblocks:"所有元素",nutrigrade:"营养分级",barcode:"条形码",datamatrix:"数据矩阵",image:"图片 / 10¢",title:"标题",text:"文字",nutrition_table:"营养表",width:"宽 毫米",height:"高 毫米",box:"位置 x / y / 宽 / 高 (毫米)"}
+ en:{size:"Size",clearance:"Clearance",zoom:"Zoom",zones:"Clearance zones ▾",undo:"↶ Undo",reset:"Reset",redoBtn:"↷ Redo",alignx:"Align centres X",aligny:"Align centres Y",spreadx:"Spread evenly X",spready:"Spread evenly Y",centrelabelx:"Centre on label X",centrelabely:"Centre on label Y",centrelabelxy:"Centre on label (both)",imagefile:"Image File",redo:"↶ Undo",importj:"Import JSON",exportj:"Export spec JSON",addblock:"Add block",selected:"Selected",duplicate:"Duplicate",delete:"Delete",notes:"Notes",notestext:"Drag to move, corners to resize. Arrow keys nudge 0.1 mm. Red outline = clearance/quiet-zone breach. Export the spec, paste it to the Python engine for the exact print PDF.",ok:"OK",allok:"All clearances satisfied.",applyto:"Apply 2 mm clearance to:",allblocks:"All blocks",nutrigrade:"Nutrigrade",barcode:"Barcode",datamatrix:"Data Matrix",image:"BCRS Deposit Mark 10c",title:"Title",text:"Text",nutrition_table:"Nutrition Table",width:"WIDTH mm",height:"HEIGHT mm",box:"Box  x / y / w / h (mm)"},
+ zh:{size:"尺寸",clearance:"间距",zoom:"缩放",zones:"间距区域 ▾",undo:"↶ 撤销",reset:"重置",redoBtn:"↷ 重做",alignx:"居中对齐 X",aligny:"居中对齐 Y",spreadx:"水平均布",spready:"垂直均布",centrelabelx:"居中于标签 X",centrelabely:"居中于标签 Y",centrelabelxy:"居中于标签（两轴）",imagefile:"图片文件…",importj:"导入 JSON",exportj:"导出规格 JSON",addblock:"添加元素",selected:"已选元素",duplicate:"复制",delete:"删除",notes:"说明",notestext:"拖动移动，边角缩放。方向键微调 0.1 毫米。红色 = 间距/静区不足。导出规格后粘贴给 Python 引擎生成精确 PDF。",ok:"通过",allok:"所有间距均满足。",applyto:"应用 2 毫米间距于：",allblocks:"所有元素",nutrigrade:"营养分级",barcode:"条形码",datamatrix:"数据矩阵",image:"图片 / 10¢",title:"标题",text:"文字",nutrition_table:"营养表",width:"宽 毫米",height:"高 毫米",box:"位置 x / y / 宽 / 高 (毫米)"}
 };
 function t(k){const d=I18N[state&&state.lang==="zh"?"zh":"en"];return (d&&d[k])||I18N.en[k]||k;}
 function applyLang(){document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.getAttribute("data-i18n");const v=t(k);if(v)el.textContent=v;});const lb=document.querySelector("#langBtn");if(lb)lb.textContent=(state.lang==="zh")?"中文 / EN":"EN / 中文";}
@@ -590,6 +593,25 @@ function distribute(axis){if(selIds.length<3)return;saveState();
   render();}
 $("#spreadX").onclick=()=>distribute("x");
 $("#spreadY").onclick=()=>distribute("y");
+// Centre the current selection on the LABEL (the canvas), not on another block. Works with one
+// block or many: it centres the selection's bounding box, preserving the relative arrangement,
+// so a group of icons moves together onto the label's middle rather than stacking on one point.
+function centreOnLabel(axis){
+  if(!selIds.length)return;saveState();
+  const {w:W,h:H}=state.size,bs=selIds.map(blockById);
+  const doAxis=(ax)=>{
+    const p=ax==="x"?0:1, s=ax==="x"?2:3, L=ax==="x"?W:H;
+    const min=Math.min(...bs.map(b=>b.box[p])), max=Math.max(...bs.map(b=>b.box[p]+b.box[s]));
+    const shift=(L-(max-min))/2 - min;
+    bs.forEach(b=>{b.box[p]=round(b.box[p]+shift);});
+  };
+  if(axis==="x"||axis==="xy")doAxis("x");
+  if(axis==="y"||axis==="xy")doAxis("y");
+  render();
+}
+$("#centreLabelX").onclick=()=>centreOnLabel("x");
+$("#centreLabelY").onclick=()=>centreOnLabel("y");
+$("#centreLabelXY").onclick=()=>centreOnLabel("xy");
 const clrBtn=$("#clrTargetsBtn"),clrPop=$("#clrPop");
 function syncCT(){clrPop.querySelectorAll("[data-ct]").forEach(cb=>cb.checked=(state.clearApply||[]).includes(cb.dataset.ct));}
 clrBtn.onclick=e=>{e.stopPropagation();clrPop.style.display=clrPop.style.display==="none"?"block":"none";syncCT();};
