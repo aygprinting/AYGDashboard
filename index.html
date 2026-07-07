@@ -1664,6 +1664,9 @@ async function syncClientsUpdate(){
 // filename resolution needed) and parses ONLY the "Old Auto Main History" sheet into OLD_AUTO_MAIN.
 // Mirrors the Clients/Xero lazy-sync pattern: own button, own timestamp, own status line.
 function parseOldAutoMain(buf){
+  // Self-contained cv() — the one in parseAndRender is scoped to that function, so we can't reach
+  // it from here. Mirrors the canonical version (cellDateParts is global, so Dates format identically).
+  var cv=function(v){if(v===null||v===undefined)return '';if(v instanceof Date){if(isNaN(v.getTime()))return '';var _MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];var _p=cellDateParts(v);return _p?(String(_p.d).padStart(2,'0')+' '+_MN[_p.m]+' '+_p.y):'';}var s=String(v).trim().replace(/`/g,"'");return(s==='None'||s==='nan')?'':s;};
   var wb=readWB(buf);
   var sh=wb.Sheets['Old Auto Main History'];
   OLD_AUTO_MAIN=[];
