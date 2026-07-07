@@ -1454,7 +1454,7 @@ var AYG_COMP_LIST=[];     // AYG's own printer column from the Competitors sheet
 var AYG_COMP_KEYS={};     // normalized-name -> original AYG company, for "also our client" overlap flagging
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260707-INV1'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260707-COMP2'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -5224,14 +5224,18 @@ function renderCompStats(){
   var statsEl=document.getElementById('comp-stats');if(!statsEl)return;
   var satoTotal=SATO_LIST.reduce(function(a,r){return a+(r.qty||0);},0);
   var jewelTotal=JEWEL_LIST.reduce(function(a,r){return a+(r.qty||0);},0);
-  var satoBoth=SATO_LIST.filter(function(r){return isAlsoOurs(r.company);}).length;
-  var jewelBoth=JEWEL_LIST.filter(function(r){return isAlsoOurs(r.company);}).length;
+  // Count DISTINCT companies, not rows — a company can appear once per sticker size.
+  function uniqCompanies(list){var seen={},n=0;list.forEach(function(r){var k=_normCo(r.company);if(k&&!seen[k]){seen[k]=1;n++;}});return n;}
+  // Distinct companies that are also ours (dedupe so a 2-size company isn't counted twice).
+  function uniqBoth(list){var seen={},n=0;list.forEach(function(r){var k=_normCo(r.company);if(k&&!seen[k]&&isAlsoOurs(r.company)){seen[k]=1;n++;}});return n;}
+  var jewelCount=uniqCompanies(JEWEL_LIST),satoCount=uniqCompanies(SATO_LIST);
+  var overlap=uniqBoth(JEWEL_LIST)+uniqBoth(SATO_LIST);
   statsEl.innerHTML=
-    statCard('comp-jewel-clients','Jewel Companies',JEWEL_LIST.length,'var(--amb)')+
+    statCard('comp-jewel-clients','Jewel Companies',jewelCount,'var(--amb)')+
     statCard('comp-jewel-qty','Jewel Total Qty',jewelTotal.toLocaleString(),'var(--amb)')+
-    statCard('comp-sato-clients','Sato Companies',SATO_LIST.length,'var(--pnk)')+
+    statCard('comp-sato-clients','Sato Companies',satoCount,'var(--pnk)')+
     statCard('comp-sato-qty','Sato Total Qty',satoTotal.toLocaleString(),'var(--pnk)')+
-    statCard('comp-overlap','Also Our Clients',(jewelBoth+satoBoth),'var(--grn)');
+    statCard('comp-overlap','Also Our Clients',overlap,'var(--grn)');
   applyLayout('comp-stats');
 }
 function renderSato(){
