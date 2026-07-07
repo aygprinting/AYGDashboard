@@ -374,7 +374,7 @@ function fitTextSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1
 function fitNutSize(b){const H=Math.max(1,b.box[3]);const PB=0.6;const sub=!!b.subtitle;let s=b.size||1.5;for(let k=0;k<90;k++){const lh=s*1.5;const hh=PB+s*1.15+(sub?s*1.3:0)+s*0.55;if(hh+(1+(b.rows||[]).length)*lh+PB<=H||s<=0.5)break;s-=0.05;}return s;}
 function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
-function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const body=wrapLines(b.body||"",fs,Math.max(1,b.box[2]-1),false).map(esc).join("<br>");return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
+function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';const body=wrapLines(b.body||"",fs,Math.max(1,b.box[2]-1),false).map(esc).join("<br>");return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden;text-align:${al}">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
 function ntPreview(b){const fs=fitNutSize(b);const fp=mm(fs);let r=`<div class="txtblk" style="font-size:${fp}px;overflow:hidden;border:${Math.max(1,mm(0.3))}px solid #000;border-radius:${mm(0.5)}px;padding:${mm(0.6)}px;box-sizing:border-box"><div style="font-weight:700;font-size:${fp*1.15}px">${esc(b.title||"")}</div>${b.subtitle?`<div>${esc(b.subtitle)}</div>`:""}<table class="ntbl"><tr>${(b.header||[]).map(x=>`<td style="background:#e8e8e8;font-weight:700">${esc(x)}</td>`).join("")}</tr>`;(b.rows||[]).forEach((row,i)=>{r+=`<tr style="background:${i%2?'#f6f6f6':'#fff'}">${row.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`;});return r+"</table></div>";}
 function gap(a,b){const[ax,ay,aw,ah]=a,[bx,by,bw,bh]=b;
   const dx=Math.max(bx-(ax+aw),ax-(bx+bw),0),dy=Math.max(by-(ay+ah),ay-(by+bh),0);
@@ -463,7 +463,7 @@ function renderProps(){
     f+=`<p style="font-size:10px;color:var(--muted)">Named files must sit in the engine's assets/ folder; uploads are embedded in the spec.</p>`;}
   else if(b.type==="title")f=`${sel("Align",b.align||"left",["left","center","right"],"align")}${num("Font (mm)",b.size,"size",0.1)}
     <div class="field"><span>Lines (one per row)</span><textarea data-lines style="min-height:96px">${(b.lines||[]).join("\\n")}</textarea></div>`;
-  else if(b.type==="text")f=`${txt("Heading (optional)",b.title||"","title")}${num("Font (mm)",b.size,"size",0.1)}${num("Line spacing",b.lineGap||1.25,"lineGap",0.05)}
+  else if(b.type==="text")f=`${txt("Heading (optional)",b.title||"","title")}${sel("Align",b.align||"left",["left","center","right","justify"],"align")}${num("Font (mm)",b.size,"size",0.1)}${num("Line spacing",b.lineGap||1.25,"lineGap",0.05)}
     <div class="field"><span>Body text</span><textarea data-body style="min-height:170px;font-size:12.5px;line-height:1.55">${esc(b.body||"")}</textarea></div>`;
   else if(b.type==="nutrition_table")f=`${txt("Title",b.title,"title")}${txt("Subtitle",b.subtitle,"subtitle")}${num("Font (mm)",b.size,"size",0.05)}
     <div class="field"><span>Header (3, comma-sep)</span><input value="${esc((b.header||[]).join(", "))}" data-header></div>
@@ -583,7 +583,7 @@ function cleanSpec(){
   return {size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",
     blocks:state.blocks.map(b=>{const o={id:b.id,type:b.type,box:b.box.map(Number)};
       const keys={nutrigrade:["grade","orientation","style","sugar"],barcode:["symbology","data","ladder","magnification"],datamatrix:["data"],
-        image:["src","fit","name"],title:["lines","align","size","weight"],text:["title","body","size","lineGap"],
+        image:["src","fit","name"],title:["lines","align","size","weight"],text:["title","body","size","lineGap","align"],
         nutrition_table:["title","subtitle","header","rows","size"]}[b.type]||[];
       keys.forEach(k=>{if(b[k]!==undefined&&b[k]!=="")o[k]=b[k];});if(b.rotate)o.rotate=b.rotate;
       if(b.type==="image"&&String(b.src||"").startsWith("data:")){o.src=assetName(b);delete o.name;}
