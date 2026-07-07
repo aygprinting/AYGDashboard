@@ -1454,7 +1454,7 @@ var AYG_COMP_LIST=[];     // AYG's own printer column from the Competitors sheet
 var AYG_COMP_KEYS={};     // normalized-name -> original AYG company, for "also our client" overlap flagging
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260707-COMP2'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260707-INV2'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -5741,9 +5741,15 @@ function buildContactCheck(){
       var co=_normInv(v.company);if(co)invCoSet[co]=1;
     });
     var STATUS_RANK={'Delivered':0,'Out for Delivery':1,'In Production':2};
+    // Some orders are deliberately not invoiced — free samples (样品). The sheet marks these
+    // with "NA" in the invoice-number or payment column, and/or a price of 0. Skip those so the
+    // panel only surfaces genuine "we owe an invoice" gaps.
+    function _isNA(x){var s=String(x||'').trim().toLowerCase();return s==='na'||s==='n/a'||s==='n.a.'||s==='-';}
     ORDERS.forEach(function(o){
       var rank=STATUS_RANK[o.status];
       if(rank===undefined)return;                 // only the three in-flight/done statuses
+      // Not meant to be invoiced: explicit NA marker, or nothing to bill (price 0). Free samples.
+      if(_isNA(o.invoice)||_isNA(o.payment)||!(o.price>0))return;
       // Already invoiced? Match on the order's invoice/ref number against Xero invoice OR reference.
       var oref=_normRef(o.invoice);
       if(oref&&invNumSet[oref])return;
