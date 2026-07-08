@@ -329,7 +329,10 @@ html,body{overscroll-behavior-y:contain}
 .nc-tag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:7px;flex-shrink:0;text-transform:uppercase;letter-spacing:.03em}
 .nc-tag.new{background:rgba(110,231,183,.16);color:var(--grn)}
 .nc-tag.rep{background:var(--b2);color:var(--m)}
-.nc-qty{font-family:'JetBrains Mono',monospace;color:var(--fg);flex-shrink:0;white-space:nowrap;font-size:11px}
+.nc-qty{font-family:'JetBrains Mono',monospace;color:var(--fg);flex-shrink:0;white-space:nowrap;font-size:11px;min-width:56px;text-align:right}
+.nc-size{color:var(--m);flex-shrink:0;white-space:nowrap;font-size:11px;min-width:52px;text-align:right}
+.nc-tot{font-size:14px;font-weight:700;color:var(--fg)}
+.nc-totu{font-size:10px;color:var(--m);font-weight:400}
 .nc-empty{font-size:12px;color:var(--dim);padding:8px 0}
 /* Modal */
 .modal-bg{display:flex;opacity:0;pointer-events:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:flex-start;justify-content:center;padding-top:55px;transition:opacity .1s}
@@ -1128,24 +1131,14 @@ html,body{overscroll-behavior-y:contain}
   <div class="stats" id="comp-stats"></div>
   <div style="margin-bottom:22px">
     <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:2px" data-tx="todayHd">New Orders — Today</div>
-    <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="today-sub" data-tx="todaySub">Orders dated today, by vendor and sticker size</div>
+    <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="today-sub" data-tx="todaySub">Latest order date, by printer — company, type, size, quantity</div>
     <div id="today-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"></div>
   </div>
   <div style="margin-bottom:22px">
     <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:2px" data-tx="recentHd">New Orders — Last 14 Days</div>
-    <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="recent-sub" data-tx="recentSub">Rolling 14-day window, by vendor and sticker size</div>
+    <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="recent-sub" data-tx="recentSub">Latest 14 days, by printer — company, type, size, quantity</div>
     <div id="recent-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"></div>
-  </div>
-  <div style="margin-bottom:22px">
-    <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:2px" data-tx="ncDailyHd">New &amp; Active Customers — Daily</div>
-    <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="ncdaily-sub" data-tx="ncDailySub">New vs repeat customers on the latest date, per printer</div>
-    <div id="ncdaily-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"></div>
-  </div>
-  <div style="margin-bottom:22px">
-    <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:2px" data-tx="ncWeekHd">New &amp; Active Customers — Weekly</div>
-    <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="ncweek-sub" data-tx="ncWeekSub">New vs repeat customers over the window, per printer</div>
-    <div id="ncweek-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px"></div>
-    <div id="ncweek-note" style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic"></div>
+    <div id="recent-note" style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic"></div>
   </div>
   <div class="comp-tables-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
     <div>
@@ -1510,7 +1503,7 @@ var NEWCUST_WEEKLY=[];    // "New & Active Customers — Weekly" block: {vendor,
 var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260707-NEWCUST1'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260707-NEWCUST2'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -2888,9 +2881,8 @@ function parseAndRender(buf1,buf2){
       if(c0==='date'&&(c1==='vendor'||c1==='printer'||c1==='vendor ')){hdrRow=i;break;}
     }
     if(hdrRow>-1){
-      // No machine-clock or timezone math. Each row keeps a normalized day key (the date rounded to
-      // the nearest whole day, guarding against Excel's sub-second drift like 06 Jul 23:59:35 → 07 Jul).
-      // "Today" and the 14-day window are derived from the data itself in renderRecentOrders.
+      // Parsed for completeness; the Competitor cards now render from the New & Active
+      // Customers blocks (NEWCUST_DAILY / NEWCUST_WEEKLY) instead of this raw log.
       for(var j=hdrRow+1;j<compr.length;j++){
         var row=compr[j];if(!row)continue;
         var dc=row[0];var vend=cv(row[1]);
@@ -2931,7 +2923,7 @@ function parseAndRender(buf1,buf2){
         if(isDaily){
           NEWCUST_DAILY.push({vendor:vkey2,company:cv(rw[1]),type:(cv(rw[2])||'Repeat'),size:cv(rw[3])||'Custom',qty:ri(rw[4])});
         }else{
-          NEWCUST_WEEKLY.push({vendor:vkey2,company:cv(rw[1]),type:(cv(rw[2])||'Repeat'),firstSeen:cv(rw[3]),orders:ri(rw[4]),qty:ri(rw[5])});
+          NEWCUST_WEEKLY.push({vendor:vkey2,company:cv(rw[1]),type:(cv(rw[2])||'Repeat'),firstSeen:cv(rw[3]),size:cv(rw[4])||'Custom',orders:ri(rw[5]),qty:ri(rw[6])});
         }
       }
     }
@@ -3457,7 +3449,7 @@ function goTab(tab,btn){
   btn.classList.add('on');
   if(tab==='labelbuilder'){var lbf=document.getElementById('lb-frame');if(lbf&&!lbf.src){lbf.src=lbf.getAttribute('data-src');}}
   if(tab==='overview'){renderOverview();}
-  if(tab==='competitors'){renderSato();renderJewel();renderRecentOrders();renderNewCustomers();}
+  if(tab==='competitors'){renderSato();renderJewel();renderCompCards();}
   if(tab==='bcrsportal'){
     renderBcrsPortal();
     // Old Order History: reveal + restore collapse state only if it was synced this session.
@@ -5355,98 +5347,62 @@ function renderCompStats(){
     statCard('comp-overlap','Also Our Clients',overlap,'var(--grn)');
   applyLayout('comp-stats');
 }
-// New-orders vendor cards, shared by the "Today" and "Last 14 Days" sections.
-// Card order: AYG first (that's us), then Sato, then Jewel.
-function _vendorCardOrder(){
+// New-orders customer cards — three per section (AYG, Sato, Jewel), each row =
+// company · type(NEW/Repeat) · size · quantity, sorted biggest quantity first.
+// Header shows total pcs · new count · repeat count. Fed by the daily / 14-day
+// "New & Active Customers" blocks the automation writes (company, type, size, qty).
+function _compCardOrder(){
   return [
     {key:'AYG',label:(TX.aygLabel||'AYG'),col:'var(--grn)'},
     {key:'Sato Asia',label:'Sato Asia',col:'var(--pnk)'},
     {key:'Jewel Creative',label:'Jewel Creative',col:'var(--amb)'}
   ];
 }
-function _renderVendorCards(hostId,rows,noDataMsg){
+function _renderCustomerCards(hostId,rows,emptyMsg){
   var host=document.getElementById(hostId);if(!host)return;
-  if(!rows.length){host.innerHTML='<div class="rc-empty" style="grid-column:1/-1">'+noDataMsg+'</div>';return;}
-  host.innerHTML=_vendorCardOrder().map(function(v){
-    var vr=rows.filter(function(r){return r.vendor===v.key;});
-    var total=vr.reduce(function(a,r){return a+(r.qty||0);},0);
-    var bySize={};vr.forEach(function(r){var s=r.size||'Custom';bySize[s]=(bySize[s]||0)+(r.qty||0);});
-    var sizes=Object.keys(bySize).sort(function(a,b){return bySize[b]-bySize[a];});
-    var maxQ=sizes.length?bySize[sizes[0]]:0;
-    var body=sizes.length?sizes.map(function(s){
-      var pct=maxQ?Math.round(bySize[s]/maxQ*100):0;
-      return '<div class="rc-row"><span class="rc-size">'+s+'</span><span class="rc-qty">'+bySize[s].toLocaleString()+'</span></div>'
-        +'<div class="rc-bar"><span style="width:'+pct+'%;background:'+v.col+'"></span></div>';
-    }).join(''):'<div class="rc-empty">'+(TX.recentVendorNone||'No new orders in this window')+'</div>';
-    return '<div class="rc-card">'
-      +'<div class="rc-head"><div><div class="rc-name" style="color:'+v.col+'">'+v.label+'</div><div class="rc-totlbl">'+(TX.recentTotLbl||'total new orders')+'</div></div>'
-        +'<div style="text-align:right"><div class="rc-total" style="color:'+v.col+'">'+total.toLocaleString()+'</div><div class="rc-totlbl">'+(TX.pcsUnit||'pcs')+'</div></div></div>'
-      +body+'</div>';
-  }).join('');
-}
-function renderRecentOrders(){
-  var MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var fmt=function(ms){var d=new Date(ms);return String(d.getUTCDate()).padStart(2,'0')+' '+MN[d.getUTCMonth()];};
-  if(!RECENT_ORDERS.length){
-    _renderVendorCards('today-grid',[],(TX.todayNone||'No orders dated today.'));
-    _renderVendorCards('recent-grid',[],(TX.recentNone||'No recent-order data. Press \u21bb Sync to load, or check the "Orders \u2014 last 14 days" block on the Competitors sheet.'));
+  if(!rows||!rows.length){
+    host.innerHTML='<div class="nc-empty" style="grid-column:1/-1">'+emptyMsg+'</div>';
     return;
   }
-  // "Today" = the latest date present in the data (no machine clock). The 14-day window is the
-  // latest date and the prior 13 calendar days.
-  var maxKey=RECENT_ORDERS.reduce(function(m,r){return r.dayKey>m?r.dayKey:m;},RECENT_ORDERS[0].dayKey);
-  var minKey=maxKey-13*86400000;
-  // Daily cards: orders on the latest date.
-  var todayRows=RECENT_ORDERS.filter(function(r){return r.dayKey===maxKey;});
-  var todaySub=document.getElementById('today-sub');
-  if(todaySub)todaySub.textContent=(TX.todaySub||'Latest order date in the data, by vendor and sticker size')+' \u00b7 '+fmt(maxKey);
-  _renderVendorCards('today-grid',todayRows,(TX.todayNone||'No orders on the latest date.'));
-  // Weekly cards: the latest 14 days.
-  var weekRows=RECENT_ORDERS.filter(function(r){return r.dayKey>=minKey&&r.dayKey<=maxKey;});
-  var recentSub=document.getElementById('recent-sub');
-  if(recentSub)recentSub.textContent=(TX.recentSub||'Latest 14 days in the data, by vendor and sticker size')+' \u00b7 '+fmt(minKey)+' \u2013 '+fmt(maxKey);
-  _renderVendorCards('recent-grid',weekRows,(TX.recentNone||'No recent-order data. Press \u21bb Sync to load, or check the "Orders \u2014 last 14 days" block on the Competitors sheet.'));
-}
-// New & Active Customers — three cards per block (AYG, Jewel, Sato), each listing
-// that printer's customers with a NEW/Repeat tag. `mode` is 'daily' or 'weekly'.
-function _renderNewCustCards(hostId,rows,mode){
-  var host=document.getElementById(hostId);if(!host)return;
-  var order=[
-    {key:'AYG',label:(TX.aygLabel||'AYG'),col:'var(--grn)'},
-    {key:'Jewel Creative',label:'Jewel Creative',col:'var(--amb)'},
-    {key:'Sato Asia',label:'Sato Asia',col:'var(--pnk)'}
-  ];
-  if(!rows.length){
-    host.innerHTML='<div class="nc-empty" style="grid-column:1/-1">'+(TX.ncNone||'No customer data yet. Press \u21bb Sync to load, or check the \u201cNew & Active Customers\u201d blocks on the Competitors sheet.')+'</div>';
-    return;
-  }
-  host.innerHTML=order.map(function(v){
+  host.innerHTML=_compCardOrder().map(function(v){
     var vr=rows.filter(function(r){return r.vendor===v.key;});
-    var nNew=vr.filter(function(r){return r.type==='NEW';}).length;
-    var nRep=vr.length-nNew;
-    // NEW first, then by quantity desc (already sorted upstream, but be safe).
-    vr.sort(function(a,b){if((a.type==='NEW')!==(b.type==='NEW'))return a.type==='NEW'?-1:1;return (b.qty||0)-(a.qty||0);});
+    // Count NEW vs Repeat by distinct company (a company may appear on multiple size rows).
+    var seenNew={},seenRep={};
+    vr.forEach(function(r){var c=(r.company||'').toLowerCase();if(r.type==='NEW')seenNew[c]=1;else seenRep[c]=1;});
+    var nNew=Object.keys(seenNew).length,nRep=Object.keys(seenRep).length;
+    var totPcs=vr.reduce(function(a,r){return a+(r.qty||0);},0);
+    // Biggest quantity first.
+    vr=vr.slice().sort(function(a,b){return (b.qty||0)-(a.qty||0);});
     var body=vr.length?vr.map(function(r){
       var isNew=r.type==='NEW';
       var tag='<span class="nc-tag '+(isNew?'new':'rep')+'">'+(isNew?(TX.ncNewTag||'new'):(TX.ncRepTag||'repeat'))+'</span>';
-      var meta=(mode==='weekly'&&r.orders)?('<span class="nc-qty">'+(r.qty||0).toLocaleString()+' \u00b7 '+r.orders+'\u00d7</span>'):('<span class="nc-qty">'+(r.qty||0).toLocaleString()+'</span>');
-      return '<div class="nc-row"><span class="nc-co" title="'+(r.company||'').replace(/"/g,'&quot;')+'">'+(r.company||'')+'</span>'+tag+meta+'</div>';
+      return '<div class="nc-row">'
+        +'<span class="nc-co" title="'+(r.company||'').replace(/"/g,'&quot;')+'">'+(r.company||'')+'</span>'
+        +tag
+        +'<span class="nc-size">'+(r.size||'')+'</span>'
+        +'<span class="nc-qty">'+(r.qty||0).toLocaleString()+'</span>'
+      +'</div>';
     }).join(''):'<div class="nc-empty">'+(TX.ncVendorNone||'No orders')+'</div>';
-    var sum='<b style="color:var(--grn)">'+nNew+'</b> '+(TX.ncNewWord||'new')+' / <b>'+nRep+'</b> '+(TX.ncRepWord||'repeat');
-    return '<div class="nc-card">'
-      +'<div class="nc-head"><div class="nc-name" style="color:'+v.col+'">'+v.label+'</div><div class="nc-sum">'+sum+'</div></div>'
-      +body+'</div>';
+    var hdr='<div class="nc-head">'
+      +'<div class="nc-name" style="color:'+v.col+'">'+v.label+'</div>'
+      +'<div style="text-align:right">'
+        +'<div class="nc-tot"><span style="font-family:\'JetBrains Mono\',monospace">'+totPcs.toLocaleString()+'</span> <span class="nc-totu">'+(TX.pcsUnit||'pcs')+'</span></div>'
+        +'<div class="nc-sum"><b style="color:var(--grn)">'+nNew+'</b> '+(TX.ncNewWord||'new')+' <span style="color:var(--dim)">\u00b7</span> <b>'+nRep+'</b> '+(TX.ncRepWord||'repeat')+'</div>'
+      +'</div>'
+    +'</div>';
+    return '<div class="nc-card">'+hdr+body+'</div>';
   }).join('');
 }
-function renderNewCustomers(){
-  var ds=document.getElementById('ncdaily-sub');
-  if(ds)ds.textContent=(TX.ncDailySub||'New vs repeat customers on the latest date, per printer')+(NEWCUST_META.dailyDate?(' \u00b7 '+NEWCUST_META.dailyDate):'');
-  _renderNewCustCards('ncdaily-grid',NEWCUST_DAILY,'daily');
-  var ws=document.getElementById('ncweek-sub');
-  if(ws)ws.textContent=(TX.ncWeekSub||'New vs repeat customers over the window, per printer')+((NEWCUST_META.winStart&&NEWCUST_META.winEnd)?(' \u00b7 '+NEWCUST_META.winStart+' \u2013 '+NEWCUST_META.winEnd):'');
-  _renderNewCustCards('ncweek-grid',NEWCUST_WEEKLY,'weekly');
-  var note=document.getElementById('ncweek-note');
-  if(note)note.textContent=NEWCUST_META.dataStart?((TX.ncNote||'“New” = first-ever order for that printer as far back as the data goes. Earliest date in data: ')+NEWCUST_META.dataStart):'';
+function renderCompCards(){
+  // Today = the daily block (latest order date). 14 days = the weekly block.
+  var ds=document.getElementById('today-sub');
+  if(ds)ds.textContent=(TX.todaySub||'Latest order date, by printer — company, type, size, quantity')+(NEWCUST_META.dailyDate?(' \u00b7 '+NEWCUST_META.dailyDate):'');
+  _renderCustomerCards('today-grid',NEWCUST_DAILY,(TX.ncNone||'No customer data yet. Press \u21bb Sync to load, or check the \u201cNew & Active Customers\u201d blocks on the Competitors sheet.'));
+  var rs=document.getElementById('recent-sub');
+  if(rs)rs.textContent=(TX.recentSub||'Latest 14 days, by printer — company, type, size, quantity')+((NEWCUST_META.winStart&&NEWCUST_META.winEnd)?(' \u00b7 '+NEWCUST_META.winStart+' \u2013 '+NEWCUST_META.winEnd):'');
+  _renderCustomerCards('recent-grid',NEWCUST_WEEKLY,(TX.ncNone||'No customer data yet. Press \u21bb Sync to load, or check the \u201cNew & Active Customers\u201d blocks on the Competitors sheet.'));
+  var note=document.getElementById('recent-note');
+  if(note)note.textContent=NEWCUST_META.dataStart?((TX.ncNote||'\u201cNew\u201d = first-ever order for that printer as far back as the data goes. Earliest date in data: ')+NEWCUST_META.dataStart):'';
 }
 function renderSato(){
   fillSizeFilter('sato-size',SATO_LIST);
@@ -7102,7 +7058,7 @@ function renderAll(){
   var UNPAIDl=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.price>0;});
   PQA=PQAl;UNPAID=UNPAIDl;
   renderTodo();renderCRM();renderOrders();renderOverview();
-  renderSato();renderJewel();renderRecentOrders();renderNewCustomers();renderBcrsPortal();
+  renderSato();renderJewel();renderCompCards();renderBcrsPortal();
 }
 
 
