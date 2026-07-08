@@ -257,7 +257,7 @@ function defaultSpec(){
 }
 
 const BLOCK_DEFS = {
-  nutrigrade:{ic:"◧",make:()=>({type:"nutrigrade",box:[4,4,40,14],grade:"D",orientation:"horizontal",sugar:8,style:"full"})},
+  nutrigrade:{ic:"◧",make:()=>({type:"nutrigrade",box:[4,4,25.60,11],grade:"D",orientation:"horizontal",sugar:8,style:"full"})},
   barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,22.85],data:"8885022091166",ladder:false,magnification:1.0})},
   datamatrix:{ic:"▦",make:()=>({type:"datamatrix",box:[4,4,14,14],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"})},
   image:{ic:"⬚",make:()=>({type:"image",box:[4,4,10.0,10.7],src:"bcrs_10c.png",fit:"contain"})},
@@ -471,11 +471,25 @@ function renderProps(){
     ${["0","1","2","3"].map(i=>`<input type="number" step="0.1" value="${b.box[i]}" data-box="${i}">`).join("")}</div></div>`;
   let f="";
   const set=(k,v)=>{b[k]=v;render();};
-  if(b.type==="nutrigrade")f=`
+  if(b.type==="nutrigrade"){
+    // HPB size rule (official spec): short side >= 8.5 mm AND long side >= 19.8 mm.
+    // The mark's aspect ratio is fixed (long/short = 2.3273), so the short-side floor
+    // that also satisfies the long-side rule is 19.8/2.3273 = 8.51 mm. Dropdown drives
+    // the SHORT side (8.51 -> 20 in 0.5 steps); the long side is derived from the ratio.
+    const NG_RATIO=2.3273;
+    const shortNow=Math.min(b.box[2],b.box[3]);
+    const opts=[8.51];for(let v=9;v<=20.0001;v+=0.5)opts.push(+v.toFixed(2));
+    // pick the option closest to the current short side so the select reflects reality
+    let cur=opts.reduce((a,c)=>Math.abs(c-shortNow)<Math.abs(a-shortNow)?c:a,opts[0]);
+    const ngSize=`<div class="field"><span>Size · short side mm (long side auto, HPB min 8.5 short / 19.8 long)</span>
+      <select data-ngsize>${opts.map(o=>`<option value="${o}"${o===cur?" selected":""}>${o.toFixed(2)} mm  \u2192  ${(o*NG_RATIO).toFixed(2)} \u00d7 ${o.toFixed(2)} mm</option>`).join("")}</select></div>`;
+    f=`
     ${sel("Grade",b.grade,["A","B","C","D"],"grade")}
     ${sel("Orientation",b.orientation,["horizontal","vertical"],"orientation")}
     ${sel("Style",b.style||"full",["full","simplified"],"style")}
-    ${num("Sugar %",b.sugar,"sugar",0.1)}`;
+    ${num("Sugar %",b.sugar,"sugar",0.1)}
+    ${ngSize}`;
+  }
   else if(b.type==="barcode"){const sym=b.symbology||"ean13";f=`${sel("Symbology",sym,["ean13","ean8"],"symbology")}${txt(sym==="ean8"?"EAN-8 data":"EAN-13 data",b.data,"data")}${chk("Ladder (vertical)",b.ladder,"ladder")}
     <div class="field"><span>${sym==="ean8"?"EAN-8":"EAN-13"} magnification · sets true print size</span><div class="row" style="gap:5px;flex-wrap:wrap">
       <button data-mag="0.80">0.80 min</button><button data-mag="0.90">0.90</button><button data-mag="1.00">1.00 nominal</button></div>
@@ -523,6 +537,17 @@ function renderProps(){
     const T8={"0.80":[21.38,14.58],"0.90":[24.06,16.41],"1.00":[26.73,18.23]};
     const T=(b.symbology||"ean13")==="ean8"?T8:T13;const[lng,shrt]=T[btn.dataset.mag];const rot=((b.rotate||0)%360);if(rot===90||rot===270){b.box[3]=lng;b.box[2]=shrt;}else{b.box[2]=lng;b.box[3]=shrt;}b.magnification=parseFloat(btn.dataset.mag);render();});
   p.querySelectorAll("[data-dm]").forEach(btn=>btn.onclick=()=>{saveState();const ssz=+btn.dataset.dm;b.box[2]=ssz;b.box[3]=ssz;render();});
+  // Nutri-Grade size: dropdown sets the SHORT side; long side = short * ratio (2.3273).
+  // Horizontal -> width is the long side; vertical -> height is the long side.
+  const ngs=p.querySelector("[data-ngsize]");if(ngs)ngs.onchange=e=>{saveState();
+    const NG_RATIO=2.3273;const shrt=+e.target.value;const lng=+(shrt*NG_RATIO).toFixed(3);
+    if((b.orientation||"horizontal")==="vertical"){b.box[2]=shrt;b.box[3]=lng;}   // vertical: w=short, h=long
+    else{b.box[2]=lng;b.box[3]=shrt;}                                              // horizontal: w=long, h=short
+    render();};
+  // Orientation change on a Nutri-Grade block: keep the mark's aspect by swapping w/h
+  // (long side moves between width and height) rather than distorting it.
+  if(b.type==="nutrigrade"){const os=p.querySelector('[data-k="orientation"]');if(os)os.onchange=e=>{saveState();
+    const nv=e.target.value;if(nv!==b.orientation){const w=b.box[2],h=b.box[3];b.box[2]=h;b.box[3]=w;}b.orientation=nv;render();};}
 }
 function sel(l,v,opts,k){return `<div class="field"><span>${l}</span><select data-k="${k}">${opts.map(o=>`<option${o===v?" selected":""}>${o}</option>`).join("")}</select></div>`;}
 function num(l,v,k,step){return `<div class="field"><span>${l}</span><input type="number" step="${step||1}" value="${v}" data-kn="${k}"></div>`;}
