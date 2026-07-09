@@ -446,7 +446,9 @@ function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineG
   const body=rich.map(ln=>{
     const inner=ln.segs.map(s=>s.bold?`<b>${esc(s.t)}</b>`:esc(s.t)).join("");
     const pre=ln.bullet?`<span style="display:inline-block">${esc(ln.bullet)}</span>`:(ln.indent?`<span style="display:inline-block;width:${bulletIndent}px"></span>`:"");
-    return `<div style="${ln.bullet||ln.indent?`padding-left:${ln.indent?bulletIndent:0}px;text-indent:${ln.indent?-bulletIndent:0}px`:''}">${pre}${inner}</div>`;
+    // Empty line: render a non-breaking space so the blank row keeps its height (matches print).
+    const content=(pre+inner)||"&nbsp;";
+    return `<div style="${ln.bullet||ln.indent?`padding-left:${ln.indent?bulletIndent:0}px;text-indent:${ln.indent?-bulletIndent:0}px`:''}">${content}</div>`;
   }).join("");
   return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden;text-align:${al}">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
 function ntPreview(b){const fs=fitNutSize(b);const fp=mm(fs);let r=`<div class="txtblk" style="font-size:${fp}px;overflow:hidden;border:${Math.max(1,mm(0.3))}px solid #000;border-radius:${mm(0.5)}px;padding:${mm(0.6)}px;box-sizing:border-box"><div style="font-weight:700;font-size:${fp*1.15}px">${esc(b.title||"")}</div>${b.subtitle?`<div>${esc(b.subtitle)}</div>`:""}<table class="ntbl"><tr>${(b.header||[]).map(x=>`<td style="background:#e8e8e8;font-weight:700">${esc(x)}</td>`).join("")}</tr>`;(b.rows||[]).forEach((row,i)=>{r+=`<tr style="background:${i%2?'#f6f6f6':'#fff'}">${row.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`;});return r+"</table></div>";}
