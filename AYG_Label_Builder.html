@@ -397,11 +397,58 @@ const _mctx=(()=>{try{return document.createElement("canvas").getContext("2d");}
 function measW(s,sizeMM,bold){if(!_mctx)return (s||"").length*sizeMM*0.52;_mctx.font=(bold?"700 ":"400 ")+(sizeMM*10)+"px 'Liberation Sans',Arial,sans-serif";return _mctx.measureText(s).width/10;}
 function wrapLines(text,sizeMM,boxWmm,bold){const out=[];(text||"").split("\n").forEach(p=>{const ws=p.split(" ");let cur="";ws.forEach(w=>{const tri=(cur+" "+w).trim();if(measW(tri,sizeMM,bold)<=boxWmm||!cur)cur=tri;else{out.push(cur);cur=w;}});out.push(cur);});return out;}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function fitTextSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);const lg=b.lineGap||1.25;let s=b.size||1.5;for(let k=0;k<60;k++){const lh=s*lg;let ln=b.title?1:0;ln+=wrapLines(b.body||"",s,bw,false).length;if(ln*lh<=bh||s<=0.5)break;s-=0.05;}return s;}
+function fitTextSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);const lg=b.lineGap||1.25;let s=b.size||1.5;for(let k=0;k<60;k++){const lh=s*lg;let ln=b.title?1:0;ln+=wrapRich(b.body||"",s,bw).length;if(ln*lh<=bh||s<=0.5)break;s-=0.05;}return s;}
 function fitNutSize(b){const H=Math.max(1,b.box[3]);const PB=0.6;const sub=!!b.subtitle;let s=b.size||1.5;for(let k=0;k<90;k++){const lh=s*1.5;const hh=PB+s*1.15+(sub?s*1.3:0)+s*0.55;if(hh+(1+(b.rows||[]).length)*lh+PB<=H||s<=0.5)break;s-=0.05;}return s;}
 function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
-function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';const body=wrapLines(b.body||"",fs,Math.max(1,b.box[2]-1),false).map(esc).join("<br>");return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden;text-align:${al}">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
+// Parse a body line into {bullet, segments:[{t,bold}]}. Bullet = "• "/"- "/"* " prefix.
+function parseInline(line){
+  let bullet="";const bm=line.match(/^(\u2022 |- |\* )/);if(bm){bullet=bm[1];line=line.slice(bm[1].length);}
+  const segs=[];let i=0,plain="";
+  while(i<line.length){
+    if(line[i]==="*"&&line[i+1]==="*"){
+      const end=line.indexOf("**",i+2);
+      if(end>-1){if(plain){segs.push({t:plain,bold:false});plain="";}segs.push({t:line.slice(i+2,end),bold:true});i=end+2;continue;}
+    }
+    plain+=line[i++];
+  }
+  if(plain)segs.push({t:plain,bold:false});
+  return {bullet:bullet,segs:segs.length?segs:[{t:"",bold:false}]};
+}
+// Wrap a parsed body into display lines, keeping bold runs and bullet hanging indent.
+// Returns [{segs:[{t,bold}], bullet:"", indent:bool}] where indent marks wrapped bullet continuations.
+function wrapRich(text,sizeMM,boxWmm){
+  const out=[];
+  (text||"").split("\n").forEach(raw=>{
+    const P=parseInline(raw);
+    const bulletW=P.bullet?measW(P.bullet,sizeMM,false):0;
+    const avail=Math.max(1,boxWmm-bulletW);
+    // flatten into words that carry bold flag
+    const words=[];P.segs.forEach(sg=>{sg.t.split(" ").forEach(w=>{if(w!=="")words.push({t:w,bold:sg.bold});});});
+    let cur=[],curW=0,first=true;
+    const flush=()=>{out.push({segs:cur.length?cur:[{t:"",bold:false}],bullet:first?P.bullet:"",indent:!first&&!!P.bullet});cur=[];curW=0;first=false;};
+    words.forEach(wd=>{
+      const wWithSpace=(cur.length?" ":"")+wd.t;
+      const ww=measW(wWithSpace,sizeMM,wd.bold);
+      if(curW+ww<=avail||!cur.length){ // fits (or first word on line)
+        if(cur.length&&wd.bold===cur[cur.length-1].bold)cur[cur.length-1].t+=" "+wd.t;
+        else cur.push({t:(cur.length?" ":"")+wd.t,bold:wd.bold});
+        curW+=ww;
+      }else{flush();cur.push({t:wd.t,bold:wd.bold});curW=measW(wd.t,sizeMM,wd.bold);}
+    });
+    flush();
+  });
+  return out;
+}
+function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
+  const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]-1));
+  const bulletIndent=mm(measW("\u2022 ",fs,false));
+  const body=rich.map(ln=>{
+    const inner=ln.segs.map(s=>s.bold?`<b>${esc(s.t)}</b>`:esc(s.t)).join("");
+    const pre=ln.bullet?`<span style="display:inline-block">${esc(ln.bullet)}</span>`:(ln.indent?`<span style="display:inline-block;width:${bulletIndent}px"></span>`:"");
+    return `<div style="${ln.bullet||ln.indent?`padding-left:${ln.indent?bulletIndent:0}px;text-indent:${ln.indent?-bulletIndent:0}px`:''}">${pre}${inner}</div>`;
+  }).join("");
+  return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden;text-align:${al}">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
 function ntPreview(b){const fs=fitNutSize(b);const fp=mm(fs);let r=`<div class="txtblk" style="font-size:${fp}px;overflow:hidden;border:${Math.max(1,mm(0.3))}px solid #000;border-radius:${mm(0.5)}px;padding:${mm(0.6)}px;box-sizing:border-box"><div style="font-weight:700;font-size:${fp*1.15}px">${esc(b.title||"")}</div>${b.subtitle?`<div>${esc(b.subtitle)}</div>`:""}<table class="ntbl"><tr>${(b.header||[]).map(x=>`<td style="background:#e8e8e8;font-weight:700">${esc(x)}</td>`).join("")}</tr>`;(b.rows||[]).forEach((row,i)=>{r+=`<tr style="background:${i%2?'#f6f6f6':'#fff'}">${row.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`;});return r+"</table></div>";}
 function gap(a,b){const[ax,ay,aw,ah]=a,[bx,by,bw,bh]=b;
   const dx=Math.max(bx-(ax+aw),ax-(bx+bw),0),dy=Math.max(by-(ay+ah),ay-(by+bh),0);
@@ -506,7 +553,13 @@ function renderProps(){
   else if(b.type==="title")f=`${sel("Align",b.align||"left",["left","center","right"],"align")}${num("Font (mm)",b.size,"size",0.1)}
     <div class="field"><span>Lines (one per row)</span><textarea data-lines style="min-height:96px">${(b.lines||[]).join("\\n")}</textarea></div>`;
   else if(b.type==="text")f=`${txt("Heading (optional)",b.title||"","title")}${sel("Align",b.align||"left",["left","center","right","justify"],"align")}${num("Font (mm)",b.size,"size",0.1)}${num("Line spacing",b.lineGap||1.25,"lineGap",0.05)}
-    <div class="field"><span>Body text</span><textarea data-body style="min-height:170px;font-size:12.5px;line-height:1.55">${esc(b.body||"")}</textarea></div>`;
+    <div class="field"><span>Body text</span>
+      <div class="fmtbar" style="display:flex;gap:5px;margin-bottom:5px">
+        <button type="button" data-fmt="bold" title="Bold selected text (**...**)" style="font-weight:700;min-width:30px">B</button>
+        <button type="button" data-fmt="dot" title="Dot bullet (•) on selected line(s)" style="min-width:30px">• list</button>
+        <button type="button" data-fmt="dash" title="Dash bullet (-) on selected line(s)" style="min-width:30px">– list</button>
+      </div>
+      <textarea data-body style="min-height:170px;font-size:12.5px;line-height:1.55">${esc(b.body||"")}</textarea></div>`;
   else if(b.type==="nutrition_table")f=`${txt("Title",b.title,"title")}${txt("Subtitle",b.subtitle,"subtitle")}${num("Font (mm)",b.size,"size",0.05)}
     <div class="field"><span>Header (3, comma-sep)</span><input value="${esc((b.header||[]).join(", "))}" data-header></div>
     <div class="field"><span>Rows</span><div id="rows">${(b.rows||[]).map((r,i)=>rowUI(r,i)).join("")}</div>
@@ -525,6 +578,36 @@ function renderProps(){
   bindSel(p);bindNum(p);bindTxt(p);bindChk(p);
   const la=p.querySelector("[data-lines]");if(la)la.oninput=e=>{b.lines=e.target.value.split("\n");paint();};
   const bo=p.querySelector("[data-body]");if(bo)bo.oninput=e=>{b.body=e.target.value;paint();};
+  // Formatting toolbar: Bold wraps the selection in **...**; bullets prefix each selected line.
+  if(bo){p.querySelectorAll("[data-fmt]").forEach(btn=>btn.onclick=()=>{
+    const val=bo.value;let s=bo.selectionStart,en=bo.selectionEnd;
+    const fmt=btn.dataset.fmt;let out,newS,newE;
+    if(fmt==="bold"){
+      let sel=val.slice(s,en);
+      if(!sel){ // no selection: insert placeholder markers with caret between them
+        out=val.slice(0,s)+"**bold**"+val.slice(en);newS=s+2;newE=s+6;
+      }else{
+        // toggle: if already wrapped, unwrap; else wrap
+        if(sel.startsWith("**")&&sel.endsWith("**")&&sel.length>=4){sel=sel.slice(2,-2);out=val.slice(0,s)+sel+val.slice(en);newS=s;newE=s+sel.length;}
+        else{out=val.slice(0,s)+"**"+sel+"**"+val.slice(en);newS=s;newE=en+4;}
+      }
+    }else{ // dot / dash bullet: prefix each line in the selection (or current line)
+      const mark=fmt==="dot"?"\u2022 ":"- ";
+      // expand selection to whole lines
+      let ls=val.lastIndexOf("\n",s-1)+1;
+      let le=val.indexOf("\n",en);if(le<0)le=val.length;
+      const block=val.slice(ls,le);
+      const lines=block.split("\n").map(ln=>{
+        // toggle off if it already has this exact mark; else strip any existing bullet then add
+        if(ln.startsWith(mark))return ln.slice(mark.length);
+        const stripped=ln.replace(/^(\u2022 |- |\* )/,"");
+        return mark+stripped;
+      });
+      const rep=lines.join("\n");
+      out=val.slice(0,ls)+rep+val.slice(le);newS=ls;newE=ls+rep.length;
+    }
+    saveState();bo.value=out;b.body=out;bo.focus();bo.setSelectionRange(newS,newE);paint();
+  });}
   const hd=p.querySelector("[data-header]");if(hd)hd.oninput=e=>{b.header=e.target.value.split(",").map(s=>s.trim());paint();};
   p.querySelectorAll("[data-row]").forEach(inp=>inp.oninput=e=>{const[i,j]=e.target.dataset.row.split("-").map(Number);b.rows[i][j]=e.target.value;paint();});
   p.querySelectorAll("[data-delrow]").forEach(btn=>btn.onclick=()=>{saveState();b.rows.splice(+btn.dataset.delrow,1);render();});
