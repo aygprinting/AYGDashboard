@@ -438,6 +438,13 @@ function wrapRich(text,sizeMM,boxWmm){
     });
     flush();
   });
+  // Drop trailing blank display lines (a stray Enter at the very end shouldn't add
+  // phantom space at the bottom); interior blank lines are kept as real spacing.
+  while(out.length>1){
+    const last=out[out.length-1];
+    const empty=!last.bullet&&last.segs.every(s=>!s.t);
+    if(empty)out.pop();else break;
+  }
   return out;
 }
 function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
