@@ -1503,7 +1503,7 @@ var NEWCUST_WEEKLY=[];    // "New & Active Customers — Weekly" block: {vendor,
 var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260708-TASK2'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260713-COMPFIX1'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -2860,12 +2860,39 @@ function parseAndRender(buf1,buf2){
     // but capture AYG here so overlap detection doesn't depend on the Orders tab being loaded (staff mode).
     SATO_LIST=[];JEWEL_LIST=[];AYG_COMP_LIST=[];
     var isTot=function(s){return !s||/^total/i.test(s.trim());};
-    compr.slice(2).forEach(function(row){
-      if(!row)return;
-      var ac=cv(row[0]);if(!isTot(ac))AYG_COMP_LIST.push({company:ac,size:cv(row[1])||'Custom',qty:ri(row[2])});
-      var jc=cv(row[4]);if(!isTot(jc))JEWEL_LIST.push({company:jc,size:cv(row[5])||'Custom',qty:ri(row[6]),comment:''});
-      var sc=cv(row[8]);if(!isTot(sc))SATO_LIST.push({company:sc,size:cv(row[9])||'Custom',qty:ri(row[10]),comment:''});
-    });
+    // The printer tables occupy the TOP of the sheet. Lower down the same sheet live other
+    // blocks ("Orders — last 14 days", "New & Active Customers", notes). Without a stop
+    // condition the walk below bleeds into them and misreads their columns as company/size/qty
+    // — which showed up as sizes ("75 x 30", "Custom") appearing in the Company column and
+    // small counts landing in Size. So: stop at the first block header, and reject any row
+    // that doesn't look like a real printer-table row.
+    var isBlockHdr=function(s){
+      if(!s)return false;var t=s.toLowerCase();
+      return /^orders\s*[—–-]\s*last/.test(t)||/^new\s*&\s*active/.test(t)||/^note:/.test(t)
+           ||t==='date'||t==='vendor'||t==='printer';
+    };
+    // A size string (e.g. "75 x 30", "65x24", "Custom") is never a valid company name.
+    var looksLikeSize=function(s){
+      if(!s)return false;var t=s.trim().toLowerCase();
+      return t==='custom'||/^\d{1,3}\s*[x×]\s*\d{1,3}$/.test(t);
+    };
+    // In a real printer row the Size cell is a size; a bare number there means we've drifted
+    // into another block (e.g. a count/quantity column).
+    var badSizeCell=function(s){return !!s&&/^\d+(\.\d+)?$/.test(s.trim());};
+    var takeRow=function(co,sz){
+      return !isTot(co) && !isBlockHdr(co) && !looksLikeSize(co) && !badSizeCell(sz);
+    };
+    for(var ri2=2;ri2<compr.length;ri2++){
+      var row=compr[ri2];if(!row)continue;
+      // Stop the whole printer-block scan once a following block's header appears in col 0.
+      if(isBlockHdr(cv(row[0])))break;
+      var ac=cv(row[0]),as=cv(row[1]);
+      if(takeRow(ac,as))AYG_COMP_LIST.push({company:ac,size:as||'Custom',qty:ri(row[2])});
+      var jc=cv(row[4]),js=cv(row[5]);
+      if(takeRow(jc,js))JEWEL_LIST.push({company:jc,size:js||'Custom',qty:ri(row[6]),comment:''});
+      var sc=cv(row[8]),ss=cv(row[9]);
+      if(takeRow(sc,ss))SATO_LIST.push({company:sc,size:ss||'Custom',qty:ri(row[10]),comment:''});
+    }
     // Precompute a normalized-name set of AYG's companies for fast "both / also our client" lookup.
     AYG_COMP_KEYS={};
     AYG_COMP_LIST.forEach(function(r){var k=_normCo(r.company);if(k)AYG_COMP_KEYS[k]=r.company;});
