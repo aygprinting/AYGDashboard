@@ -131,7 +131,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">AYG <b>LABEL BUILDER</b></div>
+  <div class="brand">AYG <b>LABEL BUILDER</b> <span id="lb-build" style="font-size:9px;font-weight:400;opacity:.55;letter-spacing:.04em;margin-left:6px"></span></div>
   <div class="row">
     <label class="f"><span data-i18n="size">Size H×W</span>
       <select id="preset">
@@ -281,6 +281,10 @@ function uid(t){let i=1;while(state.blocks.some(b=>b.id===t+i))i++;return t+i;}
 function addBlock(kind){saveState();const b=BLOCK_DEFS[kind].make();b.id=uid(kind.slice(0,3));state.blocks.push(b);selId=b.id;render();}
 
 // ---------- render ----------
+// Single source of truth for the Label Builder version — shown in the header so you can
+// always tell which build is actually deployed.
+const LB_BUILD="LB 20260713-2";
+(function(){const e=document.getElementById("lb-build");if(e)e.textContent=LB_BUILD;})();
 const labelEl=$("#label"), clearEl=$("#clearZone");
 function mm(v){return v*scale;}
 function render(){paint();renderProps();}
@@ -411,8 +415,13 @@ function textNeededH(b){const bw=Math.max(1,b.box[2]-1);const lg=b.lineGap||1.25
   return ln*s*lg;}
 // Grow (or shrink) a text block's box height to fit its content at the exact font size.
 // Keeps a small bottom padding (~1mm total, matching the .txtblk padding feel).
-function autoGrowText(b){if(b.type!=="text")return;const need=textNeededH(b)+1.0;
-  if(Math.abs((b.box[3]||0)-need)>0.05)b.box[3]=+need.toFixed(2);}
+// Grow a text block's box height ONLY when the text needs more room than the box has.
+// The user's own height (set by dragging the handle) is respected as a minimum — we never
+// shrink it — so manual resizing still works and an empty box doesn't collapse to a sliver.
+function autoGrowText(b){if(b.type!=="text")return;
+  const need=textNeededH(b)+1.0;                       // content height + small padding
+  if((b.box[3]||0) < need-0.05) b.box[3]=+need.toFixed(2);   // grow only; never shrink
+}
 function fitNutSize(b){const H=Math.max(1,b.box[3]);const PB=0.6;const sub=!!b.subtitle;let s=b.size||1.5;for(let k=0;k<90;k++){const lh=s*1.5;const hh=PB+s*1.15+(sub?s*1.3:0)+s*0.55;if(hh+(1+(b.rows||[]).length)*lh+PB<=H||s<=0.5)break;s-=0.05;}return s;}
 function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
@@ -462,7 +471,7 @@ function wrapRich(text,sizeMM,boxWmm){
   }
   return out;
 }
-function textPreview(b){autoGrowText(b);const fs=b.size||1.5;const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
+function textPreview(b){const fs=b.size||1.5;const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
   const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]-1));
   const bulletIndent=mm(measW("\u2022 ",fs,false));
   const body=rich.map(ln=>{
@@ -680,7 +689,7 @@ function sel(l,v,opts,k){return `<div class="field"><span>${l}</span><select dat
 function num(l,v,k,step){return `<div class="field"><span>${l}</span><input type="number" step="${step||1}" value="${v}" data-kn="${k}"></div>`;}
 function txt(l,v,k){return `<div class="field"><span>${l}</span><input value="${esc(v||"")}" data-kt="${k}"></div>`;}
 function chk(l,v,k){return `<div class="field"><label class="f"><input type="checkbox" ${v?"checked":""} data-kc="${k}" style="width:auto"> ${l}</label></div>`;}
-function rowUI(r,i){return `<div class="minirow" data-rowidx="${i}"><span class="rowgrip" title="Drag to reorder">\u2261</span>${[0,1,2].map(j=>`<input value="${esc(r[j]||"")}" data-row="${i}-${j}">`).join("")}<button data-delrow="${i}" class="danger">\u2715</button></div>`;}
+function rowUI(r,i){return `<div class="minirow" data-rowidx="${i}"><span class="rowgrip" title="Drag to reorder">≡</span>${[0,1,2].map(j=>`<input value="${esc(r[j]||"")}" data-row="${i}-${j}">`).join("")}<button data-delrow="${i}" class="danger">✕</button></div>`;}
 function bindSel(p){p.querySelectorAll("[data-k]").forEach(s=>s.onchange=e=>{const b=cur();b[e.target.dataset.k]=e.target.value;paint();});}
 function bindNum(p){p.querySelectorAll("[data-kn]").forEach(s=>s.oninput=e=>{const b=cur();b[e.target.dataset.kn]=+e.target.value;paint();});}
 function bindTxt(p){p.querySelectorAll("[data-kt]").forEach(s=>s.oninput=e=>{const b=cur();b[e.target.dataset.kt]=e.target.value;paint();});}
