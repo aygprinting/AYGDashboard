@@ -94,9 +94,13 @@
   .rowbtns{display:flex;gap:8px;margin-top:10px;justify-content:flex-end}
   .ntbl{width:100%;border-collapse:collapse;font-size:9px;color:#000}
   .ntbl td{border:.5px solid #999;padding:0 2px}
-  .minirow{display:grid;grid-template-columns:1fr 60px 60px 22px;gap:4px;margin-bottom:4px}
+  .minirow{display:grid;grid-template-columns:16px 1fr 60px 60px 22px;gap:4px;margin-bottom:4px;align-items:center}
   .minirow input{padding:3px 5px}
   .minirow button{padding:2px}
+  .rowgrip{cursor:grab;color:#9aa;text-align:center;user-select:none;font-size:13px;line-height:1}
+  .rowgrip:active{cursor:grabbing}
+  .minirow.dragging{opacity:.45}
+  .minirow.dragover{box-shadow:0 -2px 0 0 var(--accent)}
 
   /* ===== Mobile / touch ===== */
   @media (max-width:820px){
@@ -287,6 +291,8 @@ function paint(){
   clearEl.style.left=mm(c)+"px";clearEl.style.top=mm(c)+"px";
   clearEl.style.width=mm(w-2*c)+"px";clearEl.style.height=mm(h-2*c)+"px";
   [...labelEl.querySelectorAll(".blk,.guide,.czone,.dimlabel")].forEach(e=>e.remove());
+  // Hybrid text sizing: grow text boxes to fit their content before drawing them.
+  state.blocks.forEach(b=>{if(b.type==="text")autoGrowText(b);});
   const bad=validate();
   state.blocks.forEach(b=>drawClearance(b));
   state.blocks.forEach(b=>labelEl.appendChild(renderBlock(b,bad.has(b.id))));
@@ -397,7 +403,16 @@ const _mctx=(()=>{try{return document.createElement("canvas").getContext("2d");}
 function measW(s,sizeMM,bold){if(!_mctx)return (s||"").length*sizeMM*0.52;_mctx.font=(bold?"700 ":"400 ")+(sizeMM*10)+"px 'Liberation Sans',Arial,sans-serif";return _mctx.measureText(s).width/10;}
 function wrapLines(text,sizeMM,boxWmm,bold){const out=[];(text||"").split("\n").forEach(p=>{const ws=p.split(" ");let cur="";ws.forEach(w=>{const tri=(cur+" "+w).trim();if(measW(tri,sizeMM,bold)<=boxWmm||!cur)cur=tri;else{out.push(cur);cur=w;}});out.push(cur);});return out;}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function fitTextSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);const lg=b.lineGap||1.25;let s=b.size||1.5;for(let k=0;k<60;k++){const lh=s*lg;let ln=b.title?1:0;ln+=wrapRich(b.body||"",s,bw).length;if(ln*lh<=bh||s<=0.5)break;s-=0.05;}return s;}
+// Hybrid text sizing: the font renders at the EXACT size the user sets (no shrink-to-fit);
+// instead the box height grows to fit the wrapped content, so nothing overflows.
+// Returns the needed inner height in mm and (as a side effect via caller) can set box[3].
+function textNeededH(b){const bw=Math.max(1,b.box[2]-1);const lg=b.lineGap||1.25;const s=b.size||1.5;
+  let ln=b.title?1:0;ln+=wrapRich(b.body||"",s,bw).length;
+  return ln*s*lg;}
+// Grow (or shrink) a text block's box height to fit its content at the exact font size.
+// Keeps a small bottom padding (~1mm total, matching the .txtblk padding feel).
+function autoGrowText(b){if(b.type!=="text")return;const need=textNeededH(b)+1.0;
+  if(Math.abs((b.box[3]||0)-need)>0.05)b.box[3]=+need.toFixed(2);}
 function fitNutSize(b){const H=Math.max(1,b.box[3]);const PB=0.6;const sub=!!b.subtitle;let s=b.size||1.5;for(let k=0;k<90;k++){const lh=s*1.5;const hh=PB+s*1.15+(sub?s*1.3:0)+s*0.55;if(hh+(1+(b.rows||[]).length)*lh+PB<=H||s<=0.5)break;s-=0.05;}return s;}
 function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
@@ -447,7 +462,7 @@ function wrapRich(text,sizeMM,boxWmm){
   }
   return out;
 }
-function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
+function textPreview(b){autoGrowText(b);const fs=b.size||1.5;const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
   const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]-1));
   const bulletIndent=mm(measW("\u2022 ",fs,false));
   const body=rich.map(ln=>{
@@ -621,6 +636,26 @@ function renderProps(){
   p.querySelectorAll("[data-row]").forEach(inp=>inp.oninput=e=>{const[i,j]=e.target.dataset.row.split("-").map(Number);b.rows[i][j]=e.target.value;paint();});
   p.querySelectorAll("[data-delrow]").forEach(btn=>btn.onclick=()=>{saveState();b.rows.splice(+btn.dataset.delrow,1);render();});
   const ar=p.querySelector("#addRow");if(ar)ar.onclick=()=>{saveState();b.rows.push(["","",""]);render();};
+  // Drag-to-reorder nutrition rows. The row becomes draggable only when the press starts
+  // OUTSIDE an input (the grip or any gap) — so clicking into a field to type/select still works.
+  (function(){
+    const host=p.querySelector("#rows");if(!host)return;
+    let dragI=null;
+    host.querySelectorAll(".minirow").forEach(rowEl=>{
+      // Arm/disarm draggable based on where the press lands.
+      rowEl.addEventListener("mousedown",e=>{
+        const onInput=e.target.tagName==="INPUT";
+        rowEl.setAttribute("draggable",onInput?"false":"true");
+      });
+      rowEl.addEventListener("dragstart",e=>{dragI=+rowEl.dataset.rowidx;rowEl.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",String(dragI));}catch(_){}}); 
+      rowEl.addEventListener("dragend",()=>{rowEl.classList.remove("dragging");rowEl.setAttribute("draggable","false");host.querySelectorAll(".minirow").forEach(r=>r.classList.remove("dragover"));});
+      rowEl.addEventListener("dragover",e=>{e.preventDefault();e.dataTransfer.dropEffect="move";});
+      rowEl.addEventListener("dragenter",e=>{e.preventDefault();if(+rowEl.dataset.rowidx!==dragI)rowEl.classList.add("dragover");});
+      rowEl.addEventListener("dragleave",()=>rowEl.classList.remove("dragover"));
+      rowEl.addEventListener("drop",e=>{e.preventDefault();const to=+rowEl.dataset.rowidx;if(dragI===null||dragI===to)return;
+        saveState();const moved=b.rows.splice(dragI,1)[0];b.rows.splice(to,0,moved);dragI=null;render();});
+    });
+  })();
   p.querySelectorAll("[data-tenc]").forEach(btn=>btn.onclick=()=>{saveState();const[hh,ww]=btn.dataset.tenc.split(",").map(Number);b.box[3]=hh;b.box[2]=ww;render();});
   const rb=p.querySelector("[data-rotate]");if(rb)rb.onclick=()=>{saveState();b.rotate=((b.rotate||0)+90)%360;render();};
   const up=p.querySelector("[data-upload]");if(up)up.onchange=e=>{const file=e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{saveState();b.src=rd.result;render();};rd.readAsDataURL(file);};
@@ -645,7 +680,7 @@ function sel(l,v,opts,k){return `<div class="field"><span>${l}</span><select dat
 function num(l,v,k,step){return `<div class="field"><span>${l}</span><input type="number" step="${step||1}" value="${v}" data-kn="${k}"></div>`;}
 function txt(l,v,k){return `<div class="field"><span>${l}</span><input value="${esc(v||"")}" data-kt="${k}"></div>`;}
 function chk(l,v,k){return `<div class="field"><label class="f"><input type="checkbox" ${v?"checked":""} data-kc="${k}" style="width:auto"> ${l}</label></div>`;}
-function rowUI(r,i){return `<div class="minirow">${[0,1,2].map(j=>`<input value="${esc(r[j]||"")}" data-row="${i}-${j}">`).join("")}<button data-delrow="${i}" class="danger">✕</button></div>`;}
+function rowUI(r,i){return `<div class="minirow" data-rowidx="${i}"><span class="rowgrip" title="Drag to reorder">\u2261</span>${[0,1,2].map(j=>`<input value="${esc(r[j]||"")}" data-row="${i}-${j}">`).join("")}<button data-delrow="${i}" class="danger">\u2715</button></div>`;}
 function bindSel(p){p.querySelectorAll("[data-k]").forEach(s=>s.onchange=e=>{const b=cur();b[e.target.dataset.k]=e.target.value;paint();});}
 function bindNum(p){p.querySelectorAll("[data-kn]").forEach(s=>s.oninput=e=>{const b=cur();b[e.target.dataset.kn]=+e.target.value;paint();});}
 function bindTxt(p){p.querySelectorAll("[data-kt]").forEach(s=>s.oninput=e=>{const b=cur();b[e.target.dataset.kt]=e.target.value;paint();});}
