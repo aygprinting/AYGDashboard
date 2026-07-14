@@ -252,15 +252,15 @@ document.addEventListener("focusin",e=>{if(e.target.closest("#props")||["sizeW",
 
 function defaultSpec(){
   return {size:{w:59,h:65}, corner:2, clearance:2, clearApply:["image","barcode","datamatrix"], lang:"en", invert:false, blocks:[
-    {id:"ng",type:"nutrigrade",box:[2,2,31,10],grade:"D",orientation:"horizontal",style:"full",sugar:16},
-    {id:"title",type:"title",box:[35,2,23.5,3],lines:["REDBULL ENERGY DRINK 250ML"],align:"center",size:1.5},
-    {id:"nutrition",type:"nutrition_table",box:[2,14,31,30.1],title:"NUTRITION INFORMATION",subtitle:"Servings: 1 · Serving size: 250ml (1 Can)",header:["","Per Serving","Per 100ml"],rows:[["Energy","174kcal*","69.6kcal*"],["Protein","0g","0g"],["Total Fat","0g","0g"],["- Saturated Fat","0g","0g"],["- Trans Fat","0g","0g"],["Cholesterol","0mg","0mg"],["Carbohydrate","42.0g","16.8g"],["Dietary Fibre","0g","0g"],["Sodium","260mg","104mg"],["Sugar","41.0g","16.4g"]],size:1.5},
-    {id:"dm",type:"datamatrix",box:[40.6,53,10,10],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"},
-    {id:"tenc",type:"image",box:[40.9,7,9.0,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[37,19.3,20,30],data:"8885022091166",ladder:false,rotate:270},
-    {id:"notes",type:"text",box:[2,44.5,31,4.8],body:"*1kcal=4.2kJ. Max 3 cans/day. Net Weight: 250ml. Place of Origin: Vietnam. Not suitable for diabetics, young children and persons sensitive to caffeine.",size:1.4},
-    {id:"ingredients",type:"text",box:[2,49.4,31,8.1],title:"INGREDIENTS:",body:"Water, Sugar, Citric acid (330), Taurine (1000mg), Sodium hydro carbonate (500ii), Synthetic flavour, Caffeine, Inositol, Lysine, Choline, Sodium Benzoate (211), Vitamin B3/B5/B6/B12, Colouring: Tartrazine (102), Ponceau 4R (124).",size:1.5},
-    {id:"importer",type:"text",box:[2,58.6,26.7,4.4],body:"Imported by: GOURMET SUPPLIES PTE LTD. 16 Senoko Crescent, Singapore 758270. TEL: 6752 5888 / 6753 5888",size:1.5}
+    {id:"ng",type:"nutrigrade",box:[1.7,0.5,24.4,10.5],grade:"D",orientation:"horizontal",style:"full",sugar:16},
+    {id:"title",type:"title",box:[36,1.5,22.1,3],lines:["REDBULL ENERGY DRINK 250ML"],align:"center",size:1.5},
+    {id:"nutrition",type:"nutrition_table",box:[1,11.3,33.7,29.7],title:"NUTRITION INFORMATION",subtitle:"Servings: 1 · Serving size: 250ml (1 Can)",header:["","Per Serving","Per 100ml"],rows:[["Energy","174kcal*","69.6kcal*"],["Protein","0g","0g"],["Total Fat","0g","0g"],["- Saturated Fat","0g","0g"],["- Trans Fat","0g","0g"],["Cholesterol","0mg","0mg"],["Carbohydrate","42.0g","16.8g"],["Dietary Fibre","0g","0g"],["Sodium","260mg","104mg"],["Sugar","41.0g","16.4g"]],size:1.45},
+    {id:"dm",type:"datamatrix",box:[42,53,10,10],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"},
+    {id:"tenc",type:"image",box:[42.5,7,9,9.7],src:"bcrs_10c.png",fit:"contain"},
+    {id:"ean",type:"barcode",box:[37,19,20,30],data:"8885022091166",ladder:false,rotate:270},
+    {id:"notes",type:"text",box:[1,41.6,33.7,5.5],body:"*1kcal=4.2kJ. Max 3 cans/day. Net Weight: 250ml. Place of Origin: Vietnam. Not suitable for diabetics, young children and persons sensitive to caffeine.",size:1.2},
+    {id:"ingredients",type:"text",box:[1,47.7,33.7,11.5],title:"INGREDIENTS:",body:"Water, Sugar, Citric acid (330), Taurine (1000mg), Sodium hydro carbonate (500ii), Synthetic flavour, Caffeine, Inositol, Lysine, Choline, Sodium Benzoate (211), Vitamin B3/B5/B6/B12, Colouring: Tartrazine (102), Ponceau 4R (124).",size:1.4},
+    {id:"importer",type:"text",box:[1,60,33.7,4],body:"Imported by: GOURMET SUPPLIES PTE LTD. 16 Senoko Crescent, Singapore 758270. TEL: 6752 5888 / 6753 5888",size:1.2}
   ]};
 }
 
@@ -287,7 +287,7 @@ function addBlock(kind){saveState();const b=BLOCK_DEFS[kind].make();b.id=uid(kin
 // ---------- render ----------
 // Single source of truth for the Label Builder version — shown in the header so you can
 // always tell which build is actually deployed.
-const LB_BUILD="LB 20260714-2 · invert + nutrition-fit";
+const LB_BUILD="LB 20260714-3 · invert + nutrition/title-fit + new default";
 (function(){const e=document.getElementById("lb-build");if(e)e.textContent=LB_BUILD;})();
 const labelEl=$("#label"), clearEl=$("#clearZone");
 function mm(v){return v*scale;}
@@ -302,7 +302,7 @@ function paint(){
   clearEl.style.width=mm(w-2*c)+"px";clearEl.style.height=mm(h-2*c)+"px";
   [...labelEl.querySelectorAll(".blk,.guide,.czone,.dimlabel")].forEach(e=>e.remove());
   // Hybrid text sizing: grow text boxes to fit their content before drawing them.
-  state.blocks.forEach(b=>{if(b.type==="text")autoGrowText(b);else if(b.type==="nutrition_table")autoGrowNut(b);});
+  state.blocks.forEach(b=>{if(b.type==="text")autoGrowText(b);else if(b.type==="nutrition_table")autoGrowNut(b);else if(b.type==="title")autoGrowTitle(b);});
   const bad=validate();
   state.blocks.forEach(b=>drawClearance(b));
   state.blocks.forEach(b=>labelEl.appendChild(renderBlock(b,bad.has(b.id))));
@@ -454,6 +454,25 @@ function autoGrowNut(b){if(b.type!=="nutrition_table")return;
   const s=fitNutSize(b), needH=nutNeedH(b,s)+0.1;           // font that fits the box width, then fit height
   if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);}
 function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
+// Title sizing (hybrid, like text + nutrition table): the font renders at the size you set and the
+// box GROWS to fit — rightward first, then leftward once it hits the label edge (so a top-right
+// title stays anchored to the right). Full label width is the hard cap; fitTitleSize is the safety.
+function autoGrowTitle(b){if(b.type!=="title")return;
+  const s=b.size||3.5,lines=b.lines||[],margin=0.5;
+  const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);
+  const wantW=Math.min(widest+1.4, state.size.w-2*margin);
+  if((b.box[2]||0)<wantW-0.05){
+    let x=b.box[0];const maxRight=state.size.w-margin;
+    if(x+wantW>maxRight)x=Math.max(margin,maxRight-wantW);   // slide left instead of clipping
+    b.box[0]=+x.toFixed(2);b.box[2]=+wantW.toFixed(2);
+  }
+  // grow height for the SET size first (so the height check never caps a size the width allows),
+  // then fitTitleSize only bites when the label edge genuinely limits the width.
+  const needH0=lines.length*s*1.15+1.2;
+  if((b.box[3]||0)<needH0-0.05)b.box[3]=+needH0.toFixed(2);
+  const fs=fitTitleSize(b);
+  const needH=lines.length*fs*1.15+1.2;
+  if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
 // Parse a body line into {bullet, segments:[{t,bold}]}. Bullet = "• "/"- "/"* " prefix.
 function parseInline(line){
@@ -764,7 +783,7 @@ function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLE
     {id:"ean",type:"barcode",box:[3.5,18.7,22.85,37.29],data:BC,ladder:false,rotate:270,magnification:1.0},
     {id:"dm",type:"datamatrix",box:[9.5,60,11,11],data:DM}];
 }
-$("#preset").onchange=e=>{const v=e.target.value;const m={"65x59":[65,59],"75x65":[75,65],"75x30":[75,30],"40x40":[40,40],"43x40":[43,40],"58x28":[58,28],"65x24":[65,24]}[v];if(!m)return;saveState();state.size={h:m[0],w:m[1]};if(["75x30","40x40","43x40","58x28","65x24"].includes(v)){state.blocks=codeTemplate(v);selId=null;selIds=[];}render();};
+$("#preset").onchange=e=>{const v=e.target.value;const m={"65x59":[65,59],"75x65":[75,65],"75x30":[75,30],"40x40":[40,40],"43x40":[43,40],"58x28":[58,28],"65x24":[65,24]}[v];if(!m)return;saveState();state.size={h:m[0],w:m[1]};if(["75x30","40x40","43x40","58x28","65x24"].includes(v)){state.blocks=codeTemplate(v);selId=null;selIds=[];}else if(v==="65x59"||v==="75x65"){state.blocks=JSON.parse(JSON.stringify(defaultSpec().blocks));selId=null;selIds=[];}render();};
 $("#delBtn").onclick=()=>{if(selIds.length){saveState();state.blocks=state.blocks.filter(b=>!selIds.includes(b.id));selId=null;selIds=[];render();}};
 $("#dupBtn").onclick=()=>{const b=cur();if(!b)return;saveState();const n=JSON.parse(JSON.stringify(b));n.id=uid(b.type.slice(0,3));n.box[0]+=3;n.box[1]+=3;state.blocks.push(n);selId=n.id;render();};
 $("#undoBtn").onclick=undo;
