@@ -1503,7 +1503,7 @@ var NEWCUST_WEEKLY=[];    // "New & Active Customers — Weekly" block: {vendor,
 var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260715-CACHEFIX'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260715-DATACACHE'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1618,7 +1618,16 @@ async function handleCallback(){
 function setLoginStatus(msg,isErr){var el=document.getElementById('login-status');if(el){el.textContent=msg;el.style.color=isErr?'var(--red)':'var(--m)';}}
 function hideLoginScreen(){var el=document.getElementById('login-screen');if(el){el.style.display='none';el.classList.add('hidden');}var sb=document.getElementById('sync-btn');if(sb)sb.style.display='flex';}
 
-async function graphFetch(path,token){var r=await fetch('https://graph.microsoft.com/v1.0'+path,{cache:'no-store',headers:{Authorization:'Bearer '+token}});if(r.status===401){sessionStorage.removeItem('sp_at');throw new Error('Session expired');}return r;}
+async function graphFetch(path,token){
+  // Cache-bust file downloads so neither the browser HTTP cache NOR the service worker can
+  // serve a stale copy of an Excel/CSV that changed on SharePoint. Only the /content downloads
+  // need this (they're the large data files); metadata/search calls are left as-is.
+  var url='https://graph.microsoft.com/v1.0'+path;
+  if(path.indexOf('/content')>-1){url+=(path.indexOf('?')>-1?'&':'?')+'_cb='+Date.now();}
+  var r=await fetch(url,{cache:'no-store',headers:{Authorization:'Bearer '+token}});
+  if(r.status===401){sessionStorage.removeItem('sp_at');throw new Error('Session expired');}
+  return r;
+}
 
 async function fetchExcelFromSharePoint(){
   showSyncStatus(TX.loadingData,'loading');
