@@ -1503,7 +1503,7 @@ var NEWCUST_WEEKLY=[];    // "New & Active Customers — Weekly" block: {vendor,
 var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260715-DATACACHE'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260715-NAMEMATCH'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1619,9 +1619,6 @@ function setLoginStatus(msg,isErr){var el=document.getElementById('login-status'
 function hideLoginScreen(){var el=document.getElementById('login-screen');if(el){el.style.display='none';el.classList.add('hidden');}var sb=document.getElementById('sync-btn');if(sb)sb.style.display='flex';}
 
 async function graphFetch(path,token){
-  // Cache-bust file downloads so neither the browser HTTP cache NOR the service worker can
-  // serve a stale copy of an Excel/CSV that changed on SharePoint. Only the /content downloads
-  // need this (they're the large data files); metadata/search calls are left as-is.
   var url='https://graph.microsoft.com/v1.0'+path;
   if(path.indexOf('/content')>-1){url+=(path.indexOf('?')>-1?'&':'?')+'_cb='+Date.now();}
   var r=await fetch(url,{cache:'no-store',headers:{Authorization:'Bearer '+token}});
@@ -5852,6 +5849,7 @@ function renderBcrsPortal(){
 // because CRM also captures phone/WhatsApp/in-person contact that email data can't see. Read-only.
 function _normCo(s){
   s=String(s||'').toLowerCase().trim();
+  s=s.replace(/\([^)]*\)/g,' ');   // drop parenthetical suffixes, e.g. "(Etika Holdings)", "(SG)"
   s=s.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
   return s.replace(/[^a-z0-9]/g,'');
 }
@@ -5911,6 +5909,7 @@ function buildContactCheck(){
   function _normInv(x){
     x=String(x||'').toLowerCase().trim();
     x=x.split(';')[0];                         // drop CRM alias suffix
+    x=x.replace(/\([^)]*\)/g,' ');             // drop parenthetical suffixes, e.g. "(Etika Holdings)"
     x=x.replace(/\u0026/g,'and').replace(/\bn\b/g,'and'); // & / standalone n -> and
     x=x.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
     return x.replace(/[^a-z0-9]/g,'');
