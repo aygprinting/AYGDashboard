@@ -1805,6 +1805,7 @@ function parseOldAutoMain(buf){
       orderId:cv(row[6]),
       status:cv(row[3]),
       date:dtStr,
+      dateKey:dayKey(dt), // numeric YYYYMMDD for chronological sort (display string sorts alphabetically)
       producerId:cv(row[7]),
       productCode:cv(row[8]),
       company:cv(row[9]),
@@ -1855,7 +1856,7 @@ function toggleOldMainSection(){
 }
 function sortOldMain(col){
   if(OLDMAIN_SORT.col===col){OLDMAIN_SORT.dir=OLDMAIN_SORT.dir==='asc'?'desc':'asc';}
-  else{OLDMAIN_SORT.col=col;OLDMAIN_SORT.dir=(col==='no'||col==='qty'||col==='price')?'desc':'asc';}
+  else{OLDMAIN_SORT.col=col;OLDMAIN_SORT.dir=(col==='no'||col==='qty'||col==='price'||col==='date')?'desc':'asc';}
   renderOldMain();
 }
 function renderOldMain(){
@@ -1880,7 +1881,8 @@ function renderOldMain(){
     var ocol=OLDMAIN_SORT.col,odir=OLDMAIN_SORT.dir,onum={no:1,qty:1,price:1};
     list.sort(function(a,b){
       var av,bv;
-      if(onum[ocol]){av=parseFloat(String(a[ocol]).replace(/[^0-9.\-]/g,''))||0;bv=parseFloat(String(b[ocol]).replace(/[^0-9.\-]/g,''))||0;}
+      if(ocol==='date'){av=a.dateKey||0;bv=b.dateKey||0;}
+      else if(onum[ocol]){av=parseFloat(String(a[ocol]).replace(/[^0-9.\-]/g,''))||0;bv=parseFloat(String(b[ocol]).replace(/[^0-9.\-]/g,''))||0;}
       else{av=String(a[ocol]||'').toLowerCase();bv=String(b[ocol]||'').toLowerCase();}
       if(av<bv)return odir==='asc'?-1:1;
       if(av>bv)return odir==='asc'?1:-1;return 0;
@@ -3005,6 +3007,7 @@ function parseAndRender(buf1,buf2){
         orderId:cv(row[6]),
         status:cv(row[3]),
         date:dtStr,
+        dateKey:dayKey(dt), // numeric YYYYMMDD for chronological sort (display string sorts alphabetically)
         producerId:cv(row[7]),
         productCode:cv(row[8]),
         company:cv(row[9]),
@@ -5757,7 +5760,7 @@ function renderStaffQuotes(){
 }
 function sortBcrs(col){
   if(BCRS_SORT.col===col){BCRS_SORT.dir=BCRS_SORT.dir==='asc'?'desc':'asc';}
-  else{BCRS_SORT.col=col;BCRS_SORT.dir=(col==='no'||col==='qty'||col==='price')?'desc':'asc';}
+  else{BCRS_SORT.col=col;BCRS_SORT.dir=(col==='no'||col==='qty'||col==='price'||col==='date')?'desc':'asc';}
   renderBcrsPortal();
 }
 function renderBcrsPortal(){
@@ -5794,7 +5797,8 @@ function renderBcrsPortal(){
     var numCols={no:1,qty:1,price:1};
     list.sort(function(a,b){
       var av,bv;
-      if(numCols[bcol]){av=parseFloat(String(a[bcol]).replace(/[^0-9.\-]/g,''))||0;bv=parseFloat(String(b[bcol]).replace(/[^0-9.\-]/g,''))||0;}
+      if(bcol==='date'){av=a.dateKey||0;bv=b.dateKey||0;}
+      else if(numCols[bcol]){av=parseFloat(String(a[bcol]).replace(/[^0-9.\-]/g,''))||0;bv=parseFloat(String(b[bcol]).replace(/[^0-9.\-]/g,''))||0;}
       else{av=String(a[bcol]||'').toLowerCase();bv=String(b[bcol]||'').toLowerCase();}
       if(av<bv)return bdir==='asc'?-1:1;
       if(av>bv)return bdir==='asc'?1:-1;
