@@ -345,7 +345,7 @@ function taperGeom(){
     const pts=sm.map(p=>[p[1],p[0]]).concat([...sm].reverse().map(p=>[-p[1],p[0]]));
     const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
     const mx=Math.min(...xs),my=Math.min(...ys);
-    const outline=pts.map(p=>[p[0]-mx,p[1]-my]);
+    const outline=roundOutlinePts(pts.map(p=>[p[0]-mx,p[1]-my]),Math.max(0.5,+state.corner||2));
     const t=hT/(hT+hB), rChord=r[0]+(r[2]-r[0])*t, dip=rChord-r[1];
     return {W:Math.max(...xs)-mx,H:Math.max(...ys)-my,outline,hg:true,dip,
             topC,botC,waistC,hTop:hT,hBot:hB,wrap};
@@ -354,7 +354,8 @@ function taperGeom(){
   const dC=Math.abs(botC-topC), N=48, pts=[];
   if(dC<1e-6){
     const w=topC*wrap;
-    return {W:w,H:h,outline:[[0,0],[w,0],[w,h],[0,h]],rect:true,topC,botC,h,wrap};
+    const outline=roundOutlinePts([[0,0],[w,0],[w,h],[0,h]],Math.max(0.5,+state.corner||2));
+    return {W:w,H:h,outline,rect:true,topC,botC,h,wrap};
   }
   const Rtop=topC*h/dC, Rbot=botC*h/dC;
   const theta=wrap*dC/h;
@@ -364,7 +365,8 @@ function taperGeom(){
   for(let i=0;i<=N;i++)pts.push(pt(Rbot, theta/2-theta*i/N));
   const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
   const mx=Math.min(...xs),my=Math.min(...ys);
-  const outline=pts.map(p=>[p[0]-mx,p[1]-my]);
+  const rad=Math.max(0.5,+state.corner||2);
+  const outline=roundOutlinePts(pts.map(p=>[p[0]-mx,p[1]-my]),rad);
   return {W:Math.max(...xs)-mx,H:Math.max(...ys)-my,outline,rect:false,topC,botC,h,wrap,theta,Rtop,Rbot};
 }
 function pointInOutline(g,x,y){
@@ -381,22 +383,40 @@ function boxInOutline(g,box){
               [x+w/2,y+e],[x+w/2,y+h-e],[x+e,y+h/2],[x+w-e,y+h/2],[x+w/2,y+h/2]];
   return test.every(p=>pointInOutline(g,p[0],p[1]));
 }
-function roundedPolyPath(poly,r,s){
-  // drop coincident consecutive vertices (zero flares collapse points)
-  poly=poly.filter((p,i)=>{const q=poly[(i+1)%poly.length];return Math.hypot(p[0]-q[0],p[1]-q[1])>1e-6;});
-  // fillet each vertex of polygon (mm coords) with radius r (mm); s = mm->px scaler
-  const n=poly.length, cmds=[];
-  for(let i=0;i<n;i++){
-    const p0=poly[(i-1+n)%n], p1=poly[i], p2=poly[(i+1)%n];
-    const v1=[p0[0]-p1[0],p0[1]-p1[1]], v2=[p2[0]-p1[0],p2[1]-p1[1]];
-    const l1=Math.hypot(...v1), l2=Math.hypot(...v2);
-    const rr=Math.min(r,l1/2,l2/2);                     // clamp so fillets never overlap
-    const a=[p1[0]+v1[0]/l1*rr, p1[1]+v1[1]/l1*rr];     // entry point on incoming edge
-    const b=[p1[0]+v2[0]/l2*rr, p1[1]+v2[1]/l2*rr];     // exit point on outgoing edge
-    const cross=v1[0]*v2[1]-v1[1]*v2[0];                // turn direction -> arc sweep
-    cmds.push((i?"L ":"M ")+s(a[0])+" "+s(a[1])+" Q "+s(p1[0])+" "+s(p1[1])+" "+s(b[0])+" "+s(b[1]));
+function tpDist(a,b){return Math.hypot(a[0]-b[0],a[1]-b[1]);}
+function tpLerp(a,b,t){return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];}
+// round every true corner by trimming radius r ALONG the outline — full radius even
+// where the corner sits between short arc/spline samples
+function roundOutlinePts(pts,r,seg=10){
+  pts=pts.filter((p,i)=>tpDist(p,pts[(i+1)%pts.length])>1e-6);
+  const n=pts.length; if(r<=0||n<3)return pts;
+  const turn=i=>{
+    const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n];
+    const a1=Math.atan2(p1[1]-p0[1],p1[0]-p0[0]), a2=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
+    let d=a2-a1; while(d>Math.PI)d-=2*Math.PI; while(d<-Math.PI)d+=2*Math.PI;
+    return Math.abs(d);
+  };
+  const corner=new Set(); for(let i=0;i<n;i++) if(turn(i)>0.35) corner.add(i);
+  if(!corner.size) return pts;
+  const keep=new Array(n).fill(true), ins=new Map();
+  const walk=(ci,dir)=>{
+    let acc=0,i=ci;
+    for(;;){
+      const j=(i+dir+n)%n, d=tpDist(pts[i],pts[j]);
+      if(corner.has(j)&&acc+d<r) return tpLerp(pts[i],pts[j],Math.min(1,(r-acc)/d||0));
+      if(acc+d>=r) return tpLerp(pts[i],pts[j],(r-acc)/d);
+      acc+=d; i=j; keep[i]=false;
+    }
+  };
+  for(const ci of corner){
+    const A=walk(ci,-1), B=walk(ci,1); keep[ci]=false;
+    const bez=[]; for(let j=0;j<=seg;j++){const t=j/seg,m=1-t;
+      bez.push([m*m*A[0]+2*m*t*pts[ci][0]+t*t*B[0], m*m*A[1]+2*m*t*pts[ci][1]+t*t*B[1]]);}
+    ins.set(ci,bez);
   }
-  return cmds.join(" ")+" Z";
+  const out=[];
+  for(let i=0;i<n;i++){ if(ins.has(i)) out.push(...ins.get(i)); else if(keep[i]) out.push(pts[i]); }
+  return out;
 }
 function drawTaper(tg){
   const old=$("#taperOv"); if(old) old.remove();
@@ -404,8 +424,7 @@ function drawTaper(tg){
   const s=mm, W=s(tg.W), H=s(tg.H);
   const ov=document.createElementNS("http://www.w3.org/2000/svg","svg");
   ov.setAttribute("id","taperOv"); ov.setAttribute("width",W); ov.setAttribute("height",H);
-  const rr=Math.max(0.5,+state.corner||2);              // die-cut corner radius, min 0.5mm
-  const rp=roundedPolyPath(tg.outline,rr,s);
+  const rp='M '+tg.outline.map(p=>s(p[0]).toFixed(2)+' '+s(p[1]).toFixed(2)).join(' L ')+' Z';
   ov.innerHTML=
     '<defs><pattern id="tphatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
     '<rect width="6" height="6" fill="rgba(255,95,86,.05)"/><line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,95,86,.3)" stroke-width="1"/></pattern></defs>'+
