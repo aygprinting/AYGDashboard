@@ -1144,8 +1144,8 @@ html,body{overscroll-behavior-y:contain}
     <div>
       <div style="font-size:13px;font-weight:600;color:var(--blu);margin-bottom:8px" data-tx="honsenList">Honsen List</div>
       <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-        <input class="ipt" id="honsen-q" placeholder="Search..." data-tx-ph="searchPh" oninput="renderHonsen()" style="flex:1;min-width:120px">
-        <select class="ipt" id="honsen-size" onchange="renderHonsen()" style="min-width:110px"></select>
+        <input class="ipt" id="honsen-q" placeholder="Search..." data-tx-ph="searchPh" oninput="renderHonsenList()" style="flex:1;min-width:120px">
+        <select class="ipt" id="honsen-size" onchange="renderHonsenList()" style="min-width:110px"></select>
       </div>
       <div class="qres" style="padding:0;overflow:auto;max-height:calc(100vh - 230px)">
         <table class="comp-table"><thead><tr>
@@ -3511,7 +3511,7 @@ function goTab(tab,btn){
   btn.classList.add('on');
   if(tab==='labelbuilder'){var lbf=document.getElementById('lb-frame');if(lbf&&!lbf.src){lbf.src=lbf.getAttribute('data-src');}}
   if(tab==='overview'){renderOverview();}
-  if(tab==='competitors'){renderSato();renderJewel();renderHonsen();renderCompCards();}
+  if(tab==='competitors'){renderSato();renderJewel();renderHonsenList();renderCompCards();}
   if(tab==='bcrsportal'){
     renderBcrsPortal();
     // Old Order History: reveal + restore collapse state only if it was synced this session.
@@ -5494,7 +5494,7 @@ function renderSato(){
   document.getElementById('sato-count').textContent=f.length+' '+(TX.ofLbl||'of')+' '+SATO_LIST.length+' \u00b7 '+ft.toLocaleString()+' '+(TX.pcsUnit||'pcs');
   renderCompStats();
 }
-function renderHonsen(){
+function renderHonsenList(){
   fillSizeFilter('honsen-size',HONSEN_LIST);
   var q=(document.getElementById('honsen-q').value||'').toLowerCase();
   var sz=(document.getElementById('honsen-size')||{}).value||'';
@@ -5537,7 +5537,7 @@ function _compSort(data,key,dir){
 }
 function satoSort(key){if(satoSK===key)satoSD*=-1;else{satoSK=key;satoSD=key==='qty'?-1:1;}_compSort(satoData,key,satoSD);renderSato();}
 function jewelSort(key){if(jewelSK===key)jewelSD*=-1;else{jewelSK=key;jewelSD=key==='qty'?-1:1;}_compSort(jewelData,key,jewelSD);renderJewel();}
-function honsenSort(key){if(honsenSK===key)honsenSD*=-1;else{honsenSK=key;honsenSD=key==='qty'?-1:1;}_compSort(honsenData,key,honsenSD);renderHonsen();}
+function honsenSort(key){if(honsenSK===key)honsenSD*=-1;else{honsenSK=key;honsenSD=key==='qty'?-1:1;}_compSort(honsenData,key,honsenSD);renderHonsenList();}
 // Staff quote estimator: same tier math as calcQ but shows ONLY the selling price
 // and price-per-piece (no cost/profit/margin breakdown, no "how calculated" panel,
 // no supplier benchmark). Uses hardcoded tier pricing (not BCRS), so it's safe for staff.
@@ -7145,7 +7145,7 @@ function renderAll(){
   var UNPAIDl=ORDERS.filter(function(o){return o.payment!=='Paid'&&o.price>0;});
   PQA=PQAl;UNPAID=UNPAIDl;
   renderTodo();renderCRM();renderOrders();renderOverview();
-  renderSato();renderJewel();renderCompCards();renderBcrsPortal();
+  renderSato();renderJewel();renderHonsenList();renderCompCards();renderBcrsPortal();
 }
 
 
