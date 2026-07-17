@@ -318,7 +318,7 @@ html,body{overscroll-behavior-y:contain}
 .rc-bar{height:3px;border-radius:2px;margin-top:3px;background:var(--b2);overflow:hidden}
 .rc-bar>span{display:block;height:100%}
 /* Competitors — new/repeat customer cards */
-.nc-card{background:var(--s2);border:1px solid var(--b2);border-radius:var(--rl);padding:14px 16px}
+.nc-card{background:var(--s2);border:1px solid var(--b2);border-radius:var(--rl);padding:14px 16px;min-width:0}
 .nc-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--b2)}
 .nc-name{font-size:13px;font-weight:700}
 .nc-sum{font-size:11px;color:var(--m)}
@@ -1132,15 +1132,15 @@ html,body{overscroll-behavior-y:contain}
   <div style="margin-bottom:22px">
     <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:2px" data-tx="todayHd">New Orders — Today</div>
     <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="today-sub" data-tx="todaySub">Latest order date, by printer — company, type, size, quantity</div>
-    <div id="today-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px"></div>
+    <div id="today-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px"></div>
   </div>
   <div style="margin-bottom:22px">
     <div style="font-size:13px;font-weight:700;color:var(--fg);margin-bottom:2px" data-tx="recentHd">New Orders — Last 14 Days</div>
     <div style="font-size:11px;color:var(--m);margin-bottom:12px" id="recent-sub" data-tx="recentSub">Latest 14 days, by printer — company, type, size, quantity</div>
-    <div id="recent-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px"></div>
+    <div id="recent-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px"></div>
     <div id="recent-note" style="font-size:10px;color:var(--dim);margin-top:8px;font-style:italic"></div>
   </div>
-  <div class="comp-tables-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+  <div class="comp-tables-grid" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
     <div>
       <div style="font-size:13px;font-weight:600;color:var(--blu);margin-bottom:8px" data-tx="honsenList">Honsen List</div>
       <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
@@ -3135,6 +3135,12 @@ function setLang(l){
 }
 // ── Customizable dashboard layout system ──────────────────────────────────
 var LAYOUT_PREFIX='aygops-layout-';
+// One-time reset of any saved competitor-stats layout. Adding Honsen introduced two new
+// stat cards; a layout saved before they existed left the row uneven (some cards wide,
+// some narrow, the summary card spilling onto its own line). Clear it once per browser so
+// the competitor stats fall back to the clean, uniform default. Runs once, then never again,
+// so a user who re-customises later keeps their choice.
+try{if(!localStorage.getItem('aygops-compstats-reset-v1')){localStorage.removeItem('aygops-layout-comp-stats');localStorage.setItem('aygops-compstats-reset-v1','1');}}catch(e){}
 var EDIT_MODE_PAGES={}; // tracks which page keys currently have edit mode on
 var DEFAULT_ORDER={}; // captures original DOM order for static grids, used by resetLayout
 var DEFAULT_SIZES={}; // captures each card's original inline grid-column/grid-row, used by resetLayout
@@ -5404,6 +5410,13 @@ function renderCompStats(){
     statCard('comp-sato-clients','Sato Companies',satoCount,'var(--pnk)')+
     statCard('comp-sato-qty','Sato Total Qty',satoTotal.toLocaleString(),'var(--pnk)')+
     statCard('comp-overlap','Also Our Clients',overlap,'var(--grn)');
+  // Six per-competitor cards (span 3) fill the first row and half the second; widen the
+  // summary card to span the rest so the row is full and nothing is left dangling. Skipped
+  // if the user has saved their own layout, so a custom arrangement is respected.
+  if(!getSavedLayout('comp-stats')){
+    var _ov=statsEl.querySelector('[data-card-id="comp-overlap"]');
+    if(_ov)_ov.style.gridColumn='span 6';
+  }
   applyLayout('comp-stats');
 }
 // New-orders customer cards — three per section (AYG, Sato, Jewel), each row =
