@@ -1557,7 +1557,7 @@ var NEWCUST_WEEKLY=[];    // "New & Active Customers — Weekly" block: {vendor,
 var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260715-NAMEMATCH'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260720-WA1'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1639,6 +1639,7 @@ var INVOICES_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-invoic
 var CLIENTS_PIPE=[];       // Customers sheet → per-company summary/history
 var SUPPLIERS_PIPE=[];     // Suppliers & Others sheet → same structure
 var CLIENTS_DAILY=[];      // last-7-days daily update tabs
+var CLIENTS_SRC_EMAIL_TO='',CLIENTS_SRC_WA_TO=''; // per-source data-coverage stamps (parsed from Pipeline Overview note)
 var CLIENTS_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-clients-synced-at');return s?new Date(s):null;}catch(e){return null;}})(); // separate timestamp for this section
 var clientsSel=null;       // currently selected company for the reader
 var clientsSearch='';      // free-text filter for the company reader
@@ -2250,33 +2251,37 @@ function parseClientsPipeline(buf){
   var wb=readWB(buf);
   function cvp(v){return v===null||v===undefined?'':String(v).trim();}
   // Customers sheet → per-company summary/history
-  CLIENTS_PIPE=[];
-  var cs=wb.Sheets['Customers \u5ba2\u6237'];
-  if(cs){
-    var rows=XLSX.utils.sheet_to_json(cs,{header:1,defval:null});
+  // Masters come in two formats: legacy (Type at col 11) and WA-era (WA Last Msg at 11,
+  // WA Last Client Msg at 12, Type at 13). Detect from the header row so both build.
+  function parseMaster(sh){
+    var out=[];if(!sh)return out;
+    var rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:null});
+    var hd=rows[0]||[];var hasWA=String(hd[11]||'').indexOf('WA Last')===0;
     rows.slice(1).forEach(function(r){
       var company=cvp(r[1]);if(!company)return;
-      CLIENTS_PIPE.push({
+      out.push({
         last:cvp(r[0]),company:company,contact:cvp(r[2]),
         jobEn:cvp(r[3]),jobZh:cvp(r[4]),stageEn:cvp(r[5]),stageZh:cvp(r[6]),
-        sumEn:cvp(r[7]),sumZh:cvp(r[8]),histEn:cvp(r[9]),histZh:cvp(r[10]),type:cvp(r[11])
+        sumEn:cvp(r[7]),sumZh:cvp(r[8]),histEn:cvp(r[9]),histZh:cvp(r[10]),
+        waLast:hasWA?cvp(r[11]):'',waClientLast:hasWA?cvp(r[12]):'',
+        type:cvp(r[hasWA?13:11])
       });
     });
+    return out;
   }
+  CLIENTS_PIPE=parseMaster(wb.Sheets['Customers \u5ba2\u6237']);
+  // Overview source note: per-source data-coverage stamps for the tab header.
+  CLIENTS_SRC_EMAIL_TO='';CLIENTS_SRC_WA_TO='';
+  try{
+    var ov=wb.Sheets['Pipeline Overview \u6982\u89c8'];
+    if(ov&&ov['E2']&&ov['E2'].v){
+      var note=String(ov['E2'].v);
+      var me=note.match(/threads to (\d{4}-\d{2}-\d{2})/);if(me)CLIENTS_SRC_EMAIL_TO=me[1];
+      var mw=note.match(/WhatsApp exports to (\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?)/);if(mw)CLIENTS_SRC_WA_TO=mw[1];
+    }
+  }catch(e){}
   // Suppliers & Others sheet → same 12-column structure as Customers.
-  SUPPLIERS_PIPE=[];
-  var ss=wb.Sheets['Suppliers & Others \u4f9b\u5e94\u5546\u53ca\u5176\u4ed6'];
-  if(ss){
-    var srows=XLSX.utils.sheet_to_json(ss,{header:1,defval:null});
-    srows.slice(1).forEach(function(r){
-      var company=cvp(r[1]);if(!company)return;
-      SUPPLIERS_PIPE.push({
-        last:cvp(r[0]),company:company,contact:cvp(r[2]),
-        jobEn:cvp(r[3]),jobZh:cvp(r[4]),stageEn:cvp(r[5]),stageZh:cvp(r[6]),
-        sumEn:cvp(r[7]),sumZh:cvp(r[8]),histEn:cvp(r[9]),histZh:cvp(r[10]),type:cvp(r[11])
-      });
-    });
-  }
+  SUPPLIERS_PIPE=parseMaster(wb.Sheets['Suppliers & Others \u4f9b\u5e94\u5546\u53ca\u5176\u4ed6']);
   // Daily tabs (DDMMYY) → last-7-days updates, newest first
   CLIENTS_DAILY=[];
   wb.SheetNames.forEach(function(nm){
@@ -2286,11 +2291,15 @@ function parseClientsPipeline(buf){
     var dateObj=new Date(2000+parseInt(yy),parseInt(mm)-1,parseInt(dd));
     var ws=wb.Sheets[nm];
     var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+    // Daily tabs: legacy 5-col (Update at 3) or WA-era 6-col (Source at 3, Update at 4).
+    var hd0=rows[0]||[];var hasSrc=String(hd0[3]||'').indexOf('Source')===0;
     var items=[];
     rows.slice(1).forEach(function(r){
       var co=cvp(r[0]);if(!co)return;
       if(co.indexOf('No updates')===0||co.indexOf('\u65e0\u66f4\u65b0')>=0){items.push({none:true});return;}
-      items.push({company:co,stageEn:cvp(r[1]),stageZh:cvp(r[2]),updEn:cvp(r[3]),updZh:cvp(r[4])});
+      var srcRaw=hasSrc?cvp(r[3]).toLowerCase():'';
+      var srcTag=srcRaw.indexOf('both')>-1?'both':(srcRaw.indexOf('whatsapp')>-1?'whatsapp':(srcRaw?'email':''));
+      items.push({company:co,stageEn:cvp(r[1]),stageZh:cvp(r[2]),source:srcTag,updEn:cvp(r[hasSrc?4:3]),updZh:cvp(r[hasSrc?5:4])});
     });
     CLIENTS_DAILY.push({key:key,date:dateObj,label:dd+'/'+mm+'/'+yy,items:items});
   });
@@ -6201,7 +6210,12 @@ function renderClientsUpdate(){
   if(emptyBox)emptyBox.innerHTML='';
   sections.style.display='';
   function put(id,html){var el=document.getElementById(id);if(el)el.innerHTML=html;}
-  if(stat)stat.textContent=TX.lastSyncedLbl+' '+fmtSyncedAt(CLIENTS_SYNCED_AT);
+  if(stat){
+    var covBits=[];
+    if(CLIENTS_SRC_EMAIL_TO)covBits.push('\ud83d\udce7 \u2192 '+CLIENTS_SRC_EMAIL_TO);
+    if(CLIENTS_SRC_WA_TO)covBits.push('\ud83d\udcac \u2192 '+CLIENTS_SRC_WA_TO);
+    stat.textContent=TX.lastSyncedLbl+' '+fmtSyncedAt(CLIENTS_SYNCED_AT)+(covBits.length?(' \u00b7 '+covBits.join(' \u00b7 ')):'');
+  }
   var dayCards=CLIENTS_DAILY.map(function(d){
     var inner;
     var real=d.items.filter(function(it){return !it.none;});
@@ -6216,6 +6230,7 @@ function renderClientsUpdate(){
           +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:2px">'
             +'<span style="font-size:12px;font-weight:600;color:var(--t);cursor:pointer" onclick="selectClient(\''+it.company.replace(/'/g,"\\'")+'\')">'+it.company+'</span>'
             +'<span style="font-size:9px;font-weight:600;padding:1px 7px;border-radius:9px;background:'+col+'22;color:'+col+'">'+stg+'</span>'
+            +(it.source?'<span title="'+(it.source==='both'?'Email + WhatsApp':(it.source==='whatsapp'?'WhatsApp':'Email'))+'" style="font-size:10px;line-height:1">'+(it.source==='both'?'\ud83d\udce7\ud83d\udcac':(it.source==='whatsapp'?'\ud83d\udcac':'\ud83d\udce7'))+'</span>':'')
           +'</div>'
           +'<div style="font-size:11px;color:var(--m);line-height:1.5">'+upd+'</div>'
         +'</div>';
@@ -6272,7 +6287,9 @@ function renderClientsUpdate(){
           +'<span style="font-size:10px;font-weight:600;padding:2px 9px;border-radius:10px;background:'+col+'22;color:'+col+'">'+stg+'</span>'
         +'</div>'
         +'<div style="font-size:11px;color:var(--m)">'+(sel.contact?('\ud83d\udcc7 '+sel.contact+' \u00b7 '):'')+(job||'')+'</div>'
-        +'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+TX.lastActivityLbl+': '+(sel.last||'\u2014')+'</div>'
+        +'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+TX.lastActivityLbl+': '+(sel.last||'\u2014')
+          +(sel.waLast?(' \u00b7 \ud83d\udcac '+(zh?'\u6700\u540e\u6d88\u606f':'last msg')+': '+sel.waLast):'')
+          +(sel.waClientLast?(' \u00b7 \ud83d\udcac '+(zh?'\u5ba2\u6237\u6700\u540e\u6d88\u606f':'client last')+': '+sel.waClientLast):'')+'</div>'
         +'</div>'
         +'<div class="clients-reader-grid">'
           +'<div class="clients-reader-col"><div class="clients-reader-hd">'+(TX.summaryHd||'Summary')+'</div><div class="clients-reader-txt">'+(sum||'\u2014').replace(/\n/g,'<br>')+'</div></div>'
