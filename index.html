@@ -7460,85 +7460,106 @@ if('serviceWorker' in navigator){
   <div class="gs-panel" role="dialog" aria-label="Global search">
     <div class="gs-head">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-      <input id="gs-input" type="text" placeholder="Search clients, orders, quotes, invoices, BCRS…" autocomplete="off" spellcheck="false">
+      <input id="gs-input" type="text" data-tx-ph="gsearchPh" placeholder="Search clients, orders, quotes, invoices, BCRS…" autocomplete="off" spellcheck="false">
       <div class="gs-mode" title="Match mode">
-        <button id="gs-mode-similar" type="button" onclick="setSearchMode('similar')">Similar</button>
-        <button id="gs-mode-exact" type="button" onclick="setSearchMode('exact')">Exact</button>
+        <button id="gs-mode-similar" type="button" onclick="setSearchMode('similar')" data-tx="gsModeSimilar">Similar</button>
+        <button id="gs-mode-exact" type="button" onclick="setSearchMode('exact')" data-tx="gsModeExact">Exact</button>
       </div>
       <span class="gs-esc">esc</span>
     </div>
     <div class="gs-results" id="gs-results"></div>
-    <div class="gs-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span><span><kbd>&crarr;</kbd> open</span><span><kbd>esc</kbd> close</span><span id="gs-count" style="margin-left:auto"></span></div>
+    <div class="gs-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> <span data-tx="gsNav">navigate</span></span><span><kbd>&crarr;</kbd> <span data-tx="gsOpen">open</span></span><span><kbd>esc</kbd> <span data-tx="gsClose">close</span></span><span id="gs-count" style="margin-left:auto"></span></div>
   </div>
 </div>
 <script>
-/* ══ Global Search engine — AYG Dash 11 ══════════════════════════
-   Searches every in-memory collection (clients, orders, quotes,
-   Xero invoices, BCRS portal, competitors). Two modes: exact
-   (substring) and similar (multi-word + light fuzzy ranking).
-   Result click deep-links via goTab()+openModal() or by driving a
-   page's own "search all columns" box. Rebuilds on every renderAll(). */
+/* == Global Search engine - AYG Dash 11 (bilingual) =================
+   Searches every in-memory collection (clients, orders, quotes, Xero
+   invoices, BCRS portal pull + OLD BCRS history, competitors). Two
+   modes: exact (substring) and similar (multi-word + light fuzzy).
+   All chrome is bilingual via the app's TX_EN/TX_ZH tables. Result
+   click deep-links via goTab()+openModal() or by driving a page's own
+   "search all columns" box. Rebuilds on renderAll() and renderOldMain(). */
 (function(){
+  // -- register bilingual strings into the app's translation tables --
+  var _EN={
+    gsearchTrig:'Search everything…',
+    gsearchPh:'Search clients, orders, quotes, invoices, BCRS…',
+    gsModeSimilar:'Similar', gsModeExact:'Exact',
+    gsNav:'navigate', gsOpen:'open', gsClose:'close',
+    gsResult:'result', gsResults:'results', gsTop:'top',
+    gsEmptyHint:'Type to search across clients, orders, quotes, invoices, BCRS orders and competitors.',
+    gsIndexed:'records indexed',
+    gsNoMatch:'No matches for', gsTrySimilar:'Try Similar mode for fuzzier matching.',
+    gsOldHint:'Old BCRS history isn’t synced — open BCRS Order Portal Pull and tap “Sync old history” to include it.',
+    gsPcs:'pcs', gsOld:'old',
+    gsType_client:'Client', gsType_order:'Order', gsType_quote:'Quote',
+    gsType_invoice:'Invoice', gsType_bcrs:'BCRS', gsType_competitor:'Competitor'
+  };
+  var _ZH={
+    gsearchTrig:'全局搜索…',
+    gsearchPh:'搜索客户、订单、报价、发票、BCRS…',
+    gsModeSimilar:'相似', gsModeExact:'精确',
+    gsNav:'导航', gsOpen:'打开', gsClose:'关闭',
+    gsResult:'条结果', gsResults:'条结果', gsTop:'前',
+    gsEmptyHint:'输入以搜索客户、订单、报价、发票、BCRS 订单和竞争对手。',
+    gsIndexed:'条记录已索引',
+    gsNoMatch:'未找到匹配：', gsTrySimilar:'试试“相似”模式以进行模糊匹配。',
+    gsOldHint:'旧 BCRS 历史尚未同步 — 打开“BCRS 订单门户拉取”并点击“同步旧历史”以纳入搜索。',
+    gsPcs:'件', gsOld:'旧',
+    gsType_client:'客户', gsType_order:'订单', gsType_quote:'报价',
+    gsType_invoice:'发票', gsType_bcrs:'BCRS', gsType_competitor:'竞争对手'
+  };
+  try{ if(window.TX_EN)for(var k in _EN)TX_EN[k]=_EN[k]; }catch(_){}
+  try{ if(window.TX_ZH)for(var k2 in _ZH)TX_ZH[k2]=_ZH[k2]; }catch(_){}
+
   var GS={index:[],flat:[],mode:'similar',open:false,sel:0,built:false};
   window.GS=GS;
-  var TYPES={
-    client:{label:'Client',color:'#60a5fa'},
-    order:{label:'Order',color:'#2dd4bf'},
-    quote:{label:'Quote',color:'#a78bfa'},
-    invoice:{label:'Invoice',color:'#6ee7b7'},
-    bcrs:{label:'BCRS',color:'#fbbf24'},
-    competitor:{label:'Competitor',color:'#f472b6'}
-  };
+  var COLORS={client:'#60a5fa',order:'#2dd4bf',quote:'#a78bfa',invoice:'#6ee7b7',bcrs:'#fbbf24',competitor:'#f472b6'};
+  function TT(k,fb){var T=window.TX||{};return (T[k]!==undefined&&T[k]!==null&&T[k]!=='')?T[k]:fb;}
+  function typeName(t){return TT('gsType_'+t,t);}
   function A(x){return Array.isArray(x)?x:[];}
   function s(v){return (v===null||v===undefined)?'':String(v);}
   function low(v){return s(v).toLowerCase();}
   function nz(v){var n=parseFloat(v);return isNaN(n)?0:n;}
-  function money(v){var n=nz(v);return 'S$'+Math.round(n).toLocaleString();}
+  function money(v){return 'S$'+Math.round(nz(v)).toLocaleString();}
+  function pcs(v){return nz(v).toLocaleString()+' '+TT('gsPcs','pcs');}
 
   window.buildSearchIndex=function(){
     var ix=[];
-    // Clients (CRM) — full detail modal
     A(window.CLIENTS).forEach(function(c){
       ix.push({type:'client',id:c.id,label:s(c.name),
-        subtitle:'Client · '+s(c.stage)+(c.contact?' · '+s(c.contact):'')+(c.mobile?' · '+s(c.mobile):''),
+        sub:function(){return typeName('client')+' · '+s(c.stage)+(c.contact?' · '+s(c.contact):'')+(c.mobile?' · '+s(c.mobile):'');},
         hay:low([c.name,c.contact,c.pic2,c.email,c.mobile,c.office,c.address,c.website,c.comment,c.stage,c.language,c.position].join(' ')),
         nav:{tab:'crm',modal:{id:c.id,type:'crm'}}});
     });
-    // Orders — full detail modal
     A(window.ORDERS).forEach(function(o){
       ix.push({type:'order',id:o.id,label:s(o.name),
-        subtitle:'Order · '+s(o.size)+' · '+nz(o.qty).toLocaleString()+' pcs'+(o.status?' · '+s(o.status):'')+(o.invoice?' · '+s(o.invoice):''),
+        sub:function(){return typeName('order')+' · '+s(o.size)+' · '+pcs(o.qty)+(o.status?' · '+s(o.status):'')+(o.invoice?' · '+s(o.invoice):'');},
         hay:low([o.name,o.size,o.invoice,o.tracking,o.contact,o.mobile,o.address,o.status,o.payment,o.comment,o.loc,o.colour,o.qty].join(' ')),
         nav:{tab:'orders',modal:{id:o.id,type:'orders'}}});
     });
-    // Quotes (custom sizes & quotes) — land on Quotes tab, drive history search
     A(window.QUOTES_RAW).forEach(function(q){
       if(!q.company)return;
       ix.push({type:'quote',label:s(q.company),
-        subtitle:'Quote · '+s(q.size)+(q.qty?' · '+nz(q.qty).toLocaleString()+' pcs':'')+(q.sell?' · '+money(q.sell):''),
+        sub:function(){return typeName('quote')+' · '+s(q.size)+(q.qty?' · '+pcs(q.qty):'')+(q.sell?' · '+money(q.sell):'');},
         hay:low([q.company,q.size,q.colour,q.qty,q.sell,q.quotedDate,q.validity].join(' ')),
         nav:{tab:'quotes',box:{sel:'#hs-company',term:s(q.company)}}});
     });
-    // Xero invoices — land on Xero tab, drive #xero-q
     A(window.INVOICES).forEach(function(inv){
       ix.push({type:'invoice',label:s(inv.company)||s(inv.invoice),
-        subtitle:'Invoice '+s(inv.invoice)+(inv.total?' · '+money(inv.total):'')+(inv.status?' · '+s(inv.status):''),
+        sub:function(){return typeName('invoice')+' '+s(inv.invoice)+(inv.total?' · '+money(inv.total):'')+(inv.status?' · '+s(inv.status):'');},
         hay:low([inv.company,inv.invoice,inv.reference,inv.status,inv.email,inv.total].join(' ')),
         nav:{tab:'xero',box:{sel:'#xero-q',term:s(inv.invoice)||s(inv.company)}}});
     });
-    // BCRS portal pull (Auto Main) — land on BCRS Portal tab, drive #bcrsportal-q
-    A(window.AUTO_MAIN).forEach(function(r){
-      ix.push({type:'bcrs',label:s(r.company)||s(r.ref)||s(r.productName),
-        subtitle:'BCRS · '+(s(r.productName)||s(r.productCode)||'—')+(r.ref?' · '+s(r.ref):'')+(r.status?' · '+s(r.status):''),
-        hay:low([r.company,r.ref,r.orderId,r.producerId,r.productCode,r.productName,r.barcode,r.email,r.address,r.status,r.stickerSize].join(' ')),
-        nav:{tab:'bcrsportal',box:{sel:'#bcrsportal-q',term:s(r.ref)||s(r.company)||s(r.barcode)}}});
-    });
-    // Competitors — land on Competitors tab, drive the matching list search
+    // Current BCRS portal pull (Auto Main)
+    A(window.AUTO_MAIN).forEach(function(r){bcrsPush(ix,r,false);});
+    // OLD BCRS portal history (Old Auto Main History) - lazy-synced, drives #oldmain-q
+    A(window.OLD_AUTO_MAIN).forEach(function(r){bcrsPush(ix,r,true);});
     [['sato',window.SATO_LIST,'#sato-q'],['jewel',window.JEWEL_LIST,'#jewel-q'],['honsen',window.HONSEN_LIST,'#honsen-q']].forEach(function(src){
       A(src[1]).forEach(function(r){
         if(!r.company)return;
         ix.push({type:'competitor',label:s(r.company),
-          subtitle:'Competitor · '+src[0].charAt(0).toUpperCase()+src[0].slice(1)+(r.size?' · '+s(r.size):''),
+          sub:function(){return typeName('competitor')+' · '+src[0].charAt(0).toUpperCase()+src[0].slice(1)+(r.size?' · '+s(r.size):'');},
           hay:low([r.company,r.size,r.qty,src[0]].join(' ')),
           nav:{tab:'competitors',box:{sel:src[2],term:s(r.company)}}});
       });
@@ -7547,14 +7568,22 @@ if('serviceWorker' in navigator){
     if(GS.open)gsRun();
   };
 
-  // ── matching ──────────────────────────────────────────────────
+  function bcrsPush(ix,r,isOld){
+    ix.push({type:'bcrs',
+      label:s(r.company)||s(r.ref)||s(r.productName)||s(r.barcode),
+      sub:function(){return typeName('bcrs')+(isOld?' · '+TT('gsOld','old'):'')+' · '+(s(r.productName)||s(r.productCode)||'—')+(r.barcode?' · '+s(r.barcode):'')+(r.ref?' · '+s(r.ref):'')+(r.status?' · '+s(r.status):'');},
+      hay:low([r.company,r.ref,r.orderId,r.producerId,r.productCode,r.productName,r.barcode,r.email,r.address,r.status,r.stickerSize,r.qty].join(' ')),
+      nav:isOld
+        ?{tab:'bcrsportal',box:{sel:'#oldmain-q',term:s(r.barcode)||s(r.ref)||s(r.company),expand:'#ord-sec-oldmain'}}
+        :{tab:'bcrsportal',box:{sel:'#bcrsportal-q',term:s(r.ref)||s(r.company)||s(r.barcode)}}});
+  }
+
   function scoreEntry(e,q,tokens){
     var hay=e.hay,lbl=low(e.label);
     if(GS.mode==='exact'){
       if(hay.indexOf(q)<0)return -1;
       return lbl.indexOf(q)>-1?1000-Math.min(lbl.indexOf(q),300):400;
     }
-    // similar: all tokens present OR fuzzy-close label (typo tolerance)
     var allIn=tokens.every(function(t){return hay.indexOf(t)>-1;});
     var fm=0;try{if(window.fuzzyMatch)fm=fuzzyMatch(q,e.label);}catch(_){}
     if(!allIn&&fm<0.45)return -1;
@@ -7571,10 +7600,13 @@ if('serviceWorker' in navigator){
     var q=raw.toLowerCase();
     var res=document.getElementById('gs-results');
     var cnt=document.getElementById('gs-count');
+    var lang=window.lang||'en';
     if(!GS.built){try{buildSearchIndex();}catch(_){}}
+    var oldMissing=!A(window.OLD_AUTO_MAIN).length;
+    var oldHint=oldMissing?'<div style="margin-top:12px;color:var(--amb);font-size:12px">'+esc(TT('gsOldHint',''))+'</div>':'';
     if(!q){
       GS.flat=[];GS.sel=0;
-      res.innerHTML='<div class="gs-empty">Type to search across <b>clients, orders, quotes, invoices, BCRS orders</b> and <b>competitors</b>.<br>'+GS.index.length.toLocaleString()+' records indexed.</div>';
+      res.innerHTML='<div class="gs-empty">'+esc(TT('gsEmptyHint',''))+'<br>'+GS.index.length.toLocaleString()+' '+esc(TT('gsIndexed','records indexed'))+'.'+oldHint+'</div>';
       cnt.textContent='';return;
     }
     var tokens=q.split(/\s+/).filter(Boolean);
@@ -7584,7 +7616,6 @@ if('serviceWorker' in navigator){
       if(sc>=0)hits.push({e:GS.index[i],sc:sc});
     }
     hits.sort(function(a,b){return b.sc-a.sc;});
-    // group by type, cap 6 per group, 40 total
     var groups={},order=[],total=0;
     for(var k=0;k<hits.length&&total<40;k++){
       var t=hits[k].e.type;
@@ -7593,23 +7624,26 @@ if('serviceWorker' in navigator){
     }
     if(!total){
       GS.flat=[];GS.sel=0;
-      res.innerHTML='<div class="gs-empty">No matches for &ldquo;'+esc(raw)+'&rdquo;.'+(GS.mode==='exact'?'<br>Try <b>Similar</b> mode for fuzzier matching.':'')+'</div>';
-      cnt.textContent='0 results';return;
+      var tryLine=GS.mode==='exact'?'<br>'+esc(TT('gsTrySimilar','')):'';
+      res.innerHTML='<div class="gs-empty">'+esc(TT('gsNoMatch','No matches for'))+' “'+esc(raw)+'”'+tryLine+oldHint+'</div>';
+      cnt.textContent='0 '+TT('gsResults','results');return;
     }
     var html='',flat=[];
     order.forEach(function(t){
-      var meta=TYPES[t]||{label:t,color:'#7a7a85'};
-      html+='<div class="gs-group-h"><span>'+meta.label+'</span><span>'+groups[t].length+'</span></div>';
+      var nm=typeName(t),col=COLORS[t]||'#7a7a85';
+      html+='<div class="gs-group-h"><span>'+esc(nm)+'</span><span>'+groups[t].length+'</span></div>';
       groups[t].forEach(function(h){
         var idx=flat.length;flat.push(h.e);
+        var subTxt=typeof h.e.sub==='function'?h.e.sub():s(h.e.sub);
         html+='<div class="gs-item" data-i="'+idx+'" onmousemove="gsHover('+idx+')" onclick="gsSelect('+idx+')">'
-          +'<span class="gs-badge" style="background:'+meta.color+'">'+meta.label+'</span>'
-          +'<span class="gs-txt"><div class="gs-lbl">'+hl(h.e.label,tokens)+'</div><div class="gs-sub">'+hl(h.e.subtitle,tokens)+'</div></span></div>';
+          +'<span class="gs-badge" style="background:'+col+'">'+esc(nm)+'</span>'
+          +'<span class="gs-txt"><div class="gs-lbl">'+hl(h.e.label,tokens)+'</div><div class="gs-sub">'+hl(subTxt,tokens)+'</div></span></div>';
       });
     });
     GS.flat=flat;GS.sel=0;
     res.innerHTML=html;
-    cnt.textContent=total+' result'+(total>1?'s':'')+(hits.length>total?' (top '+total+')':'');
+    var unit=lang==='zh'?TT('gsResults','结果'):(total===1?TT('gsResult','result'):TT('gsResults','results'));
+    cnt.textContent=total+' '+unit+(hits.length>total?' ('+TT('gsTop','top')+' '+total+')':'');
     paintSel();
   }
 
@@ -7640,6 +7674,7 @@ if('serviceWorker' in navigator){
       setTimeout(function(){try{openModal(nav.modal.id,nav.modal.type);}catch(_){}} ,70);
     }else if(nav.box){
       setTimeout(function(){
+        if(nav.box.expand){var secEl=document.querySelector(nav.box.expand);if(secEl){secEl.style.display='';secEl.classList.remove('collapsed');}}
         var el=document.querySelector(nav.box.sel);
         if(el){el.value=nav.box.term;el.dispatchEvent(new Event('input',{bubbles:true}));
           try{el.scrollIntoView({block:'center'});}catch(_){}}
@@ -7647,10 +7682,9 @@ if('serviceWorker' in navigator){
     }
   };
 
-  // ── open / close / mode ───────────────────────────────────────
   window.openSearch=function(){
     if(!GS.built){try{buildSearchIndex();}catch(_){}}
-    var ov=document.getElementById('gsearch-overlay');ov.classList.add('on');GS.open=true;
+    document.getElementById('gsearch-overlay').classList.add('on');GS.open=true;
     var inp=document.getElementById('gs-input');
     gsRun();
     setTimeout(function(){inp.focus();inp.select();},20);
@@ -7666,7 +7700,6 @@ if('serviceWorker' in navigator){
     if(GS.open)gsRun();
   };
 
-  // ── wiring ────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded',function(){
     var m='similar';try{m=localStorage.getItem('aygops-search-mode')||'similar';}catch(_){}
     setSearchMode(m);
@@ -7681,7 +7714,6 @@ if('serviceWorker' in navigator){
       });
     }
   });
-  // Global shortcuts: "/" opens, Cmd/Ctrl-K toggles, Esc closes
   document.addEventListener('keydown',function(ev){
     var t=ev.target,tag=(t&&t.tagName||'').toLowerCase();
     var typing=tag==='input'||tag==='textarea'||tag==='select'||(t&&t.isContentEditable);
@@ -7689,10 +7721,15 @@ if('serviceWorker' in navigator){
     if(ev.key==='/'&&!typing&&!GS.open){ev.preventDefault();openSearch();return;}
     if(ev.key==='Escape'&&GS.open){closeSearch();}
   });
-  // Rebuild the index whenever the app re-renders after a data sync.
+  // Rebuild the index after a full re-render (login sync / language switch)...
   if(typeof window.renderAll==='function'){
     var _ra=window.renderAll;
     window.renderAll=function(){var r=_ra.apply(this,arguments);try{buildSearchIndex();}catch(_){}return r;};
+  }
+  // ...and after the lazy old-history sync (which only calls renderOldMain()).
+  if(typeof window.renderOldMain==='function'){
+    var _rom=window.renderOldMain;
+    window.renderOldMain=function(){var r=_rom.apply(this,arguments);try{buildSearchIndex();}catch(_){}return r;};
   }
 })();
 </script>
