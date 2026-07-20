@@ -418,6 +418,38 @@ html,body{overscroll-behavior-y:contain}
   .col{flex:0 0 145px}
   #std-tables,#cmp-tables,#honsen-tables{grid-template-columns:1fr!important}
 }
+/* ── Global Search (AYG Dash 11) ─────────────────────────────────── */
+.gsearch-trigger{display:flex;align-items:center;gap:8px;margin:2px 10px 10px;padding:8px 10px;background:var(--s2);border:1px solid var(--b);border-radius:10px;color:var(--m);cursor:text;font-size:13px;transition:border-color .15s,background .15s}
+.gsearch-trigger:hover{border-color:var(--b2);background:var(--s3)}
+.gsearch-trigger svg{flex-shrink:0}
+.gsearch-trigger .gs-tlabel{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gsearch-trigger kbd{font-family:'JetBrains Mono',monospace;font-size:11px;background:var(--bg);border:1px solid var(--b2);border-radius:4px;padding:1px 6px;color:var(--dim)}
+#sidebar-nav.collapsed .gsearch-trigger .gs-tlabel,#sidebar-nav.collapsed .gsearch-trigger kbd{display:none}
+#sidebar-nav.collapsed .gsearch-trigger{justify-content:center;padding:8px}
+#gsearch-overlay{position:fixed;inset:0;z-index:1500;display:none;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);align-items:flex-start;justify-content:center;padding:78px 16px 16px}
+#gsearch-overlay.on{display:flex}
+.gs-panel{width:100%;max-width:640px;background:var(--sur);border:1px solid var(--b2);border-radius:16px;box-shadow:0 30px 90px rgba(0,0,0,.55);overflow:hidden;display:flex;flex-direction:column;max-height:76vh}
+.gs-head{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--b)}
+.gs-head>svg{flex-shrink:0;color:var(--m)}
+#gs-input{flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--t);font-size:16px}
+#gs-input::placeholder{color:var(--dim)}
+.gs-mode{display:flex;background:var(--s2);border:1px solid var(--b);border-radius:8px;overflow:hidden;flex-shrink:0}
+.gs-mode button{background:transparent;border:none;color:var(--m);padding:5px 9px;font-size:12px;cursor:pointer;transition:background .12s}
+.gs-mode button.on{background:var(--grn);color:#0c0c0e;font-weight:600}
+.gs-esc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim);border:1px solid var(--b2);border-radius:4px;padding:2px 6px;flex-shrink:0}
+.gs-results{overflow-y:auto;padding:6px;flex:1}
+.gs-group-h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--m);padding:11px 12px 4px;display:flex;justify-content:space-between}
+.gs-item{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;cursor:pointer}
+.gs-item.sel{background:var(--s2)}
+.gs-badge{flex-shrink:0;font-size:9px;font-weight:700;padding:3px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;color:#0c0c0e;min-width:62px;text-align:center}
+.gs-txt{flex:1;min-width:0}
+.gs-lbl{color:var(--t);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-sub{color:var(--m);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gs-lbl mark,.gs-sub mark{background:rgba(96,165,250,.28);color:inherit;border-radius:2px;padding:0 1px}
+.gs-empty{padding:34px 16px;text-align:center;color:var(--dim);font-size:13px;line-height:1.7}
+.gs-foot{border-top:1px solid var(--b);padding:8px 14px;display:flex;gap:16px;color:var(--dim);font-size:11px;flex-wrap:wrap}
+.gs-foot kbd{font-family:'JetBrains Mono',monospace;background:var(--s2);border:1px solid var(--b);border-radius:3px;padding:1px 5px;margin-right:2px}
+@media(max-width:768px){#gsearch-overlay{padding:0}.gs-panel{max-width:none;height:100%;max-height:none;border-radius:0;border:none}}
 </style>
 </head>
 <body>
@@ -451,6 +483,11 @@ html,body{overscroll-behavior-y:contain}
     <button class="nav-collapse-btn" id="nav-collapse-btn" onclick="toggleSidebar()" title="Collapse sidebar" aria-label="Toggle sidebar">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
     </button>
+  </div>
+  <div class="gsearch-trigger" onclick="openSearch()" title="Search everything ( / )">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <span class="gs-tlabel" data-tx="gsearchTrig">Search everything…</span>
+    <kbd>/</kbd>
   </div>
   <div class="tabs" id="nav-tabs">
     <button class="tab" draggable="true" data-tab="access" onclick="goTab('access',this)" title="Access"><div class="dot" style="background:var(--grn)"></div><span id="access-tab-label" data-tx="accessTab">Access</span></button>
@@ -7417,6 +7454,247 @@ if('serviceWorker' in navigator){
     });
   });
 }
+</script>
+<!-- ── Global Search overlay (AYG Dash 11) ─────────────────────── -->
+<div id="gsearch-overlay" onclick="if(event.target===this)closeSearch()">
+  <div class="gs-panel" role="dialog" aria-label="Global search">
+    <div class="gs-head">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input id="gs-input" type="text" placeholder="Search clients, orders, quotes, invoices, BCRS…" autocomplete="off" spellcheck="false">
+      <div class="gs-mode" title="Match mode">
+        <button id="gs-mode-similar" type="button" onclick="setSearchMode('similar')">Similar</button>
+        <button id="gs-mode-exact" type="button" onclick="setSearchMode('exact')">Exact</button>
+      </div>
+      <span class="gs-esc">esc</span>
+    </div>
+    <div class="gs-results" id="gs-results"></div>
+    <div class="gs-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> navigate</span><span><kbd>&crarr;</kbd> open</span><span><kbd>esc</kbd> close</span><span id="gs-count" style="margin-left:auto"></span></div>
+  </div>
+</div>
+<script>
+/* ══ Global Search engine — AYG Dash 11 ══════════════════════════
+   Searches every in-memory collection (clients, orders, quotes,
+   Xero invoices, BCRS portal, competitors). Two modes: exact
+   (substring) and similar (multi-word + light fuzzy ranking).
+   Result click deep-links via goTab()+openModal() or by driving a
+   page's own "search all columns" box. Rebuilds on every renderAll(). */
+(function(){
+  var GS={index:[],flat:[],mode:'similar',open:false,sel:0,built:false};
+  window.GS=GS;
+  var TYPES={
+    client:{label:'Client',color:'#60a5fa'},
+    order:{label:'Order',color:'#2dd4bf'},
+    quote:{label:'Quote',color:'#a78bfa'},
+    invoice:{label:'Invoice',color:'#6ee7b7'},
+    bcrs:{label:'BCRS',color:'#fbbf24'},
+    competitor:{label:'Competitor',color:'#f472b6'}
+  };
+  function A(x){return Array.isArray(x)?x:[];}
+  function s(v){return (v===null||v===undefined)?'':String(v);}
+  function low(v){return s(v).toLowerCase();}
+  function nz(v){var n=parseFloat(v);return isNaN(n)?0:n;}
+  function money(v){var n=nz(v);return 'S$'+Math.round(n).toLocaleString();}
+
+  window.buildSearchIndex=function(){
+    var ix=[];
+    // Clients (CRM) — full detail modal
+    A(window.CLIENTS).forEach(function(c){
+      ix.push({type:'client',id:c.id,label:s(c.name),
+        subtitle:'Client · '+s(c.stage)+(c.contact?' · '+s(c.contact):'')+(c.mobile?' · '+s(c.mobile):''),
+        hay:low([c.name,c.contact,c.pic2,c.email,c.mobile,c.office,c.address,c.website,c.comment,c.stage,c.language,c.position].join(' ')),
+        nav:{tab:'crm',modal:{id:c.id,type:'crm'}}});
+    });
+    // Orders — full detail modal
+    A(window.ORDERS).forEach(function(o){
+      ix.push({type:'order',id:o.id,label:s(o.name),
+        subtitle:'Order · '+s(o.size)+' · '+nz(o.qty).toLocaleString()+' pcs'+(o.status?' · '+s(o.status):'')+(o.invoice?' · '+s(o.invoice):''),
+        hay:low([o.name,o.size,o.invoice,o.tracking,o.contact,o.mobile,o.address,o.status,o.payment,o.comment,o.loc,o.colour,o.qty].join(' ')),
+        nav:{tab:'orders',modal:{id:o.id,type:'orders'}}});
+    });
+    // Quotes (custom sizes & quotes) — land on Quotes tab, drive history search
+    A(window.QUOTES_RAW).forEach(function(q){
+      if(!q.company)return;
+      ix.push({type:'quote',label:s(q.company),
+        subtitle:'Quote · '+s(q.size)+(q.qty?' · '+nz(q.qty).toLocaleString()+' pcs':'')+(q.sell?' · '+money(q.sell):''),
+        hay:low([q.company,q.size,q.colour,q.qty,q.sell,q.quotedDate,q.validity].join(' ')),
+        nav:{tab:'quotes',box:{sel:'#hs-company',term:s(q.company)}}});
+    });
+    // Xero invoices — land on Xero tab, drive #xero-q
+    A(window.INVOICES).forEach(function(inv){
+      ix.push({type:'invoice',label:s(inv.company)||s(inv.invoice),
+        subtitle:'Invoice '+s(inv.invoice)+(inv.total?' · '+money(inv.total):'')+(inv.status?' · '+s(inv.status):''),
+        hay:low([inv.company,inv.invoice,inv.reference,inv.status,inv.email,inv.total].join(' ')),
+        nav:{tab:'xero',box:{sel:'#xero-q',term:s(inv.invoice)||s(inv.company)}}});
+    });
+    // BCRS portal pull (Auto Main) — land on BCRS Portal tab, drive #bcrsportal-q
+    A(window.AUTO_MAIN).forEach(function(r){
+      ix.push({type:'bcrs',label:s(r.company)||s(r.ref)||s(r.productName),
+        subtitle:'BCRS · '+(s(r.productName)||s(r.productCode)||'—')+(r.ref?' · '+s(r.ref):'')+(r.status?' · '+s(r.status):''),
+        hay:low([r.company,r.ref,r.orderId,r.producerId,r.productCode,r.productName,r.barcode,r.email,r.address,r.status,r.stickerSize].join(' ')),
+        nav:{tab:'bcrsportal',box:{sel:'#bcrsportal-q',term:s(r.ref)||s(r.company)||s(r.barcode)}}});
+    });
+    // Competitors — land on Competitors tab, drive the matching list search
+    [['sato',window.SATO_LIST,'#sato-q'],['jewel',window.JEWEL_LIST,'#jewel-q'],['honsen',window.HONSEN_LIST,'#honsen-q']].forEach(function(src){
+      A(src[1]).forEach(function(r){
+        if(!r.company)return;
+        ix.push({type:'competitor',label:s(r.company),
+          subtitle:'Competitor · '+src[0].charAt(0).toUpperCase()+src[0].slice(1)+(r.size?' · '+s(r.size):''),
+          hay:low([r.company,r.size,r.qty,src[0]].join(' ')),
+          nav:{tab:'competitors',box:{sel:src[2],term:s(r.company)}}});
+      });
+    });
+    GS.index=ix;GS.built=true;
+    if(GS.open)gsRun();
+  };
+
+  // ── matching ──────────────────────────────────────────────────
+  function scoreEntry(e,q,tokens){
+    var hay=e.hay,lbl=low(e.label);
+    if(GS.mode==='exact'){
+      if(hay.indexOf(q)<0)return -1;
+      return lbl.indexOf(q)>-1?1000-Math.min(lbl.indexOf(q),300):400;
+    }
+    // similar: all tokens present OR fuzzy-close label (typo tolerance)
+    var allIn=tokens.every(function(t){return hay.indexOf(t)>-1;});
+    var fm=0;try{if(window.fuzzyMatch)fm=fuzzyMatch(q,e.label);}catch(_){}
+    if(!allIn&&fm<0.45)return -1;
+    var sc=0;
+    if(hay.indexOf(q)>-1)sc+=200;
+    if(lbl.indexOf(q)>-1)sc+=400-Math.min(lbl.indexOf(q),300);
+    tokens.forEach(function(t){if(lbl.indexOf(t)>-1)sc+=60;else if(hay.indexOf(t)>-1)sc+=18;});
+    sc+=Math.round(fm*120);
+    return sc;
+  }
+
+  function gsRun(){
+    var raw=(document.getElementById('gs-input').value||'').trim();
+    var q=raw.toLowerCase();
+    var res=document.getElementById('gs-results');
+    var cnt=document.getElementById('gs-count');
+    if(!GS.built){try{buildSearchIndex();}catch(_){}}
+    if(!q){
+      GS.flat=[];GS.sel=0;
+      res.innerHTML='<div class="gs-empty">Type to search across <b>clients, orders, quotes, invoices, BCRS orders</b> and <b>competitors</b>.<br>'+GS.index.length.toLocaleString()+' records indexed.</div>';
+      cnt.textContent='';return;
+    }
+    var tokens=q.split(/\s+/).filter(Boolean);
+    var hits=[];
+    for(var i=0;i<GS.index.length;i++){
+      var sc=scoreEntry(GS.index[i],q,tokens);
+      if(sc>=0)hits.push({e:GS.index[i],sc:sc});
+    }
+    hits.sort(function(a,b){return b.sc-a.sc;});
+    // group by type, cap 6 per group, 40 total
+    var groups={},order=[],total=0;
+    for(var k=0;k<hits.length&&total<40;k++){
+      var t=hits[k].e.type;
+      if(!groups[t]){groups[t]=[];order.push(t);}
+      if(groups[t].length<6){groups[t].push(hits[k]);total++;}
+    }
+    if(!total){
+      GS.flat=[];GS.sel=0;
+      res.innerHTML='<div class="gs-empty">No matches for &ldquo;'+esc(raw)+'&rdquo;.'+(GS.mode==='exact'?'<br>Try <b>Similar</b> mode for fuzzier matching.':'')+'</div>';
+      cnt.textContent='0 results';return;
+    }
+    var html='',flat=[];
+    order.forEach(function(t){
+      var meta=TYPES[t]||{label:t,color:'#7a7a85'};
+      html+='<div class="gs-group-h"><span>'+meta.label+'</span><span>'+groups[t].length+'</span></div>';
+      groups[t].forEach(function(h){
+        var idx=flat.length;flat.push(h.e);
+        html+='<div class="gs-item" data-i="'+idx+'" onmousemove="gsHover('+idx+')" onclick="gsSelect('+idx+')">'
+          +'<span class="gs-badge" style="background:'+meta.color+'">'+meta.label+'</span>'
+          +'<span class="gs-txt"><div class="gs-lbl">'+hl(h.e.label,tokens)+'</div><div class="gs-sub">'+hl(h.e.subtitle,tokens)+'</div></span></div>';
+      });
+    });
+    GS.flat=flat;GS.sel=0;
+    res.innerHTML=html;
+    cnt.textContent=total+' result'+(total>1?'s':'')+(hits.length>total?' (top '+total+')':'');
+    paintSel();
+  }
+
+  function esc(str){return s(str).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function hl(str,tokens){
+    var out=esc(str);if(!tokens||!tokens.length)return out;
+    tokens.slice().sort(function(a,b){return b.length-a.length;}).forEach(function(t){
+      if(!t)return;var re=new RegExp('('+t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+      out=out.replace(re,'$1');
+    });
+    return out.split('').join('<mark>').split('').join('</mark>');
+  }
+
+  function paintSel(){
+    var items=document.querySelectorAll('#gs-results .gs-item');
+    items.forEach(function(el,i){el.classList.toggle('sel',i===GS.sel);});
+    var cur=items[GS.sel];if(cur)cur.scrollIntoView({block:'nearest'});
+  }
+  window.gsHover=function(i){GS.sel=i;paintSel();};
+
+  window.gsSelect=function(i){
+    var e=GS.flat[i];if(!e)return;
+    closeSearch();
+    var nav=e.nav;
+    var btn=document.querySelector('.tab[data-tab="'+nav.tab+'"]');
+    try{if(btn)goTab(nav.tab,btn);}catch(_){}
+    if(nav.modal){
+      setTimeout(function(){try{openModal(nav.modal.id,nav.modal.type);}catch(_){}} ,70);
+    }else if(nav.box){
+      setTimeout(function(){
+        var el=document.querySelector(nav.box.sel);
+        if(el){el.value=nav.box.term;el.dispatchEvent(new Event('input',{bubbles:true}));
+          try{el.scrollIntoView({block:'center'});}catch(_){}}
+      },90);
+    }
+  };
+
+  // ── open / close / mode ───────────────────────────────────────
+  window.openSearch=function(){
+    if(!GS.built){try{buildSearchIndex();}catch(_){}}
+    var ov=document.getElementById('gsearch-overlay');ov.classList.add('on');GS.open=true;
+    var inp=document.getElementById('gs-input');
+    gsRun();
+    setTimeout(function(){inp.focus();inp.select();},20);
+  };
+  window.closeSearch=function(){
+    document.getElementById('gsearch-overlay').classList.remove('on');GS.open=false;
+  };
+  window.setSearchMode=function(m){
+    GS.mode=m;
+    try{localStorage.setItem('aygops-search-mode',m);}catch(_){}
+    document.getElementById('gs-mode-similar').classList.toggle('on',m==='similar');
+    document.getElementById('gs-mode-exact').classList.toggle('on',m==='exact');
+    if(GS.open)gsRun();
+  };
+
+  // ── wiring ────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded',function(){
+    var m='similar';try{m=localStorage.getItem('aygops-search-mode')||'similar';}catch(_){}
+    setSearchMode(m);
+    var inp=document.getElementById('gs-input');
+    if(inp){
+      inp.addEventListener('input',gsRun);
+      inp.addEventListener('keydown',function(ev){
+        if(ev.key==='ArrowDown'){ev.preventDefault();if(GS.flat.length){GS.sel=(GS.sel+1)%GS.flat.length;paintSel();}}
+        else if(ev.key==='ArrowUp'){ev.preventDefault();if(GS.flat.length){GS.sel=(GS.sel-1+GS.flat.length)%GS.flat.length;paintSel();}}
+        else if(ev.key==='Enter'){ev.preventDefault();if(GS.flat.length)gsSelect(GS.sel);}
+        else if(ev.key==='Escape'){ev.preventDefault();closeSearch();}
+      });
+    }
+  });
+  // Global shortcuts: "/" opens, Cmd/Ctrl-K toggles, Esc closes
+  document.addEventListener('keydown',function(ev){
+    var t=ev.target,tag=(t&&t.tagName||'').toLowerCase();
+    var typing=tag==='input'||tag==='textarea'||tag==='select'||(t&&t.isContentEditable);
+    if((ev.metaKey||ev.ctrlKey)&&(ev.key==='k'||ev.key==='K')){ev.preventDefault();GS.open?closeSearch():openSearch();return;}
+    if(ev.key==='/'&&!typing&&!GS.open){ev.preventDefault();openSearch();return;}
+    if(ev.key==='Escape'&&GS.open){closeSearch();}
+  });
+  // Rebuild the index whenever the app re-renders after a data sync.
+  if(typeof window.renderAll==='function'){
+    var _ra=window.renderAll;
+    window.renderAll=function(){var r=_ra.apply(this,arguments);try{buildSearchIndex();}catch(_){}return r;};
+  }
+})();
 </script>
 </body>
 </html>
