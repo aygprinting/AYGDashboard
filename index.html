@@ -7674,13 +7674,9 @@ if('serviceWorker' in navigator){
         hay:low([o.name,o.size,o.invoice,o.tracking,o.contact,o.mobile,o.address,o.status,o.payment,o.comment,o.loc,o.colour,o.qty].join(' ')),
         nav:{tab:'orders',modal:{id:o.id,type:'orders'}}});
     });
-    A(window.QUOTES_RAW).forEach(function(q){
-      if(!q.company)return;
-      ix.push({type:'quote',label:s(q.company),
-        sub:function(){return typeName('quote')+' · '+s(q.size)+(q.qty?' · '+pcs(q.qty):'')+(q.sell?' · '+money(q.sell):'');},
-        hay:low([q.company,q.size,q.colour,q.qty,q.sell,q.quotedDate,q.validity].join(' ')),
-        nav:{tab:'quotes',box:{sel:'#hs-company',term:s(q.company)}}});
-    });
+    // (Individual quote lines are folded into the per-company "Quote History" entries
+    // below — they used to form a separate "Quote" group, but ORDER_HIST derives from
+    // the same quotes + orders, so every company appeared twice.)
     A(window.INVOICES).forEach(function(inv){
       ix.push({type:'invoice',label:s(inv.company)||s(inv.invoice),
         sub:function(){return typeName('invoice')+' '+s(inv.invoice)+(inv.total?' · '+money(inv.total):'')+(inv.status?' · '+s(inv.status):'');},
@@ -7708,18 +7704,26 @@ if('serviceWorker' in navigator){
         hay:low([c.company,c.contact,c.jobEn,c.jobZh,c.stageEn,c.stageZh,c.sumEn,c.sumZh,c.histEn,c.histZh].join(' ')),
         nav:{tab:'clients',call:{fn:'selectClient',arg:s(c.company),scroll:'#cl-sec-company'}}});
     });
-    // Order/Quote History → one entry per company, drives the history search box
+    // Quote History → ONE entry per company, merging ORDER_HIST (orders + quotes) with
+    // the individual QUOTES_RAW lines. Each quote's size/qty/price/date is folded into
+    // the entry's search text so specific searches ("lubritrade 150x40") still match.
     var histBy={};
+    function qhEnt(co){var hk=co.toLowerCase();if(!histBy[hk])histBy[hk]={company:co,n:0,q:0,sizes:{},extra:[]};return histBy[hk];}
     A(window.ORDER_HIST).forEach(function(h){
-      var co=s(h.company);if(!co)return;var hk=co.toLowerCase();
-      if(!histBy[hk])histBy[hk]={company:co,n:0,sizes:{}};
-      histBy[hk].n++;if(h.size)histBy[hk].sizes[s(h.size)]=1;
+      var co=s(h.company);if(!co)return;var g=qhEnt(co);
+      g.n++;if(h.size)g.sizes[s(h.size)]=1;
+    });
+    A(window.QUOTES_RAW).forEach(function(q){
+      var co=s(q.company);if(!co)return;var g=qhEnt(co);
+      g.q++;if(q.size)g.sizes[s(q.size)]=1;
+      g.extra.push(low([q.size,q.colour,q.qty,q.sell,q.quotedDate,q.validity].join(' ')));
     });
     Object.keys(histBy).forEach(function(hk){
       var g=histBy[hk];var szList=Object.keys(g.sizes).slice(0,4).join(', ');
+      var n=g.n||g.q;
       ix.push({type:'history',label:g.company,
-        sub:function(){return typeName('history')+' · '+g.n+' '+TT('gsHistRecs','records')+(szList?' · '+szList:'');},
-        hay:low([g.company,Object.keys(g.sizes).join(' ')].join(' ')),
+        sub:function(){return typeName('history')+' · '+n+' '+TT('gsHistRecs','records')+(szList?' · '+szList:'');},
+        hay:low([g.company,Object.keys(g.sizes).join(' ')].join(' '))+' '+g.extra.join(' '),
         nav:{tab:'quotes',box:{sel:'#hs-company',term:g.company,expand:'#qt-search'}}});
     });
     GS.index=ix;GS.built=true;
