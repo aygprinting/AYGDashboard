@@ -1092,7 +1092,18 @@ html,body{overscroll-behavior-y:contain}
       <div id="lq-match-results"></div>
     </div>
     <div class="qres" id="qe-ppc-box" style="display:none;margin-top:11px">
-      <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" id="qe-ppc-hd" data-tx="supplierBenchmarkHd">Supplier Price Benchmark (RMB)</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="font-size:11px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em" id="qe-ppc-hd" data-tx="supplierBenchmarkHd">Supplier Price Benchmark (RMB)</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <label style="font-size:10px;color:var(--m)" data-tx="colour">Colour</label>
+          <select id="qe-ppc-colour" onchange="renderQePpcPanel()" style="font-size:11px;padding:3px 6px;background:var(--s2);border:1px solid var(--b2);border-radius:6px;color:var(--t)">
+            <option value="auto" data-tx="ppcColourAuto">Auto (match job)</option>
+            <option value="all" data-tx="allColoursOpt">All colours</option>
+            <option value="b" data-tx="black">1C Black</option>
+            <option value="c" data-tx="colourOpt">Colour</option>
+          </select>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1.35fr;gap:11px;align-items:start">
         <div id="qe-ppc-scatter" style="min-width:0"></div>
         <div style="min-width:0">
@@ -5090,7 +5101,8 @@ function renderQePpcPanel(skipTable){
   var sku=parseInt(qrEl.dataset.sku)||1;
   var colourCode=qrEl.dataset.colour||'b';
   var qps=sku>0?Math.round(totalQty/sku):totalQty;
-  var colourFilter=colourCode==='c'?'Colour':'1C Black';
+  var covr=(document.getElementById('qe-ppc-colour')||{}).value||'auto';
+  var colourFilter=covr==='all'?null:(covr==='b'?'1C Black':(covr==='c'?'Colour':(colourCode==='c'?'Colour':'1C Black')));
   var jobW=parseFloat(qrEl.dataset.w)||0,jobH=parseFloat(qrEl.dataset.h)||0;
 
   var hd=document.getElementById('qe-ppc-hd');
@@ -6047,10 +6059,22 @@ function buildContactCheck(){
     x=x.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
     return x.replace(/[^a-z0-9]/g,'');
   }
+  // Every identity hidden inside a CRM name: the parent name PLUS each "(trading name)"
+  // and each "; alias" suffix, so an invoice billed to a trading name (e.g. "Shun Yue Hong"
+  // filed under "APAC Food Pte. Ltd. (Shun Yue Hong)") still resolves to its client.
+  function _invKeys(name){
+    var raw=String(name||'');
+    var parts=[raw.replace(/\([^)]*\)/g,' ')];                          // primary parent name
+    (raw.match(/\(([^)]*)\)/g)||[]).forEach(function(p){parts.push(p.replace(/[()]/g,''));}); // parentheticals
+    raw.split(';').slice(1).forEach(function(p){parts.push(p);});        // "; alias" suffixes
+    var keys={};
+    parts.forEach(function(p){var k=_normInv(p);if(k&&k.length>=4)keys[k]=1;});
+    return Object.keys(keys);
+  }
   var invMismatch=[];
   if(INVOICES&&INVOICES.length&&CLIENTS&&CLIENTS.length){
     var crmIdx={};
-    CLIENTS.forEach(function(cl){crmIdx[_normInv(cl.name)]=cl;});
+    CLIENTS.forEach(function(cl){_invKeys(cl.name).forEach(function(k){if(!crmIdx[k])crmIdx[k]=cl;});});
     var invSeen={};
     xeroUnpaid().forEach(function(v){
       var k=_normInv(v.company);if(invSeen[k])return;invSeen[k]=1;
@@ -7419,11 +7443,11 @@ function runHistSearch(){
     }
     var rmbCostTxt=o.pricePerPcRmb?'\u00a5'+o.pricePerPcRmb.toFixed(4):'\u2014';
     html+='<tr class="'+(showDiff&&Math.abs(o.area-areaFilter)<200?'hn':'')+'"><td>'+o.company+'</td><td style="font-family:\'JetBrains Mono\',monospace;color:var(--tel)">'+rmbCostTxt+'</td><td style="white-space:nowrap">'+o.size+'<br><span class="had">'+o.area.toLocaleString()+'mm\u00b2</span></td>'+diffCell
-      +'<td>'+o.qty.toLocaleString()+'</td><td>'+o.sku+'</td>'
+      +'<td>'+((o.qty||0).toLocaleString())+'</td><td>'+(o.sku||'—')+'</td>'
       +'<td style="font-family:\'JetBrains Mono\',monospace;color:var(--amb)">'+qps.toLocaleString()+'</td>'
       +'<td style="color:var(--pur);font-size:11px;white-space:nowrap">'+(normCol(o.colour)==='c'?TX.colourOpt:TX.black)+'</td>'
-      +'<td style="font-family:\'JetBrains Mono\',monospace">S$'+o.sell.toLocaleString()+'</td>'
-      +'<td class="hpp">S$'+o.ppp.toFixed(5)+'</td>'
+      +'<td style="font-family:\'JetBrains Mono\',monospace">S$'+((o.sell||0).toLocaleString())+'</td>'
+      +'<td class="hpp">'+(o.ppp!=null?'S$'+o.ppp.toFixed(5):'—')+'</td>'
       +'<td style="font-family:\'JetBrains Mono\',monospace;color:var(--grn)">'+(o.profit?'S$'+Math.round(o.profit).toLocaleString():'\u2014')+'</td>'
       +'<td style="font-family:\'JetBrains Mono\',monospace;color:var(--grn)">'+(o.marginPct?o.marginPct.toFixed(1)+'%':'\u2014')+'</td>'
       +'<td style="font-family:\'JetBrains Mono\',monospace">'+(o.shipDocs?'S$'+Math.round(o.shipDocs).toLocaleString():'\u2014')+'</td>'
@@ -7548,8 +7572,8 @@ if('serviceWorker' in navigator){
     gsOldHint:'Old BCRS history isn’t synced — open BCRS Order Portal Pull and tap “Sync old history” to include it.',
     gsUpdateHint:'Client Update isn’t synced — open Clients Update and tap “Sync Clients” to include pipeline notes.',
     gsHistHint:'Order/quote history isn’t loaded yet — run the main sync to include it.',
-    gsPcs:'pcs', gsOld:'old', gsHistRecs:'records',
-    countryVN:'Vietnam',
+    gsPcs:'pcs', gsOld:'old', gsHistRecs:'records', gsSyncBtn:'Sync',
+    countryVN:'Vietnam', ppcColourAuto:'Auto (match job)',
     gsType_client:'Client', gsType_order:'Order', gsType_quote:'Quote',
     gsType_invoice:'Invoice', gsType_bcrs:'BCRS', gsType_competitor:'Competitor',
     gsType_update:'Client Update', gsType_history:'History'
@@ -7566,8 +7590,8 @@ if('serviceWorker' in navigator){
     gsOldHint:'旧 BCRS 历史尚未同步 — 打开“BCRS 订单门户拉取”并点击“同步旧历史”以纳入搜索。',
     gsUpdateHint:'客户更新尚未同步 — 打开“客户更新”并点击“同步客户”以纳入管道备注。',
     gsHistHint:'订单/报价历史尚未加载 — 运行主同步以纳入。',
-    gsPcs:'件', gsOld:'旧', gsHistRecs:'条',
-    countryVN:'越南',
+    gsPcs:'件', gsOld:'旧', gsHistRecs:'条', gsSyncBtn:'同步',
+    countryVN:'越南', ppcColourAuto:'自动（匹配作业）',
     gsType_client:'客户', gsType_order:'订单', gsType_quote:'报价',
     gsType_invoice:'发票', gsType_bcrs:'BCRS', gsType_competitor:'竞争对手',
     gsType_update:'客户更新', gsType_history:'历史'
@@ -7647,7 +7671,7 @@ if('serviceWorker' in navigator){
       ix.push({type:'history',label:g.company,
         sub:function(){return typeName('history')+' · '+g.n+' '+TT('gsHistRecs','records')+(szList?' · '+szList:'');},
         hay:low([g.company,Object.keys(g.sizes).join(' ')].join(' ')),
-        nav:{tab:'quotes',box:{sel:'#hs-company',term:g.company}}});
+        nav:{tab:'quotes',box:{sel:'#hs-company',term:g.company,expand:'#qt-search'}}});
     });
     GS.index=ix;GS.built=true;
     if(GS.open)gsRun();
@@ -7687,13 +7711,18 @@ if('serviceWorker' in navigator){
     var cnt=document.getElementById('gs-count');
     var lang=window.lang||'en';
     if(!GS.built){try{buildSearchIndex();}catch(_){}}
-    // "Not synced" advisories — shown after every search so incomplete coverage is obvious.
-    function hintLine(t){return t?'<div style="margin:8px 6px 0;color:var(--amb);font-size:11px;line-height:1.5;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:7px 10px">'+esc(t)+'</div>':'';}
+    // "Not synced" advisories — each with a Sync button that pulls that dataset on demand.
+    function hintRow(t,kind){
+      if(!t)return '';
+      return '<div style="margin:8px 6px 0;display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:7px 10px">'
+        +'<span style="flex:1;min-width:0;color:var(--amb);font-size:11px;line-height:1.5">'+esc(t)+'</span>'
+        +'<button onclick="gsSync(\''+kind+'\')" style="flex-shrink:0;background:var(--grn);border:none;border-radius:6px;color:#0c0c0e;font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer">'+esc(TT('gsSyncBtn','Sync'))+'</button></div>';
+    }
     function syncHints(){
       var h='';
-      if(!A(window.OLD_AUTO_MAIN).length)h+=hintLine(TT('gsOldHint',''));
-      if(!A(window.CLIENTS_PIPE).length)h+=hintLine(TT('gsUpdateHint',''));
-      if(!A(window.ORDER_HIST).length)h+=hintLine(TT('gsHistHint',''));
+      if(!A(window.OLD_AUTO_MAIN).length)h+=hintRow(TT('gsOldHint',''),'old');
+      if(!A(window.CLIENTS_PIPE).length)h+=hintRow(TT('gsUpdateHint',''),'update');
+      if(!A(window.ORDER_HIST).length)h+=hintRow(TT('gsHistHint',''),'hist');
       return h;
     }
     var oldHint=syncHints();
@@ -7784,6 +7813,17 @@ if('serviceWorker' in navigator){
   };
   window.closeSearch=function(){
     document.getElementById('gsearch-overlay').classList.remove('on');GS.open=false;
+  };
+  // Triggered by the Sync buttons in the search advisories. Closes the overlay and
+  // runs the relevant on-demand sync (each handles its own login + tab re-render;
+  // the index rebuilds automatically via the render wrappers below).
+  window.gsSync=function(kind){
+    closeSearch();
+    try{
+      if(kind==='update'&&typeof syncClientsUpdate==='function')syncClientsUpdate();
+      else if(kind==='old'&&typeof syncOldAutoMain==='function')syncOldAutoMain();
+      else if(kind==='hist'&&typeof syncOverviewAll==='function')syncOverviewAll();
+    }catch(_){}
   };
   window.setSearchMode=function(m){
     GS.mode=m;
