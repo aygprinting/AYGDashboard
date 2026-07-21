@@ -7572,7 +7572,7 @@ if('serviceWorker' in navigator){
     gsOldHint:'Old BCRS history isn’t synced — open BCRS Order Portal Pull and tap “Sync old history” to include it.',
     gsUpdateHint:'Client Update isn’t synced — open Clients Update and tap “Sync Clients” to include pipeline notes.',
     gsHistHint:'Order/quote history isn’t loaded yet — run the main sync to include it.',
-    gsPcs:'pcs', gsOld:'old', gsHistRecs:'records', gsSyncBtn:'Sync',
+    gsPcs:'pcs', gsOld:'old', gsHistRecs:'records', gsSyncBtn:'Sync', gsSyncing:'Syncing…',
     countryVN:'Vietnam', ppcColourAuto:'Auto (match job)',
     gsType_client:'Client', gsType_order:'Order', gsType_quote:'Quote',
     gsType_invoice:'Invoice', gsType_bcrs:'BCRS', gsType_competitor:'Competitor',
@@ -7590,7 +7590,7 @@ if('serviceWorker' in navigator){
     gsOldHint:'旧 BCRS 历史尚未同步 — 打开“BCRS 订单门户拉取”并点击“同步旧历史”以纳入搜索。',
     gsUpdateHint:'客户更新尚未同步 — 打开“客户更新”并点击“同步客户”以纳入管道备注。',
     gsHistHint:'订单/报价历史尚未加载 — 运行主同步以纳入。',
-    gsPcs:'件', gsOld:'旧', gsHistRecs:'条', gsSyncBtn:'同步',
+    gsPcs:'件', gsOld:'旧', gsHistRecs:'条', gsSyncBtn:'同步', gsSyncing:'同步中…',
     countryVN:'越南', ppcColourAuto:'自动（匹配作业）',
     gsType_client:'客户', gsType_order:'订单', gsType_quote:'报价',
     gsType_invoice:'发票', gsType_bcrs:'BCRS', gsType_competitor:'竞争对手',
@@ -7657,7 +7657,7 @@ if('serviceWorker' in navigator){
       ix.push({type:'update',label:s(c.company),
         sub:function(){return typeName('update')+(c.stageEn?' · '+s(c.stageEn):'')+((c.sumEn||c.jobEn)?' · '+s(c.sumEn||c.jobEn):'');},
         hay:low([c.company,c.contact,c.jobEn,c.jobZh,c.stageEn,c.stageZh,c.sumEn,c.sumZh,c.histEn,c.histZh].join(' ')),
-        nav:{tab:'clients'}});
+        nav:{tab:'clients',call:{fn:'selectClient',arg:s(c.company),scroll:'#cl-sec-company'}}});
     });
     // Order/Quote History → one entry per company, drives the history search box
     var histBy={};
@@ -7716,7 +7716,7 @@ if('serviceWorker' in navigator){
       if(!t)return '';
       return '<div style="margin:8px 6px 0;display:flex;align-items:center;gap:8px;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:7px 10px">'
         +'<span style="flex:1;min-width:0;color:var(--amb);font-size:11px;line-height:1.5">'+esc(t)+'</span>'
-        +'<button onclick="gsSync(\''+kind+'\')" style="flex-shrink:0;background:var(--grn);border:none;border-radius:6px;color:#0c0c0e;font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer">'+esc(TT('gsSyncBtn','Sync'))+'</button></div>';
+        +'<button onclick="gsSync(\''+kind+'\',this)" style="flex-shrink:0;background:var(--grn);border:none;border-radius:6px;color:#0c0c0e;font-size:11px;font-weight:600;padding:5px 12px;cursor:pointer">'+esc(TT('gsSyncBtn','Sync'))+'</button></div>';
     }
     function syncHints(){
       var h='';
@@ -7801,6 +7801,13 @@ if('serviceWorker' in navigator){
         if(el){el.value=nav.box.term;el.dispatchEvent(new Event('input',{bubbles:true}));
           try{el.scrollIntoView({block:'center'});}catch(_){}}
       },90);
+    }else if(nav.call){
+      // Invoke a page function after navigating (e.g. selectClient to open a specific
+      // client's card on the Clients Update tab), then scroll it into view.
+      setTimeout(function(){
+        try{if(typeof window[nav.call.fn]==='function')window[nav.call.fn](nav.call.arg);}catch(_){}
+        if(nav.call.scroll){try{var t=document.querySelector(nav.call.scroll);if(t)t.scrollIntoView({block:'center'});}catch(_){}}
+      },90);
     }
   };
 
@@ -7817,8 +7824,11 @@ if('serviceWorker' in navigator){
   // Triggered by the Sync buttons in the search advisories. Closes the overlay and
   // runs the relevant on-demand sync (each handles its own login + tab re-render;
   // the index rebuilds automatically via the render wrappers below).
-  window.gsSync=function(kind){
-    closeSearch();
+  window.gsSync=function(kind,btn){
+    // Stay in the search overlay — the sync runs in the background and, on completion,
+    // the render wrappers rebuild the index which re-runs gsRun() (overlay is open),
+    // refreshing these advisories automatically.
+    if(btn){btn.disabled=true;btn.textContent=TT('gsSyncing','Syncing…');}
     try{
       if(kind==='update'&&typeof syncClientsUpdate==='function')syncClientsUpdate();
       else if(kind==='old'&&typeof syncOldAutoMain==='function')syncOldAutoMain();
