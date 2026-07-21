@@ -1557,7 +1557,7 @@ var NEWCUST_WEEKLY=[];    // "New & Active Customers — Weekly" block: {vendor,
 var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
-var BUILD='20260720-WA1'; // single source of truth for the build/version stamp (Old-Main History release)
+var BUILD='20260720-WA2'; // single source of truth for the build/version stamp (Old-Main History release)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6191,6 +6191,14 @@ function fmtSyncedAt(d){
   if(!d)return '';
   try{return d.toLocaleString(lang==='zh'?'zh-CN':'en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return d.toString();}
 }
+function srcChip(source){
+  // Text chips instead of emoji (emoji glyphs are unreliable across devices/themes).
+  if(!source)return '';
+  var mk=function(txt,c){return '<span style="font-size:8.5px;font-weight:700;letter-spacing:.4px;padding:1px 6px;border-radius:8px;background:'+c+'22;color:'+c+';border:1px solid '+c+'55;text-transform:uppercase">'+txt+'</span>';};
+  if(source==='both')return mk('Email','var(--blu)')+mk('WhatsApp','#25D366');
+  if(source==='whatsapp')return mk('WhatsApp','#25D366');
+  return mk('Email','var(--blu)');
+}
 function renderClientsUpdate(){
   var sections=document.getElementById('clients-sections');
   var emptyBox=document.getElementById('clients-empty');
@@ -6212,8 +6220,8 @@ function renderClientsUpdate(){
   function put(id,html){var el=document.getElementById(id);if(el)el.innerHTML=html;}
   if(stat){
     var covBits=[];
-    if(CLIENTS_SRC_EMAIL_TO)covBits.push('\ud83d\udce7 \u2192 '+CLIENTS_SRC_EMAIL_TO);
-    if(CLIENTS_SRC_WA_TO)covBits.push('\ud83d\udcac \u2192 '+CLIENTS_SRC_WA_TO);
+    if(CLIENTS_SRC_EMAIL_TO)covBits.push((zh?'\u90ae\u4ef6\u6570\u636e\u81f3':'Email data to')+' '+CLIENTS_SRC_EMAIL_TO);
+    if(CLIENTS_SRC_WA_TO)covBits.push((zh?'WhatsApp\u6570\u636e\u81f3':'WhatsApp data to')+' '+CLIENTS_SRC_WA_TO);
     stat.textContent=TX.lastSyncedLbl+' '+fmtSyncedAt(CLIENTS_SYNCED_AT)+(covBits.length?(' \u00b7 '+covBits.join(' \u00b7 ')):'');
   }
   var dayCards=CLIENTS_DAILY.map(function(d){
@@ -6230,7 +6238,7 @@ function renderClientsUpdate(){
           +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:2px">'
             +'<span style="font-size:12px;font-weight:600;color:var(--t);cursor:pointer" onclick="selectClient(\''+it.company.replace(/'/g,"\\'")+'\')">'+it.company+'</span>'
             +'<span style="font-size:9px;font-weight:600;padding:1px 7px;border-radius:9px;background:'+col+'22;color:'+col+'">'+stg+'</span>'
-            +(it.source?'<span title="'+(it.source==='both'?'Email + WhatsApp':(it.source==='whatsapp'?'WhatsApp':'Email'))+'" style="font-size:10px;line-height:1">'+(it.source==='both'?'\ud83d\udce7\ud83d\udcac':(it.source==='whatsapp'?'\ud83d\udcac':'\ud83d\udce7'))+'</span>':'')
+            +srcChip(it.source)
           +'</div>'
           +'<div style="font-size:11px;color:var(--m);line-height:1.5">'+upd+'</div>'
         +'</div>';
@@ -6254,6 +6262,8 @@ function renderClientsUpdate(){
     var rows=parts.map(function(p,i){
       var m=p.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[:\-]?\s*([\s\S]*)$/);
       var date=m?m[1]:'';var text=m?m[2]:p;
+      // Pipeline marks WhatsApp-derived events with a leading emoji; swap it for a readable chip.
+      text=text.replace(/\ud83d\udcac\s*/g,'<span style="font-size:8px;font-weight:700;letter-spacing:.3px;padding:0 5px;border-radius:7px;background:#25D36622;color:#25D366;border:1px solid #25D36655;margin-right:4px;vertical-align:1px">WA</span>');
       return '<div style="display:flex;gap:8px;padding:3px 0;font-size:11px;line-height:1.55;'+(i?'border-top:1px solid var(--b)':'')+'">'
           +(date?'<span style="color:var(--blu);font-weight:700;white-space:nowrap;flex-shrink:0">'+date+'</span>':'')
           +'<span style="color:var(--t);min-width:0">'+text+'</span>'
@@ -6288,8 +6298,8 @@ function renderClientsUpdate(){
         +'</div>'
         +'<div style="font-size:11px;color:var(--m)">'+(sel.contact?('\ud83d\udcc7 '+sel.contact+' \u00b7 '):'')+(job||'')+'</div>'
         +'<div style="font-size:10px;color:var(--dim);margin-top:2px">'+TX.lastActivityLbl+': '+(sel.last||'\u2014')
-          +(sel.waLast?(' \u00b7 \ud83d\udcac '+(zh?'\u6700\u540e\u6d88\u606f':'last msg')+': '+sel.waLast):'')
-          +(sel.waClientLast?(' \u00b7 \ud83d\udcac '+(zh?'\u5ba2\u6237\u6700\u540e\u6d88\u606f':'client last')+': '+sel.waClientLast):'')+'</div>'
+          +(sel.waLast?(' \u00b7 '+(zh?'WhatsApp\u6700\u540e\u6d88\u606f':'WhatsApp last msg')+': '+sel.waLast):'')
+          +(sel.waClientLast?(' \u00b7 '+(zh?'\u5ba2\u6237\u6700\u540e\u6d88\u606f':'client last msg')+': '+sel.waClientLast):'')+'</div>'
         +'</div>'
         +'<div class="clients-reader-grid">'
           +'<div class="clients-reader-col"><div class="clients-reader-hd">'+(TX.summaryHd||'Summary')+'</div><div class="clients-reader-txt">'+(sum||'\u2014').replace(/\n/g,'<br>')+'</div></div>'
