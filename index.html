@@ -1651,6 +1651,22 @@ var CLIENTS_PIPE=[];       // Customers sheet → per-company summary/history
 var SUPPLIERS_PIPE=[];     // Suppliers & Others sheet → same structure
 var CLIENTS_DAILY=[];      // last-7-days daily update tabs
 var CLIENTS_SRC_EMAIL_TO='',CLIENTS_SRC_WA_TO=''; // per-source data-coverage stamps (parsed from Pipeline Overview note)
+// Decide a daily update's channel. The pipeline's dedicated "Source" column is unreliable
+// (older/email-only runs stamp every row "📧 Email" even when the update came from WhatsApp),
+// so the authoritative signal is the update text itself: WhatsApp updates are prefixed
+// "WhatsApp:" (or 💬 / "(WA)"). Source column is used only as a secondary hint.
+function deriveChannel(srcCell,en,zh){
+  var s=String(srcCell||'').toLowerCase(),enS=String(en||''),zhS=String(zh||'');
+  if(s.indexOf('both')>-1)return 'both';                 // explicit Source="both" (future-proof)
+  var wa=s.indexOf('whatsapp')>-1||s.indexOf('💬')>-1
+      ||/^\s*(?:💬\s*)?whatsapp\s*[:：]/i.test(enS)
+      ||/^\s*whatsapp\s*[:：]/i.test(zhS)
+      ||/^\s*\(wa\)\s*[:：]?/i.test(enS);
+  var emPrefix=/^\s*(?:📧\s*)?email\s*[:：]/i.test(enS)||/^\s*email\s*[:：]/i.test(zhS);
+  if(wa&&emPrefix)return 'both';
+  if(wa)return 'whatsapp';
+  return 'email';
+}
 var CLIENTS_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-clients-synced-at');return s?new Date(s):null;}catch(e){return null;}})(); // separate timestamp for this section
 var clientsSel=null;       // currently selected company for the reader
 var clientsSearch='';      // free-text filter for the company reader
@@ -2308,14 +2324,26 @@ function parseClientsPipeline(buf){
     rows.slice(1).forEach(function(r){
       var co=cvp(r[0]);if(!co)return;
       if(co.indexOf('No updates')===0||co.indexOf('\u65e0\u66f4\u65b0')>=0){items.push({none:true});return;}
-      var srcRaw=hasSrc?cvp(r[3]).toLowerCase():'';
-      var srcTag=srcRaw.indexOf('both')>-1?'both':(srcRaw.indexOf('whatsapp')>-1?'whatsapp':(srcRaw?'email':''));
-      items.push({company:co,stageEn:cvp(r[1]),stageZh:cvp(r[2]),source:srcTag,updEn:cvp(r[hasSrc?4:3]),updZh:cvp(r[hasSrc?5:4])});
+      var updEnRaw=cvp(r[hasSrc?4:3]),updZhRaw=cvp(r[hasSrc?5:4]);
+      var srcTag=deriveChannel(hasSrc?cvp(r[3]):'',updEnRaw,updZhRaw);
+      items.push({company:co,stageEn:cvp(r[1]),stageZh:cvp(r[2]),source:srcTag,updEn:updEnRaw,updZh:updZhRaw});
     });
     CLIENTS_DAILY.push({key:key,date:dateObj,label:dd+'/'+mm+'/'+yy,items:items});
   });
   CLIENTS_DAILY.sort(function(a,b){return b.date-a.date;});
   CLIENTS_DAILY=CLIENTS_DAILY.slice(0,14); // last 14 days (shown as two rows of 7)
+  // If the Overview note didn't record a WhatsApp coverage date (email-only pipeline runs
+  // write "WhatsApp not included") but WhatsApp updates are actually present in the daily
+  // tabs, derive "WhatsApp data to" from the newest day carrying a WhatsApp/both update.
+  if(!CLIENTS_SRC_WA_TO){
+    for(var _wi=0;_wi<CLIENTS_DAILY.length;_wi++){
+      if(CLIENTS_DAILY[_wi].items.some(function(it){return it.source==='whatsapp'||it.source==='both';})){
+        var _d=CLIENTS_DAILY[_wi].date;
+        CLIENTS_SRC_WA_TO=_d.getFullYear()+'-'+('0'+(_d.getMonth()+1)).slice(-2)+'-'+('0'+_d.getDate()).slice(-2);
+        break;
+      }
+    }
+  }
 }
 
 // ── Access-level enforcement ─────────────────────────────────────────────────
@@ -6315,7 +6343,8 @@ function renderClientsUpdate(){
       var m=p.match(/^(\d{1,2}\/\d{1,2}\/\d{2,4})\s*[:\-]?\s*([\s\S]*)$/);
       var date=m?m[1]:'';var text=m?m[2]:p;
       // Pipeline marks WhatsApp-derived events with a leading emoji; swap it for a readable chip.
-      text=text.replace(/\ud83d\udcac\s*/g,'<span style="font-size:8px;font-weight:700;letter-spacing:.3px;padding:0 5px;border-radius:7px;background:#25D36622;color:#25D366;border:1px solid #25D36655;margin-right:4px;vertical-align:1px">WA</span>');
+      var _waChip='<span style="font-size:8px;font-weight:700;letter-spacing:.3px;padding:0 5px;border-radius:7px;background:#25D36622;color:#25D366;border:1px solid #25D36655;margin-right:4px;vertical-align:1px">WA</span>';
+      text=text.replace(/\ud83d\udcac\s*/g,_waChip).replace(/\((?:WA|wa)\)\s*/g,_waChip);
       return '<div style="display:flex;gap:8px;padding:3px 0;font-size:11px;line-height:1.55;'+(i?'border-top:1px solid var(--b)':'')+'">'
           +(date?'<span style="color:var(--blu);font-weight:700;white-space:nowrap;flex-shrink:0">'+date+'</span>':'')
           +'<span style="color:var(--t);min-width:0">'+text+'</span>'
