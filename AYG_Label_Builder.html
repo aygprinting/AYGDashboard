@@ -701,6 +701,7 @@ function textNeededH(b){const bw=Math.max(1,b.box[2]-1);const lg=b.lineGap||1.25
 // The user's own height (set by dragging the handle) is respected as a minimum — we never
 // shrink it — so manual resizing still works and an empty box doesn't collapse to a sliver.
 function autoGrowText(b){if(b.type!=="text")return;
+  if(b._mh)return;                                     // height set by hand — leave it alone
   const need=textNeededH(b)+1.0;                       // content height + small padding
   if((b.box[3]||0) < need-0.05) b.box[3]=+need.toFixed(2);   // grow only; never shrink
 }
@@ -715,10 +716,14 @@ function fitNutSize(b){let s=b.size||1.5;const W=Math.max(1,b.box[2]);for(let k=
 // clamped to the label; if the table still can't fit the available width, the font caps to fit it.
 function autoGrowNut(b){if(b.type!=="nutrition_table")return;
   const s0=b.size||1.5, margin=0.5, maxW=Math.max(4,(state.size.w-b.box[0]-margin));
-  const wantW=Math.min(maxW, nutNeedW(b,s0)*1.02);          // width the set font needs (capped to label)
-  if((b.box[2]||0)<wantW-0.05)b.box[2]=+wantW.toFixed(2);
-  const s=fitNutSize(b), needH=nutNeedH(b,s)+0.1;           // font that fits the box width, then fit height
-  if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);}
+  if(!b._mw){                                                // width not pinned by hand
+    const wantW=Math.min(maxW, nutNeedW(b,s0)*1.02);         // width the set font needs (capped to label)
+    if((b.box[2]||0)<wantW-0.05)b.box[2]=+wantW.toFixed(2);
+  }
+  if(!b._mh){                                                // height not pinned by hand
+    const s=fitNutSize(b), needH=nutNeedH(b,s)+0.1;          // font that fits the box width, then fit height
+    if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);
+  }}
 function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
 // Title sizing (hybrid, like text + nutrition table): the font renders at the size you set and the
 // box GROWS to fit — rightward first, then leftward once it hits the label edge (so a top-right
@@ -727,18 +732,20 @@ function autoGrowTitle(b){if(b.type!=="title")return;
   const s=b.size||3.5,lines=b.lines||[],margin=0.5;
   const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);
   const wantW=Math.min(widest+1.4, state.size.w-2*margin);
-  if((b.box[2]||0)<wantW-0.05){
+  if(!b._mw && (b.box[2]||0)<wantW-0.05){                    // width not pinned by hand
     let x=b.box[0];const maxRight=state.size.w-margin;
     if(x+wantW>maxRight)x=Math.max(margin,maxRight-wantW);   // slide left instead of clipping
     b.box[0]=+x.toFixed(2);b.box[2]=+wantW.toFixed(2);
   }
   // grow height for the SET size first (so the height check never caps a size the width allows),
   // then fitTitleSize only bites when the label edge genuinely limits the width.
-  const needH0=lines.length*s*1.15+1.2;
-  if((b.box[3]||0)<needH0-0.05)b.box[3]=+needH0.toFixed(2);
-  const fs=fitTitleSize(b);
-  const needH=lines.length*fs*1.15+1.2;
-  if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);}
+  if(!b._mh){                                                // height not pinned by hand
+    const needH0=lines.length*s*1.15+1.2;
+    if((b.box[3]||0)<needH0-0.05)b.box[3]=+needH0.toFixed(2);
+    const fs=fitTitleSize(b);
+    const needH=lines.length*fs*1.15+1.2;
+    if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);
+  }}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
 // Parse a body line into {bullet, segments:[{t,bold}]}. Bullet = "• "/"- "/"* " prefix.
 function parseInline(line){
@@ -824,6 +831,10 @@ function startDrag(e,b){
       if(handle.includes("w")){x+=dx;w-=dx;}if(handle.includes("e")){w+=dx;}
       if(handle.includes("n")){y+=dy;h-=dy;}if(handle.includes("s")){h+=dy;}
       w=Math.max(3,w);h=Math.max(3,h);
+      // Once a side is dragged, that axis is under manual control — auto-grow leaves it alone,
+      // so width (w/e) and height (n/s) resize independently.
+      if(/[we]/.test(handle))b._mw=true;
+      if(/[ns]/.test(handle))b._mh=true;
     }
     const snapped=snap(b,x,y,w,h,!handle);
     b.box=[round(snapped.x),round(snapped.y),round(snapped.w),round(snapped.h)];
@@ -862,8 +873,10 @@ labelEl.addEventListener("pointerdown",e=>{if(e.target===labelEl||e.target===cle
 function renderProps(){
   const p=$("#props");const b=state.blocks.find(x=>x.id===selId);
   if(!b){p.innerHTML=`<div class="empty">Select a block to edit,<br>or add one from the left.</div>`;return;}
+  const _canAuto=(b.type==="text"||b.type==="title"||b.type==="nutrition_table");
+  const _isManual=(b._mw||b._mh);
   const boxF=`<div class="field"><span>${t("box")}</span><div class="grid4" style="grid-template-columns:1fr 1fr 1fr 1fr">
-    ${["0","1","2","3"].map(i=>`<input type="number" step="0.1" value="${b.box[i]}" data-box="${i}">`).join("")}</div></div>`;
+    ${["0","1","2","3"].map(i=>`<input type="number" step="0.1" value="${b.box[i]}" data-box="${i}">`).join("")}</div>${_canAuto?`<button data-autofit="1" style="margin-top:6px;font-size:10px;padding:3px 8px;opacity:${_isManual?1:0.55}">↺ ${state.lang==="zh"?"自动适应尺寸":"Auto-fit box"}</button>`:``}</div>`;
   let f="";
   const set=(k,v)=>{b[k]=v;render();};
   if(b.type==="nutrigrade"){
@@ -929,8 +942,9 @@ function renderProps(){
   const syncBox=()=>{const map={"2":'[data-wh="2"]',"3":'[data-wh="3"]'};
     ["0","1","2","3"].forEach(i=>{const el=p.querySelector(`[data-box="${i}"]`);if(el&&document.activeElement!==el)el.value=b.box[i];});
     ["2","3"].forEach(i=>{const el=p.querySelector(map[i]);if(el&&document.activeElement!==el)el.value=(+b.box[i]).toFixed(1);});};
-  p.querySelectorAll("[data-box]").forEach(inp=>inp.oninput=e=>{b.box[+e.target.dataset.box]=+e.target.value;syncBox();paint();});
-  p.querySelectorAll("[data-wh]").forEach(inp=>inp.oninput=e=>{b.box[+e.target.dataset.wh]=+e.target.value;syncBox();paint();});
+  p.querySelectorAll("[data-box]").forEach(inp=>inp.oninput=e=>{var _i=+e.target.dataset.box;b.box[_i]=+e.target.value;if(_i===2)b._mw=true;if(_i===3)b._mh=true;syncBox();paint();});
+  p.querySelectorAll("[data-wh]").forEach(inp=>inp.oninput=e=>{var _i=+e.target.dataset.wh;b.box[_i]=+e.target.value;if(_i===2)b._mw=true;if(_i===3)b._mh=true;syncBox();paint();});
+  var _af=p.querySelector("[data-autofit]");if(_af)_af.onclick=()=>{saveState();b._mw=false;b._mh=false;render();};
   bindSel(p);bindNum(p);bindTxt(p);bindChk(p);
   const la=p.querySelector("[data-lines]");if(la)la.oninput=e=>{b.lines=e.target.value.split("\n");paint();};
   const bo=p.querySelector("[data-body]");if(bo)bo.oninput=e=>{b.body=e.target.value;paint();};
