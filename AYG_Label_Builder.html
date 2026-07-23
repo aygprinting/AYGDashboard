@@ -212,7 +212,7 @@
     <button id="importBtn" data-i18n="importj">Import JSON</button>
     <button id="previewBtn" data-i18n="preview">👁 Preview</button>
     <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-    <span id="buildTag" class="abuild" title="Build version">v18 (2026-07-23)</span>
+    <span id="buildTag" class="abuild" title="Build version">v18.2 (2026-07-23)</span>
   </div>
 </header>
 
@@ -254,7 +254,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.2 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -287,12 +287,12 @@
   <p style="font-size:10px;color:var(--muted);line-height:1.5;margin:10px 0 0" data-i18n="tphint">The container frustum unrolls exactly into this curved label — 100% wrap = the ends meet. Equal circumferences give a plain rectangle. Keep barcodes near the label's vertical centreline where curvature distortion is least.</p>
 </div>
 <div class="modal" id="pvModal" style="z-index:60">
-  <div class="box" style="max-width:92vw;max-height:88vh;overflow:auto;text-align:center">
+  <div class="box" style="width:auto;max-width:96vw;max-height:94vh;overflow:auto;text-align:center">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <b data-i18n="pvtitle">Print preview</b>
       <span id="pvDims" style="font:600 11px var(--mono);color:var(--muted)"></span>
     </div>
-    <div id="pvStage" style="display:inline-block;background:#e8ebf0;padding:24px;border-radius:8px"></div>
+    <div id="pvStage" style="display:block;margin:0 auto;box-sizing:content-box;background:#e8ebf0;padding:24px;border-radius:8px"></div>
     <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
       <button id="pvExport" class="primary" data-i18n="exportj">Export spec JSON</button>
       <button id="pvClose" data-i18n="pvclose">Close</button>
@@ -590,7 +590,7 @@ function addBlock(kind){saveState();const b=BLOCK_DEFS[kind].make();b.id=uid(kin
 // ---------- render ----------
 // Single source of truth for the Label Builder version — shown in the header so you can
 // always tell which build is actually deployed.
-const LB_BUILD="LB 20260723-1 · header + preview + resize + subtitle fixes";
+const LB_BUILD="LB 20260723-3 · header + preview-fit + resize + subtitle + text auto-fit";
 (function(){const e=document.getElementById("lb-build");if(e)e.textContent=LB_BUILD;})();
 const labelEl=$("#label"), clearEl=$("#clearZone");
 function mm(v){return v*scale;}
@@ -897,7 +897,21 @@ function wrapRich(text,sizeMM,boxWmm){
   }
   return out;
 }
-function textPreview(b){const fs=b.size||1.5;const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
+// Match the print engine's text auto-fit (el_text): shrink the font until every wrapped line
+// fits the box HEIGHT. When the box was auto-grown to fit (the normal case) this returns the
+// size unchanged; when the box height is fixed/too small it shrinks — exactly like the engine,
+// so the on-screen preview matches the printed PDF instead of showing oversized text.
+function fitTextSize(b){
+  const lg=b.lineGap||1.25, w=Math.max(1,b.box[2]-1), h=Math.max(0.1,b.box[3]);
+  let s=b.size||1.5;
+  for(let k=0;k<400 && s>0.5;k++){
+    const n=(b.title?1:0)+wrapRich(b.body||"",s,w).length;
+    if(n*s*lg<=h) break;
+    s=+(s-0.05).toFixed(2);
+  }
+  return Math.max(0.5,s);
+}
+function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
   const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]-1));
   const bulletIndent=mm(measW("\u2022 ",fs,false));
   const body=rich.map(ln=>{
@@ -1242,12 +1256,38 @@ $("#previewBtn").onclick=()=>{
     if(l+w2>maxX)maxX=l+w2; if(t2+h2>maxY)maxY=t2+h2;
   });
   const cw=Math.max(1,maxX-minX),ch=Math.max(1,maxY-minY);
-  const sc=Math.min(1,(window.innerWidth*0.82)/cw,(window.innerHeight*0.62)/ch);
+  // ---- MEASURE the real space, don't estimate it ----
+  // Open the dialog, blow the box out to its max footprint, collapse the stage, then read the
+  // ACTUAL heights of the title row, the buttons row and every padding/border. Estimating this
+  // chrome is what still clipped tall labels; measuring makes the fit exact for any label,
+  // window size or zoom. Then scale the label into the measured area and shrink the box to wrap.
+  const STPAD=48;                                    // #pvStage padding 24*2 (content-box)
+  const boxEl=st.closest(".box");
+  const rows=boxEl.children;                          // [title row, #pvStage, buttons row]
+  const titleRow=rows[0], btnRow=rows[rows.length-1];
+  const maxBoxW=Math.min(window.innerWidth*0.96,1400);
+  const maxBoxH=window.innerHeight*0.94;
+  boxEl.style.width=maxBoxW+"px"; boxEl.style.maxHeight=maxBoxH+"px";
+  st.style.width="0px"; st.style.height="0px"; st.style.overflow="hidden";
+  clone.style.transform="none";                      // don't let a stale transform affect layout
+  $("#pvModal").classList.add("on");                 // must be visible to measure
+  const px=v=>parseFloat(v)||0;
+  const csBox=getComputedStyle(boxEl);
+  const boxChromeX=px(csBox.paddingLeft)+px(csBox.paddingRight)+px(csBox.borderLeftWidth)+px(csBox.borderRightWidth);
+  const boxChromeY=px(csBox.paddingTop)+px(csBox.paddingBottom)+px(csBox.borderTopWidth)+px(csBox.borderBottomWidth);
+  const rowH=el=>{const c=getComputedStyle(el);return el.offsetHeight+px(c.marginTop)+px(c.marginBottom);};
+  const chromeH=rowH(titleRow)+rowH(btnRow);
+  const availW=maxBoxW-boxChromeX-STPAD-2;            // room for the label itself (visual px)
+  const availH=maxBoxH-boxChromeY-chromeH-STPAD-4;
+  const sc=Math.min(1,availW/cw,availH/ch);
   // translate so the top-left of the content bounds lands at the stage origin (nothing cut),
   // then scale to fit. CSS applies transforms right-to-left: scale() then translate().
   clone.style.transformOrigin="top left";
   clone.style.transform=`scale(${sc}) translate(${-minX}px,${-minY}px)`;
-  st.style.width=(cw*sc)+"px";st.style.height=(ch*sc)+"px";st.style.overflow="hidden";
+  const stW=cw*sc, stH=ch*sc;
+  st.style.width=stW+"px";st.style.height=stH+"px";   // content-box: content == visual label size
+  // shrink the box to wrap the stage (min width keeps the title row on one line)
+  boxEl.style.width=Math.min(maxBoxW, Math.max(360, stW+STPAD+boxChromeX))+"px";
   const u=dispU==="mm";
   $("#pvDims").textContent=(u?state.size.w.toFixed(1)+" × "+state.size.h.toFixed(1)+" mm":(state.size.w/25.4).toFixed(3)+'" × '+(state.size.h/25.4).toFixed(3)+'"');
   $("#pvModal").classList.add("on");
@@ -1279,7 +1319,7 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v18 (2026-07-23)";
+const BUILD_TAG="v18.2 (2026-07-23)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
