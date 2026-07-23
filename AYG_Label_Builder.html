@@ -187,6 +187,7 @@
   <button id="resetBtn" data-i18n="reset">Reset</button>
   <button id="importBtn" data-i18n="importj">Import JSON</button>
   <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
+  <span id="buildTag" title="Build version" style="font-size:10px;color:var(--muted);align-self:center;margin-left:6px;white-space:nowrap">v16-merge (2026-07-16)</span>
 </header>
 
 <main>
@@ -227,7 +228,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span data-i18n="tptitle">Tapered die-cut</span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v16-merge (2026-07-16)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -1265,8 +1266,10 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
+const BUILD_TAG="v16-merge (2026-07-16)";
+console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
-  return {size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
+  return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
     ...(state.taper&&state.taper.enabled?{taper:(state.taper.shape==="hourglass"?(()=>{const g0=taperGeom()||{};return {model:"hourglass",topC:+state.taper.topC,waistC:+state.taper.waistC,botC:+state.taper.botC,hTop:+state.taper.hTop,hBot:+state.taper.hBot,wrap:+state.taper.wrap,wTop:g0.wT,wWaist:g0.wW,wBot:g0.wB,...(state.taper.darts>0?{darts:+state.taper.darts,dartCuts:g0.darts||[]}:{})};})():{model:"cone",topC:+state.taper.topC,botC:+state.taper.botC,h:+state.taper.h,wrap:+state.taper.wrap})}:{}),
     blocks:state.blocks.map(b=>{const o={id:b.id,type:b.type,box:b.box.map(Number)};
       const keys={nutrigrade:["grade","orientation","style","sugar"],barcode:["symbology","data","ladder","magnification"],datamatrix:["data"],
