@@ -13,10 +13,20 @@
   }
   *{box-sizing:border-box}
   body{margin:0;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:var(--ui);overflow:hidden}
-  header{display:flex;align-items:center;gap:14px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
-  header .brand{font-weight:700;letter-spacing:.06em;font-size:13px}
+  header{display:flex;align-items:center;flex-wrap:wrap;column-gap:10px;row-gap:8px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto}
+  header .brand{font-weight:700;letter-spacing:.06em;font-size:13px;white-space:nowrap;flex:0 0 auto;line-height:1.15}
   header .brand b{color:var(--accent)}
-  header .spacer{flex:1}
+  header .brand .buildmini{font-size:9px;font-weight:400;opacity:.55;letter-spacing:.04em;margin-left:6px}
+  header .spacer{flex:1 1 auto}
+  /* grouped, segmented toolbar */
+  header .hgroup{display:flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:4px 9px;flex:0 0 auto}
+  header .hgroup .glabel{font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap}
+  header .hgroup .times{color:var(--muted);font-size:12px}
+  header .hgroup .unit{font-size:10.5px;color:var(--muted);white-space:nowrap}
+  header .hgroup .vsep{width:1px;align-self:stretch;background:var(--line);margin:0 1px}
+  header .hgroup label.f{color:var(--ink)}
+  header .actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:0 0 auto}
+  header .actions .abuild{font-size:10px;color:var(--muted);align-self:center;white-space:nowrap}
   .row{display:flex;align-items:center;gap:8px}
   label.f{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
   input,select,button,textarea{font-family:var(--ui);color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:12px}
@@ -39,7 +49,7 @@
   .dimcall{position:absolute;pointer-events:none;z-index:2}
   .dimcall line{stroke:var(--sel);stroke-width:1}
   .dimcall text{font:600 10px var(--mono);fill:var(--sel)}
-  .stagewrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:40px}
+  .stagewrap{position:absolute;inset:0;min-width:100%;min-height:100%;width:max-content;height:max-content;display:flex;align-items:center;justify-content:center;padding:40px}
   #label{position:relative;background:#fff;box-shadow:0 8px 40px rgba(0,0,0,.35);}
   #clearZone{position:absolute;pointer-events:none;border:1px dashed var(--accent);opacity:.5}
   .blk{position:absolute;overflow:hidden;cursor:move;outline:1px solid rgba(80,120,160,.35);background:rgba(255,255,255,0)}
@@ -143,52 +153,67 @@
 </head>
 <body>
 <header>
-  <div class="brand">AYG <b>LABEL BUILDER</b> <span id="lb-build" style="font-size:9px;font-weight:400;opacity:.55;letter-spacing:.04em;margin-left:6px"></span></div>
-  <div class="row">
-    <label class="f"><span data-i18n="size">Size H×W</span>
-      <select id="preset">
-        <option value="custom">Custom</option>
-        <option value="65x59" selected>65 × 59</option>
-        <option value="75x65">75 × 65</option>
-        <option value="75x30">75 × 30</option>
-        <option value="40x40">40 × 40</option>
-        <option value="43x40">43 × 40</option>
-        <option value="58x28">58 × 28</option>
-        <option value="65x24">65 × 24</option>
-      </select>
-    </label>
-    <input type="number" id="sizeH" step="0.1" title="height mm"> ×
-    <input type="number" id="sizeW" step="0.1" title="width mm"><span class="f">mm (H×W)</span>
-  </div>
-  <div class="row"><label class="f"><span data-i18n="clearance">Clearance</span> <input type="number" id="clr" step="0.1" value="2"></label></div>
-  <div class="row" style="position:relative">
-    <button id="clrTargetsBtn"><span data-i18n="zones">Clearance zones ▾</span></button>
-    <div id="clrPop" style="display:none;position:absolute;top:112%;left:0;z-index:60;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;min-width:180px;box-shadow:0 10px 30px rgba(0,0,0,.45)">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:6px" data-i18n="applyto">Apply 2 mm clearance to:</div>
-      <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="image" style="width:auto"> 10¢ logo</label><br>
-      <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="barcode" style="width:auto"> Barcode</label><br>
-      <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="datamatrix" style="width:auto"> Data Matrix</label>
-      <hr style="border:none;border-top:1px solid var(--line);margin:7px 0">
-      <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="all" style="width:auto"> <span data-i18n="allblocks">All blocks</span></label>
+  <div class="brand">AYG&nbsp;<b>LABEL BUILDER</b> <span id="lb-build" class="buildmini"></span></div>
+
+  <div class="hgroup">
+    <span class="glabel" data-i18n="size">Size</span>
+    <select id="preset">
+      <option value="custom">Custom</option>
+      <option value="65x59" selected>65 × 59</option>
+      <option value="75x65">75 × 65</option>
+      <option value="75x30">75 × 30</option>
+      <option value="40x40">40 × 40</option>
+      <option value="43x40">43 × 40</option>
+      <option value="58x28">58 × 28</option>
+      <option value="65x24">65 × 24</option>
+    </select>
+    <input type="number" id="sizeH" step="0.1" title="height mm">
+    <span class="times">×</span>
+    <input type="number" id="sizeW" step="0.1" title="width mm">
+    <span class="unit">mm (H×W)</span>
+    <span class="vsep"></span>
+    <span class="glabel" data-i18n="clearance">Clearance</span>
+    <input type="number" id="clr" step="0.1" value="2">
+    <div class="clrwrap" style="position:relative;display:flex">
+      <button id="clrTargetsBtn"><span data-i18n="zones">Clearance zones ▾</span></button>
+      <div id="clrPop" style="display:none;position:absolute;top:calc(100% + 8px);left:0;z-index:60;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;min-width:180px;box-shadow:0 10px 30px rgba(0,0,0,.45)">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px" data-i18n="applyto">Apply 2 mm clearance to:</div>
+        <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="image" style="width:auto"> 10¢ logo</label><br>
+        <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="barcode" style="width:auto"> Barcode</label><br>
+        <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="datamatrix" style="width:auto"> Data Matrix</label>
+        <hr style="border:none;border-top:1px solid var(--line);margin:7px 0">
+        <label class="f" style="margin:5px 0"><input type="checkbox" data-ct="all" style="width:auto"> <span data-i18n="allblocks">All blocks</span></label>
+      </div>
     </div>
   </div>
-  <div class="row"><label class="f"><span data-i18n="zoom">Zoom</span> <input type="range" id="zoom" min="2" max="14" step="0.1" value="6" style="width:90px"></label>
-    <label class="f"><span data-i18n="rulunits">Ruler</span> <select id="unitSel" style="width:64px"><option value="mm">mm</option><option value="in">inch</option></select></label></div>
-  <div class="row"><label class="f" title="Flip the whole label to a negative: black background, white text. Barcodes, Data Matrix and the Nutri-Grade mark stay black-on-white; the 10¢ mark uses its negative artwork."><input type="checkbox" id="invertToggle" style="width:auto"> <span data-i18n="invert">Invert (negative)</span></label></div>
-  <hr style="border:none;border-top:1px solid var(--line);margin:8px 0">
-  <div class="row"><label class="f" title="Die-cut label for a conical/tapered container: a flat rectangular core is preserved (codes live here) and the label flares wider above and/or below it, following the container's taper."><input type="checkbox" id="tpOn" style="width:auto"> <span data-i18n="taper">Tapered die-cut</span></label></div>
-  <div id="tpFields" style="display:none">
-    <button id="tpOpen" style="width:100%"><span data-i18n="tpconf">⚙ Configure taper…</span></button>
+
+  <div class="hgroup">
+    <span class="glabel" data-i18n="zoom">Zoom</span>
+    <input type="range" id="zoom" min="2" max="14" step="0.1" value="6" style="width:90px">
+    <span class="vsep"></span>
+    <span class="glabel" data-i18n="rulunits">Ruler</span>
+    <select id="unitSel" style="width:64px"><option value="mm">mm</option><option value="in">inch</option></select>
+    <span class="vsep"></span>
+    <label class="f" title="Flip the whole label to a negative: black background, white text. Barcodes, Data Matrix and the Nutri-Grade mark stay black-on-white; the 10¢ mark uses its negative artwork."><input type="checkbox" id="invertToggle" style="width:auto"> <span data-i18n="invert">Invert (negative)</span></label>
   </div>
+
+  <div class="hgroup">
+    <label class="f" title="Die-cut label for a conical/tapered container: a flat rectangular core is preserved (codes live here) and the label flares wider above and/or below it, following the container's taper."><input type="checkbox" id="tpOn" style="width:auto"> <span data-i18n="taper">Tapered die-cut</span></label>
+    <span id="tpFields" style="display:none"><button id="tpOpen"><span data-i18n="tpconf">⚙ Configure taper…</span></button></span>
+  </div>
+
   <div class="spacer"></div>
-  <button id="langBtn" title="Language">EN / 中文</button>
-  <button id="undoBtn" title="Undo (Ctrl+Z)" data-i18n="undo">↶ Undo</button>
-  <button id="redoBtn" title="Redo (Ctrl+Y)" data-i18n="redoBtn">↷ Redo</button>
-  <button id="resetBtn" data-i18n="reset">Reset</button>
-  <button id="importBtn" data-i18n="importj">Import JSON</button>
-  <button id="previewBtn" data-i18n="preview">👁 Preview</button>
-  <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-  <span id="buildTag" title="Build version" style="font-size:10px;color:var(--muted);align-self:center;margin-left:6px;white-space:nowrap">v17 (2026-07-16)</span>
+
+  <div class="actions">
+    <button id="langBtn" title="Language">EN / 中文</button>
+    <button id="undoBtn" title="Undo (Ctrl+Z)" data-i18n="undo">↶ Undo</button>
+    <button id="redoBtn" title="Redo (Ctrl+Y)" data-i18n="redoBtn">↷ Redo</button>
+    <button id="resetBtn" data-i18n="reset">Reset</button>
+    <button id="importBtn" data-i18n="importj">Import JSON</button>
+    <button id="previewBtn" data-i18n="preview">👁 Preview</button>
+    <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
+    <span id="buildTag" class="abuild" title="Build version">v18 (2026-07-23)</span>
+  </div>
 </header>
 
 <main>
@@ -229,7 +254,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v17 (2026-07-16)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -565,7 +590,7 @@ function addBlock(kind){saveState();const b=BLOCK_DEFS[kind].make();b.id=uid(kin
 // ---------- render ----------
 // Single source of truth for the Label Builder version — shown in the header so you can
 // always tell which build is actually deployed.
-const LB_BUILD="LB 20260714-4 · invert + fit fixes + default v2";
+const LB_BUILD="LB 20260723-1 · header + preview + resize + subtitle fixes";
 (function(){const e=document.getElementById("lb-build");if(e)e.textContent=LB_BUILD;})();
 const labelEl=$("#label"), clearEl=$("#clearZone");
 function mm(v){return v*scale;}
@@ -787,8 +812,9 @@ function autoGrowText(b){if(b.type!=="text")return;
 // renders at the size you set and the box GROWS in height to fit. The font only shrinks if the
 // columns are genuinely wider than the box (horizontal overflow), matching the engine's width fit.
 function nutCols(b,fs){const head=b.header||["","",""];const rows=b.rows||[];const ncol=Math.max(head.length,...rows.map(r=>r.length),1);const ws=new Array(ncol).fill(0);[head,...rows].forEach((cells,ci)=>{const bold=ci===0;for(let i=0;i<ncol;i++){ws[i]=Math.max(ws[i],measW(String(cells[i]!=null?cells[i]:""),fs,bold));}});return ws;}
-function nutNeedW(b,fs){const CP=0.5,PB=0.6;const ws=nutCols(b,fs);let w=ws.reduce((a,c)=>a+c,0)+ws.length*2*CP;if(b.subtitle)w=Math.max(w,measW(b.subtitle,fs,false)+2*PB);return w;}
-function nutNeedH(b,fs){const PB=0.6,sub=!!b.subtitle,lh=fs*1.5;const hh=PB+fs*1.15+(sub?fs*1.3:0)+fs*0.55;return hh+(1+(b.rows||[]).length)*lh+PB;}
+function subLines(b){return b.subtitle?String(b.subtitle).split("\n"):[];}
+function nutNeedW(b,fs){const CP=0.5,PB=0.6;const ws=nutCols(b,fs);let w=ws.reduce((a,c)=>a+c,0)+ws.length*2*CP;subLines(b).forEach(s=>{w=Math.max(w,measW(s,fs,false)+2*PB);});return w;}
+function nutNeedH(b,fs){const PB=0.6,ns=subLines(b).length,lh=fs*1.5;const hh=PB+fs*1.15+ns*fs*1.3+fs*0.55;return hh+(1+(b.rows||[]).length)*lh+PB;}
 function fitNutSize(b){let s=b.size||1.5;const W=Math.max(1,b.box[2]);for(let k=0;k<200;k++){if(nutNeedW(b,s)<=W||s<=0.5)break;s-=0.05;}return s;}
 // Grow the box (width then height, grow-only) so the font you set actually fits. Width growth is
 // clamped to the label; if the table still can't fit the available width, the font caps to fit it.
@@ -882,7 +908,7 @@ function textPreview(b){const fs=b.size||1.5;const fp=mm(fs);const lg=b.lineGap|
     return `<div style="${ln.bullet||ln.indent?`padding-left:${ln.indent?bulletIndent:0}px;text-indent:${ln.indent?-bulletIndent:0}px`:''}">${content}</div>`;
   }).join("");
   return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden;text-align:${al}">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
-function ntPreview(b){const fs=fitNutSize(b);const fp=mm(fs);let r=`<div class="txtblk" style="font-size:${fp}px;overflow:hidden;border:${Math.max(1,mm(0.3))}px solid #000;border-radius:${mm(0.5)}px;padding:${mm(0.6)}px;box-sizing:border-box"><div style="font-weight:700;font-size:${fp*1.15}px">${esc(b.title||"")}</div>${b.subtitle?`<div>${esc(b.subtitle)}</div>`:""}<table class="ntbl"><tr>${(b.header||[]).map(x=>`<td style="background:#e8e8e8;font-weight:700">${esc(x)}</td>`).join("")}</tr>`;(b.rows||[]).forEach((row,i)=>{r+=`<tr style="background:${i%2?'#f6f6f6':'#fff'}">${row.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`;});return r+"</table></div>";}
+function ntPreview(b){const fs=fitNutSize(b);const fp=mm(fs);let r=`<div class="txtblk" style="font-size:${fp}px;overflow:hidden;border:${Math.max(1,mm(0.3))}px solid #000;border-radius:${mm(0.5)}px;padding:${mm(0.6)}px;box-sizing:border-box"><div style="font-weight:700;font-size:${fp*1.15}px">${esc(b.title||"")}</div>${b.subtitle?String(b.subtitle).split("\n").map(s=>`<div>${esc(s)||"&nbsp;"}</div>`).join(""):""}<table class="ntbl"><tr>${(b.header||[]).map(x=>`<td style="background:#e8e8e8;font-weight:700">${esc(x)}</td>`).join("")}</tr>`;(b.rows||[]).forEach((row,i)=>{r+=`<tr style="background:${i%2?'#f6f6f6':'#fff'}">${row.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`;});return r+"</table></div>";}
 function gap(a,b){const[ax,ay,aw,ah]=a,[bx,by,bw,bh]=b;
   const dx=Math.max(bx-(ax+aw),ax-(bx+bw),0),dy=Math.max(by-(ay+ah),ay-(by+bh),0);
   if(dx===0&&dy===0)return -1;return dx&&dy?Math.hypot(dx,dy):Math.max(dx,dy);}
@@ -999,7 +1025,7 @@ function renderProps(){
         <button type="button" data-fmt="dash" title="Dash bullet (-) on selected line(s)" style="min-width:30px">– list</button>
       </div>
       <textarea data-body style="min-height:170px;font-size:12.5px;line-height:1.55">${esc(b.body||"")}</textarea></div>`;
-  else if(b.type==="nutrition_table")f=`${txt("Title",b.title,"title")}${txt("Subtitle",b.subtitle,"subtitle")}${num("Font (mm)",b.size,"size",0.05)}
+  else if(b.type==="nutrition_table")f=`${txt("Title",b.title,"title")}<div class="field"><span>Subtitle (Enter for a new line)</span><textarea data-kta="subtitle" style="min-height:52px">${esc(b.subtitle||"")}</textarea></div>${num("Font (mm)",b.size,"size",0.05)}
     <div class="field"><span>Header (3, comma-sep)</span><input value="${esc((b.header||[]).join(", "))}" data-header></div>
     <div class="field"><span>Rows</span><div id="rows">${(b.rows||[]).map((r,i)=>rowUI(r,i)).join("")}</div>
     <button id="addRow">+ row</button></div>`;
@@ -1056,6 +1082,7 @@ function renderProps(){
     }
     saveState();bo.value=out;b.body=out;bo.focus();bo.setSelectionRange(newS,newE);paint();
   });}
+  const sta=p.querySelector('[data-kta="subtitle"]');if(sta)sta.oninput=e=>{b.subtitle=e.target.value;paint();};
   const hd=p.querySelector("[data-header]");if(hd)hd.oninput=e=>{b.header=e.target.value.split(",").map(s=>s.trim());paint();};
   p.querySelectorAll("[data-row]").forEach(inp=>inp.oninput=e=>{const[i,j]=e.target.dataset.row.split("-").map(Number);b.rows[i][j]=e.target.value;paint();});
   p.querySelectorAll("[data-delrow]").forEach(btn=>btn.onclick=()=>{saveState();b.rows.splice(+btn.dataset.delrow,1);render();});
@@ -1202,11 +1229,25 @@ $("#previewBtn").onclick=()=>{
   clone.querySelectorAll(".blk").forEach(e=>{e.classList.remove("sel","bad");e.style.cursor="default";});
   clone.style.boxShadow="0 4px 24px rgba(0,0,0,.25)";
   const st=$("#pvStage");st.innerHTML="";st.appendChild(clone);
-  // fit to viewport
+  // ---- fit to viewport, showing the WHOLE label plus anything placed on it ----
+  // The print area is the label rectangle, but a block can sit slightly past an edge (or the
+  // taper flare can extend it). Base the fit on the union of the label and every block so the
+  // preview never clips content — and it re-scales correctly for every label size.
   const pw=labelEl.offsetWidth,ph=labelEl.offsetHeight;
-  const sc=Math.min(1,(window.innerWidth*0.8)/pw,(window.innerHeight*0.6)/ph);
-  clone.style.transform=`scale(${sc})`;clone.style.transformOrigin="top left";
-  st.style.width=(pw*sc)+"px";st.style.height=(ph*sc)+"px";st.style.overflow="hidden";
+  let minX=0,minY=0,maxX=pw,maxY=ph;
+  clone.querySelectorAll(".blk").forEach(el=>{
+    const l=parseFloat(el.style.left)||0,t2=parseFloat(el.style.top)||0,
+          w2=parseFloat(el.style.width)||0,h2=parseFloat(el.style.height)||0;
+    if(l<minX)minX=l; if(t2<minY)minY=t2;
+    if(l+w2>maxX)maxX=l+w2; if(t2+h2>maxY)maxY=t2+h2;
+  });
+  const cw=Math.max(1,maxX-minX),ch=Math.max(1,maxY-minY);
+  const sc=Math.min(1,(window.innerWidth*0.82)/cw,(window.innerHeight*0.62)/ch);
+  // translate so the top-left of the content bounds lands at the stage origin (nothing cut),
+  // then scale to fit. CSS applies transforms right-to-left: scale() then translate().
+  clone.style.transformOrigin="top left";
+  clone.style.transform=`scale(${sc}) translate(${-minX}px,${-minY}px)`;
+  st.style.width=(cw*sc)+"px";st.style.height=(ch*sc)+"px";st.style.overflow="hidden";
   const u=dispU==="mm";
   $("#pvDims").textContent=(u?state.size.w.toFixed(1)+" × "+state.size.h.toFixed(1)+" mm":(state.size.w/25.4).toFixed(3)+'" × '+(state.size.h/25.4).toFixed(3)+'"');
   $("#pvModal").classList.add("on");
@@ -1238,7 +1279,7 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v17 (2026-07-16)";
+const BUILD_TAG="v18 (2026-07-23)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
