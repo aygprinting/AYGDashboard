@@ -186,8 +186,9 @@
   <button id="redoBtn" title="Redo (Ctrl+Y)" data-i18n="redoBtn">↷ Redo</button>
   <button id="resetBtn" data-i18n="reset">Reset</button>
   <button id="importBtn" data-i18n="importj">Import JSON</button>
+  <button id="previewBtn" data-i18n="preview">👁 Preview</button>
   <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-  <span id="buildTag" title="Build version" style="font-size:10px;color:var(--muted);align-self:center;margin-left:6px;white-space:nowrap">v16-merge (2026-07-16)</span>
+  <span id="buildTag" title="Build version" style="font-size:10px;color:var(--muted);align-self:center;margin-left:6px;white-space:nowrap">v17 (2026-07-16)</span>
 </header>
 
 <main>
@@ -228,7 +229,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v16-merge (2026-07-16)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v17 (2026-07-16)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -247,8 +248,7 @@
     <span class="tphgf"><input type="number" id="tpHTop" step="0.1" min="5"></span>
     <span class="tphgf" data-i18n="tphbot">Height: waist → label bottom</span>
     <span class="tphgf"><input type="number" id="tpHBot" step="0.1" min="5"></span>
-    <span class="tphgf" data-i18n="tpdarts">Relief darts</span>
-    <span class="tphgf"><select id="tpDarts" style="width:110px"><option value="0" data-i18n="tpdnone">None</option><option value="2">2</option><option value="4">4</option></select></span>
+
     <span data-i18n="tpwtop">Label width — top edge</span>
     <span><input type="number" id="tpWTop" step="0.1" min="1"></span>
     <span data-i18n="tpwbot">Label width — bottom edge</span>
@@ -260,6 +260,19 @@
   </div>
   <div id="tpDip" style="display:none;margin-top:10px;font-size:11px;line-height:1.45;padding:8px 10px;border-radius:7px"></div>
   <p style="font-size:10px;color:var(--muted);line-height:1.5;margin:10px 0 0" data-i18n="tphint">The container frustum unrolls exactly into this curved label — 100% wrap = the ends meet. Equal circumferences give a plain rectangle. Keep barcodes near the label's vertical centreline where curvature distortion is least.</p>
+</div>
+<div class="modal" id="pvModal" style="z-index:60">
+  <div class="box" style="max-width:92vw;max-height:88vh;overflow:auto;text-align:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <b data-i18n="pvtitle">Print preview</b>
+      <span id="pvDims" style="font:600 11px var(--mono);color:var(--muted)"></span>
+    </div>
+    <div id="pvStage" style="display:inline-block;background:#e8ebf0;padding:24px;border-radius:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-top:12px">
+      <button id="pvExport" class="primary" data-i18n="exportj">Export spec JSON</button>
+      <button id="pvClose" data-i18n="pvclose">Close</button>
+    </div>
+  </div>
 </div>
 <div class="modal" id="modal">
   <div class="box">
@@ -283,8 +296,8 @@ function is10cImg(b){return b.type==="image"&&/10c|bcrs/i.test(((b.src||"")+" "+
 function usesNeg(b){return is10cImg(b)&&isInv(b);}
 const $ = s=>document.querySelector(s);
 const I18N={
- en:{size:"Size",clearance:"Clearance",zoom:"Zoom",zones:"Clearance zones ▾",undo:"↶ Undo",reset:"Reset",rulunits:"Ruler",redoBtn:"↷ Redo",alignx:"Align centres X",aligny:"Align centres Y",spreadx:"Spread evenly X",spready:"Spread evenly Y",centrelabelx:"Centre on label X",centrelabely:"Centre on label Y",centrelabelxy:"Centre on label (both)",imagefile:"Image File",redo:"↶ Undo",importj:"Import JSON",exportj:"Export spec JSON",addblock:"Add block",selected:"Selected",duplicate:"Duplicate",delete:"Delete",notes:"Notes",notestext:"Drag to move, corners to resize. Arrow keys nudge 0.1 mm. Red outline = clearance/quiet-zone breach. Export the spec, paste it to the Python engine for the exact print PDF.",ok:"OK",allok:"All clearances satisfied.",applyto:"Apply 2 mm clearance to:",allblocks:"All blocks",nutrigrade:"Nutrigrade",barcode:"Barcode",datamatrix:"Data Matrix",image:"BCRS Deposit Mark 10c",title:"Title",text:"Text",nutrition_table:"Nutrition Table",width:"WIDTH mm",height:"HEIGHT mm",box:"Box  x / y / w / h (mm)",invert:"Invert (negative)",taper:"Tapered die-cut",tpconf:"\u2699 Configure taper\u2026",tptitle:"Tapered die-cut",tpmeas:"Container measurements (mm)",tptopc:"Top circumference (tape around)",tpbotc:"Bottom circumference (tape around)",tph:"Label height (along surface)",tpwrap:"Wrap coverage %",tpwtop:"Label width \u2014 top edge",tpwbot:"Label width \u2014 bottom edge",tpwwaist:"Label width at waist (derived)",tpmidc:"Middle circumference (optional check)",tpdarts:"Relief darts",tpdnone:"None",tphint:"The container frustum unrolls exactly into this curved label \u2014 width = circumference means the ends meet. Equal circumferences give a plain rectangle. Keep barcodes near the label\u2019s vertical centreline where curvature distortion is least.",tpshape:"Container shape",tpcone:"Straight taper",tphg:"Hourglass (waisted)",tpwaistc:"Waist circumference (thinnest)",tphtop:"Height: label top \u2192 waist",tphbot:"Height: waist \u2192 label bottom"},
- zh:{size:"尺寸",clearance:"间距",zoom:"缩放",zones:"间距区域 ▾",undo:"↶ 撤销",reset:"重置",rulunits:"标尺",redoBtn:"↷ 重做",alignx:"居中对齐 X",aligny:"居中对齐 Y",spreadx:"水平均布",spready:"垂直均布",centrelabelx:"居中于标签 X",centrelabely:"居中于标签 Y",centrelabelxy:"居中于标签（两轴）",imagefile:"图片文件…",importj:"导入 JSON",exportj:"导出规格 JSON",addblock:"添加元素",selected:"已选元素",duplicate:"复制",delete:"删除",notes:"说明",notestext:"拖动移动，边角缩放。方向键微调 0.1 毫米。红色 = 间距/静区不足。导出规格后粘贴给 Python 引擎生成精确 PDF。",ok:"通过",allok:"所有间距均满足。",applyto:"应用 2 毫米间距于：",allblocks:"所有元素",nutrigrade:"营养分级",barcode:"条形码",datamatrix:"数据矩阵",image:"图片 / 10¢",title:"标题",text:"文字",nutrition_table:"营养表",width:"宽 毫米",height:"高 毫米",box:"位置 x / y / 宽 / 高 (毫米)",invert:"反白（负片）",taper:"锥形模切",tpconf:"\u2699 设置锥形模切\u2026",tptitle:"锥形模切",tpmeas:"容器测量值（毫米）",tptopc:"顶部周长（卷尺绕一圈）",tpbotc:"底部周长（卷尺绕一圈）",tph:"标签高度（沿表面）",tpwrap:"包覆比例 %",tpwtop:"标签宽度 \u2014 顶边",tpwbot:"标签宽度 \u2014 底边",tpwwaist:"腰部标签宽度（自动计算）",tpmidc:"中部周长（可选校验）",tpdarts:"释压切口",tpdnone:"无",tphint:"圆台展开后即为此弧形标签 \u2014 宽度等于周长时两端相接。上下周长相等时为普通矩形。条形码请尽量靠近标签垂直中线，扫描变形最小。",tpshape:"容器形状",tpcone:"直锥（圆台）",tphg:"沙漏（收腰）",tpwaistc:"最细处周长",tphtop:"高度：标签顶 \u2192 最细处",tphbot:"高度：最细处 \u2192 标签底"}
+ en:{size:"Size",clearance:"Clearance",zoom:"Zoom",zones:"Clearance zones ▾",undo:"↶ Undo",reset:"Reset",rulunits:"Ruler",redoBtn:"↷ Redo",alignx:"Align centres X",aligny:"Align centres Y",spreadx:"Spread evenly X",spready:"Spread evenly Y",centrelabelx:"Centre on label X",centrelabely:"Centre on label Y",centrelabelxy:"Centre on label (both)",imagefile:"Image File",redo:"↶ Undo",importj:"Import JSON",exportj:"Export spec JSON",addblock:"Add block",selected:"Selected",duplicate:"Duplicate",delete:"Delete",notes:"Notes",notestext:"Drag to move, corners to resize. Arrow keys nudge 0.1 mm. Red outline = clearance/quiet-zone breach. Export the spec, paste it to the Python engine for the exact print PDF.",ok:"OK",allok:"All clearances satisfied.",applyto:"Apply 2 mm clearance to:",allblocks:"All blocks",nutrigrade:"Nutrigrade",barcode:"Barcode",datamatrix:"Data Matrix",image:"BCRS Deposit Mark 10c",title:"Title",text:"Text",nutrition_table:"Nutrition Table",width:"WIDTH mm",height:"HEIGHT mm",box:"Box  x / y / w / h (mm)",invert:"Invert (negative)",taper:"Tapered die-cut",tpconf:"\u2699 Configure taper\u2026",tptitle:"Tapered die-cut",tpmeas:"Container measurements (mm)",tptopc:"Top circumference (tape around)",tpbotc:"Bottom circumference (tape around)",tph:"Label height (along surface)",tpwrap:"Wrap coverage %",tpwtop:"Label width \u2014 top edge",tpwbot:"Label width \u2014 bottom edge",tpwwaist:"Label width at waist (derived)",tpmidc:"Middle circumference (optional check)",tpdarts:"Relief darts",tpdnone:"None",tphint:"The container frustum unrolls exactly into this curved label \u2014 width = circumference means the ends meet. Equal circumferences give a plain rectangle. Keep barcodes near the label\u2019s vertical centreline where curvature distortion is least.",tpshape:"Container shape",tpcone:"Straight taper",tphg:"Hourglass (waisted)",tpwaistc:"Waist circumference (thinnest)",tphtop:"Height: label top \u2192 waist",tphbot:"Height: waist \u2192 label bottom",preview:"\ud83d\udc41 Preview",pvtitle:"Print preview",pvclose:"Close"},
+ zh:{size:"尺寸",clearance:"间距",zoom:"缩放",zones:"间距区域 ▾",undo:"↶ 撤销",reset:"重置",rulunits:"标尺",redoBtn:"↷ 重做",alignx:"居中对齐 X",aligny:"居中对齐 Y",spreadx:"水平均布",spready:"垂直均布",centrelabelx:"居中于标签 X",centrelabely:"居中于标签 Y",centrelabelxy:"居中于标签（两轴）",imagefile:"图片文件…",importj:"导入 JSON",exportj:"导出规格 JSON",addblock:"添加元素",selected:"已选元素",duplicate:"复制",delete:"删除",notes:"说明",notestext:"拖动移动，边角缩放。方向键微调 0.1 毫米。红色 = 间距/静区不足。导出规格后粘贴给 Python 引擎生成精确 PDF。",ok:"通过",allok:"所有间距均满足。",applyto:"应用 2 毫米间距于：",allblocks:"所有元素",nutrigrade:"营养分级",barcode:"条形码",datamatrix:"数据矩阵",image:"图片 / 10¢",title:"标题",text:"文字",nutrition_table:"营养表",width:"宽 毫米",height:"高 毫米",box:"位置 x / y / 宽 / 高 (毫米)",invert:"反白（负片）",taper:"锥形模切",tpconf:"\u2699 设置锥形模切\u2026",tptitle:"锥形模切",tpmeas:"容器测量值（毫米）",tptopc:"顶部周长（卷尺绕一圈）",tpbotc:"底部周长（卷尺绕一圈）",tph:"标签高度（沿表面）",tpwrap:"包覆比例 %",tpwtop:"标签宽度 \u2014 顶边",tpwbot:"标签宽度 \u2014 底边",tpwwaist:"腰部标签宽度（自动计算）",tpmidc:"中部周长（可选校验）",tpdarts:"释压切口",tpdnone:"无",tphint:"圆台展开后即为此弧形标签 \u2014 宽度等于周长时两端相接。上下周长相等时为普通矩形。条形码请尽量靠近标签垂直中线，扫描变形最小。",tpshape:"容器形状",tpcone:"直锥（圆台）",tphg:"沙漏（收腰）",tpwaistc:"最细处周长",tphtop:"高度：标签顶 \u2192 最细处",tphbot:"高度：最细处 \u2192 标签底",preview:"\ud83d\udc41 预览",pvtitle:"打印预览",pvclose:"关闭"}
 };
 function t(k){const d=I18N[state&&state.lang==="zh"?"zh":"en"];return (d&&d[k])||I18N.en[k]||k;}
 function applyLang(){document.querySelectorAll("[data-i18n]").forEach(el=>{const k=el.getAttribute("data-i18n");const v=t(k);if(v)el.textContent=v;});const lb=document.querySelector("#langBtn");if(lb)lb.textContent=(state.lang==="zh")?"中文 / EN":"EN / 中文";}
@@ -310,7 +323,7 @@ function defaultSpec(){
     {id:"nutrition",type:"nutrition_table",box:[1,11.3,33.7,29.7],title:"NUTRITION INFORMATION",subtitle:"Servings: 1 · Serving size: 250ml (1 Can)",header:["","Per Serving","Per 100ml"],rows:[["Energy","174kcal*","69.6kcal*"],["Protein","0g","0g"],["Total Fat","0g","0g"],["- Saturated Fat","0g","0g"],["- Trans Fat","0g","0g"],["Cholesterol","0mg","0mg"],["Carbohydrate","42.0g","16.8g"],["Dietary Fibre","0g","0g"],["Sodium","260mg","104mg"],["Sugar","41.0g","16.4g"]],size:1.45},
     {id:"dm",type:"datamatrix",box:[42,52.9,10,10],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"},
     {id:"tenc",type:"image",box:[42.5,6.7,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[37,19.7,20,30],data:"8885022091166",ladder:false,rotate:270},
+    {id:"ean",type:"barcode",box:[37,19.7,20,30],data:"0123456789104",ladder:false,rotate:270},
     {id:"notes",type:"text",box:[1,41.6,33.7,5.5],body:"*1kcal=4.2kJ. Max 3 cans/day. Net Weight: 250ml. Place of Origin: Vietnam. Not suitable for diabetics, young children and persons sensitive to caffeine.",size:1.2},
     {id:"ingredients",type:"text",box:[1,47.7,33.7,11.5],title:"INGREDIENTS:",body:"Water, Sugar, Citric acid (330), Taurine (1000mg), Sodium hydro carbonate (500ii), Synthetic flavour, Caffeine, Inositol, Lysine, Choline, Sodium Benzoate (211), Vitamin B3/B5/B6/B12, Colouring: Tartrazine (102), Ponceau 4R (124).",size:1.4},
     {id:"importer",type:"text",box:[1,60,33.7,4],body:"Imported by: GOURMET SUPPLIES PTE LTD. 16 Senoko Crescent, Singapore 758270. TEL: 6752 5888 / 6753 5888",size:1.2}
@@ -321,7 +334,7 @@ function defaultSpec(){
 // Pure conical development (the classic tapered label): the container's frustum
 // unrolls exactly into an annular sector. Inputs: top & bottom circumference,
 // label height (along the surface), wrap %. Correct at any steepness.
-function tpDefaults(){return {enabled:false,shape:"cone",topC:180,botC:240,h:60,wrap:100,waistC:200,hTop:30,hBot:30};}
+function tpDefaults(){return {enabled:false,shape:"cone",topC:180,botC:240,h:60,wrap:100,waistC:220,hTop:20,hBot:20,wTop:45,wWaist:34,wBot:40};}
 function tpSmooth(prof,steps){
   if(prof.length<3)return prof.slice();
   const P=[prof[0],...prof,prof[prof.length-1]], out=[];
@@ -334,41 +347,6 @@ function tpSmooth(prof,steps){
   }
   out.push(prof[prof.length-1]);
   return out;
-}
-// place darts at the waist AVOIDING blocks: forbidden x-intervals come from any block
-// whose y-range touches the dart band; darts snap to the nearest free spot
-function dartPlace(nD,W,yW,Ld,wdEst){
-  const m=1.5, half=(wdEst||1)/2;
-  const y0=yW-Ld/2-m, y1=yW+Ld/2+m;
-  const forb=[];
-  (state.blocks||[]).forEach(b=>{const[x,y,w,h]=b.box;
-    if(y<y1&&y+h>y0)forb.push([x-m-half,x+w+m+half]);});
-  forb.sort((a,b)=>a[0]-b[0]);
-  const mg=[];for(const iv of forb){if(mg.length&&iv[0]<=mg[mg.length-1][1])mg[mg.length-1][1]=Math.max(mg[mg.length-1][1],iv[1]);else mg.push([iv[0],iv[1]]);}
-  const edge=4;
-  const inForb=x=>mg.some(iv=>x>iv[0]&&x<iv[1]);
-  const snap=x=>{
-    x=Math.max(edge,Math.min(W-edge,x));
-    if(!inForb(x))return x;
-    const iv=mg.find(iv=>x>iv[0]&&x<iv[1]);
-    const cl=(iv[0]>=edge&&!inForb(iv[0]-0.01))?iv[0]:null;
-    const cr=(iv[1]<=W-edge&&!inForb(iv[1]+0.01))?iv[1]:null;
-    if(cl===null&&cr===null)return null;
-    if(cl===null)return cr; if(cr===null)return cl;
-    return (x-iv[0]<=iv[1]-x)?cl:cr;
-  };
-  const offs=nD===2?[-0.28,0.28]:nD===4?[-0.36,-0.18,0.18,0.36]:[0];
-  const placed=[];
-  for(const o of offs.slice(0,nD)){
-    let x=snap(W/2+o*W);
-    if(x===null)continue;
-    let guard=0;
-    while(x!==null&&placed.some(p=>Math.abs(p-x)<6)&&guard++<12){
-      const nx=snap(x+6); if(nx===null||Math.abs(nx-x)<0.01){x=null;break;} x=nx;
-    }
-    if(x!==null&&!placed.some(p=>Math.abs(p-x)<6))placed.push(x);
-  }
-  return placed.sort((a,b)=>a-b);
 }
 function taperGeom(){
   const T=state.taper; if(!T||!T.enabled||T.topC===undefined) return null;
@@ -395,17 +373,6 @@ function taperGeom(){
     const outline=roundOutlinePts(pts.map(p=>[p[0]-mx,p[1]-my]),Math.max(0.5,+state.corner||2));
     const t=hT/(hT+hB), rChord=r[0]+(r[2]-r[0])*t, dip=rChord-r[1];
     const W=Math.max(...xs)-mx, H=Math.max(...ys)-my;
-    // relief darts: vertical lens cutouts at the waist that close circumferentially when wrapped
-    const nD=Math.max(0,Math.min(4,parseInt(T.darts)||0));
-    let darts=[], dartsWanted=nD;
-    if(nD>0){
-      const cChord=topC+(botC-topC)*t;
-      const excess=Math.max(0,(cChord-waistC))*wrap;
-      const Ld=Math.min(24,0.4*H);
-      const xs2=dartPlace(nD,W,s1,Ld,excess/nD);
-      const wd=xs2.length?excess/xs2.length:0;   // fewer darts fit -> wider mouths, full excess still absorbed
-      darts=xs2.map(x=>({x,y:s1,w:wd,len:Ld}));
-    }
     const wP=Math.max(wT,wB)*waistC/Math.max(topC,botC);   // proportional waist for reference
     // suggested deep-cut waist width from surface curvature, calibrated to the field-proven
     // 45/34/40 sample on the 230/220/230 @ 20+20mm band (implied strain tolerance ~3.3%)
@@ -415,7 +382,7 @@ function taperGeom(){
     if(rpp>1e-9){
       wSuggest=Math.min(wP, 2*Math.sqrt(2*CAL*r[1]/rpp));
     }
-    return {W,H,outline,hg:true,dip,darts,dartsWanted,wT,wW,wB,wP,wSuggest,
+    return {W,H,outline,hg:true,dip,wT,wW,wB,wP,wSuggest,
             topC,botC,waistC,hTop:hT,hBot:hB,wrap};
   }
   const h=Math.max(5,+T.h||60);
@@ -512,13 +479,7 @@ function drawTaper(tg){
     '<defs><pattern id="tphatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">'+
     '<rect width="6" height="6" fill="rgba(255,95,86,.05)"/><line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,95,86,.3)" stroke-width="1"/></pattern></defs>'+
     '<path d="M0 0 H'+W+' V'+H+' H0 Z '+rp+'" fill="url(#tphatch)" fill-rule="evenodd"/>'+
-    '<path d="'+rp+'" fill="none" stroke="#39b7c9" stroke-width="1.5"/>'+
-    (tg.darts&&tg.darts.length?tg.darts.map(d=>{
-      const x=s(d.x),y0=s(d.y-d.len/2),y1=s(d.y+d.len/2),hw=s(Math.max(0.15,d.w/2)),ym=s(d.y),tr=s(0.6);
-      return '<path d="M '+x+' '+y0+' Q '+(x+hw)+' '+ym+' '+x+' '+y1+' Q '+(x-hw)+' '+ym+' '+x+' '+y0+' Z" fill="rgba(255,95,86,.15)" stroke="#39b7c9" stroke-width="1"/>'+
-             '<circle cx="'+x+'" cy="'+y0+'" r="'+tr+'" fill="none" stroke="#39b7c9" stroke-width="1"/>'+
-             '<circle cx="'+x+'" cy="'+y1+'" r="'+tr+'" fill="none" stroke="#39b7c9" stroke-width="1"/>';
-    }).join(''):'');
+    '<path d="'+rp+'" fill="none" stroke="#39b7c9" stroke-width="1.5"/>';
   labelEl.appendChild(ov);
 }
 function tpSync(){
@@ -544,7 +505,6 @@ function tpSync(){
     } else hint.textContent="";
   }
   const sh=$("#tpShape");if(sh&&document.activeElement!==sh)sh.value=T.shape||"cone";
-  const dsel=$("#tpDarts");if(dsel&&document.activeElement!==dsel)dsel.value=String(T.darts||0);
   const hg=(T.shape==="hourglass");
   document.querySelectorAll(".tphgf").forEach(el=>el.style.display=hg?"":"none");
   document.querySelectorAll(".tpconef").forEach(el=>el.style.display=hg?"none":"");
@@ -574,10 +534,6 @@ function tpSync(){
         jd.textContent=zh?`\u2713 腰部宽度比等比值窄 ${relief.toFixed(1)} 毫米 — 深切腰部已消除周向多余材料（约需 ${surplus.toFixed(1)} 毫米）。局部贴合良好；边缘可能有轻微起皱。`:`\u2713 Waist cut ${relief.toFixed(1)} mm narrower than proportional — the deep cut removes the circumferential surplus (~${surplus.toFixed(1)} mm needed). Good partial-wrap fit; minor puckering possible at the sides.`;}
       else if(d<=0.01){jd.style.cssText=base+";display:block;background:rgba(61,220,132,.1);border:1px solid rgba(61,220,132,.45);color:#3ddc84";
         jd.textContent=zh?"✓ 无收腰反向（单向锥度）— 可干净包覆。":"✓ No reversal (single-direction taper) — wraps cleanly.";}
-      else if(g.darts&&g.darts.length&&d<=3){jd.style.cssText=base+";display:block;background:rgba(255,171,64,.12);border:1px solid rgba(255,171,64,.5);color:#f0a63a";
-        const dw=g.darts[0].w.toFixed(2);
-        const fewer=g.dartsWanted>g.darts.length?(zh?`（仅 ${g.darts.length}/${g.dartsWanted} 条放得下，已自动加宽）`:` (only ${g.darts.length}/${g.dartsWanted} fit around your blocks; mouths widened to compensate)`):"";
-        jd.textContent=zh?`\u26a0 收腰深度 ${d.toFixed(2)} 毫米，由 ${g.darts.length} 条释压切口吸收（每条开口 ${dw} 毫米）${fewer}。切口自动避开图块；闭合后呈细缝；仍建议柔性膜材。`:`\u26a0 Waist dip ${d.toFixed(2)} mm absorbed by ${g.darts.length} relief darts (mouth ${dw} mm each)${fewer}. Darts auto-avoid your blocks; closed they show as fine seams; conformable film still recommended.`;}
       else if(d<=1.5){jd.style.cssText=base+";display:block;background:rgba(255,171,64,.12);border:1px solid rgba(255,171,64,.5);color:#f0a63a";
         jd.textContent=zh?`⚠ 收腰深度 ${d.toFixed(2)} 毫米 — 属浅腰，此沙漏形可贴合，腰部会有轻微起皱。请使用柔性膜材，条码避开腰部。`:`⚠ Waist dip ${d.toFixed(2)} mm — gentle. This hourglass shape will fit with fine puckering at the waist. Use conformable film; keep barcodes out of the waist band.`;}
       else{jd.style.cssText=base+";display:block;background:rgba(255,95,86,.12);border:1px solid rgba(255,95,86,.5);color:#ff5f56";
@@ -588,7 +544,7 @@ function tpSync(){
 
 const BLOCK_DEFS = {
   nutrigrade:{ic:"◧",make:()=>({type:"nutrigrade",box:[4,4,25.60,11],grade:"D",orientation:"horizontal",sugar:8,style:"full"})},
-  barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,22.85],data:"8885022091166",ladder:false,magnification:1.0})},
+  barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,22.85],data:"0123456789104",ladder:false,magnification:1.0})},
   datamatrix:{ic:"▦",make:()=>({type:"datamatrix",box:[4,4,14,14],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"})},
   image:{ic:"⬚",make:()=>({type:"image",box:[4,4,10.0,10.7],src:"bcrs_10c.png",fit:"contain"})},
   title:{ic:"T",make:()=>({type:"title",box:[4,4,40,10],align:"left",size:3.5,lines:["TITLE"]})},
@@ -729,19 +685,13 @@ function validate(){
     if((needsClear(B[i])||needsClear(B[j]))&&g<c-1e-6){add(B[i].id,`${B[i].id}/${B[j].id}: gap ${g.toFixed(1)}<${c}`);add(B[j].id,`gap`);}
   }
   B.forEach(b=>{if(b.type==="image"&&/10c|bcrs/i.test(b.src||"")){if(b.box[3]<9.7-1e-6||b.box[2]<9.0-1e-6)add(b.id,`${b.id}: 10¢ below min 9.7(H)×9.0(W)mm`);}
-    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?14.58:18.28;if(lng<mnL-1e-6||shrt<mnS-1e-6)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
+    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?14.58:18.28;if(lng<mnL-0.09||shrt<mnS-0.09)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
   const tg=taperGeom();
   if(tg){
     const zh=state.lang==="zh";
     B.forEach(b=>{
       if(!boxInOutline(tg,b.box))
         add(b.id,`${b.id}: ${zh?"超出模切轮廓":"outside the die-cut outline"}`);
-      if(tg.darts)for(const d of tg.darts){
-        const [x,y,w2,h2]=b.box, m=1;
-        if(x < d.x+d.w/2+m && x+w2 > d.x-d.w/2-m && y < d.y+d.len/2+m && y+h2 > d.y-d.len/2-m){
-          add(b.id,`${b.id}: ${zh?"与释压切口重叠":"overlaps a relief dart"}`); break;
-        }
-      }
     });
   }
   return bad;
@@ -1193,14 +1143,18 @@ $("#tpWBot").oninput=e=>{
 $("#tpWWaist").oninput=e=>{
   if(state.taper&&state.taper.shape==="hourglass"){saveState();state.taper.wWaist=+e.target.value||0;render();}
 };
-$("#tpShape").onchange=e=>{saveState();if(!state.taper||state.taper.topC===undefined)state.taper=tpDefaults();state.taper.enabled=true;state.taper.shape=e.target.value;render();};
-$("#tpDarts").onchange=e=>{saveState();if(!state.taper||state.taper.topC===undefined)state.taper=tpDefaults();state.taper.enabled=true;state.taper.darts=parseInt(e.target.value)||0;render();};
+$("#tpShape").onchange=e=>{saveState();if(!state.taper||state.taper.topC===undefined)state.taper=tpDefaults();state.taper.enabled=true;state.taper.shape=e.target.value;
+  if(e.target.value==="hourglass"&&+state.taper.topC===180&&+state.taper.botC===240){
+    // first switch from untouched cone defaults -> show the field-proven 45/34/40 sample
+    Object.assign(state.taper,{topC:230,waistC:220,botC:230,hTop:20,hBot:20,wTop:45,wWaist:34,wBot:40});
+  }
+  render();};
 $("#clr").oninput=e=>{state.clearance=+e.target.value;render();};
 $("#zoom").oninput=e=>{scale=+e.target.value;render();};
 $("#unitSel").onchange=e=>{dispU=e.target.value;render();};
 window.addEventListener("resize",()=>{try{drawRulers();}catch(_){}});
 $("#invertToggle").onchange=e=>{saveState();state.invert=e.target.checked;render();};
-function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY";const BC="8885022091166";
+function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY";const BC="0123456789104";
   if(v==="40x40")return [  // barcode LEFT (ladder), 10c TOP-RIGHT, Data Matrix BOTTOM-RIGHT
     {id:"ean",type:"barcode",box:[2,4,23,32],data:BC,ladder:false,rotate:270},
     {id:"tenc",type:"image",box:[27.5,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
@@ -1215,7 +1169,7 @@ function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLE
     {id:"dm",type:"datamatrix",box:[9,45.88,10,10],data:DM}];
   if(v==="65x24")return [  // 10c TOP, EAN-8 CENTRE (ladder, 0.80), Data Matrix BOTTOM — all centred, 4 equal gaps
     {id:"tenc",type:"image",box:[7.5,5.98,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[4.71,21.66,14.58,21.38],data:BC.slice(0,8),ladder:false,rotate:270,magnification:0.80,symbology:"ean8"},
+    {id:"ean",type:"barcode",box:[4.71,21.66,14.58,21.38],data:"01234565",ladder:false,rotate:270,magnification:0.80,symbology:"ean8"},
     {id:"dm",type:"datamatrix",box:[7,49.02,10,10],data:DM}];
   return [  // 75x30: 10c TOP, barcode CENTRE (ladder), Data Matrix BOTTOM — all centred, 4 equal vertical gaps (~4.0mm)
     {id:"tenc",type:"image",box:[10,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
@@ -1241,6 +1195,24 @@ document.addEventListener("keydown",e=>{
 // ---------- import / export ----------
 const modal=$("#modal");
 function refreshExport(){$("#modalText").value=JSON.stringify(cleanSpec(),null,2);}
+$("#previewBtn").onclick=()=>{
+  const clone=labelEl.cloneNode(true);
+  // strip editor chrome: clearance zones, guides, dim labels, handles, selection/breach outlines
+  clone.querySelectorAll(".czone,.guide,.dimlabel,.h").forEach(e=>e.remove());
+  clone.querySelectorAll(".blk").forEach(e=>{e.classList.remove("sel","bad");e.style.cursor="default";});
+  clone.style.boxShadow="0 4px 24px rgba(0,0,0,.25)";
+  const st=$("#pvStage");st.innerHTML="";st.appendChild(clone);
+  // fit to viewport
+  const pw=labelEl.offsetWidth,ph=labelEl.offsetHeight;
+  const sc=Math.min(1,(window.innerWidth*0.8)/pw,(window.innerHeight*0.6)/ph);
+  clone.style.transform=`scale(${sc})`;clone.style.transformOrigin="top left";
+  st.style.width=(pw*sc)+"px";st.style.height=(ph*sc)+"px";st.style.overflow="hidden";
+  const u=dispU==="mm";
+  $("#pvDims").textContent=(u?state.size.w.toFixed(1)+" × "+state.size.h.toFixed(1)+" mm":(state.size.w/25.4).toFixed(3)+'" × '+(state.size.h/25.4).toFixed(3)+'"');
+  $("#pvModal").classList.add("on");
+};
+$("#pvClose").onclick=()=>$("#pvModal").classList.remove("on");
+$("#pvExport").onclick=()=>{$("#pvModal").classList.remove("on");$("#exportBtn").onclick();};
 $("#exportBtn").onclick=()=>{
   $("#modalTitle").textContent="Export — paste the JSON, download any image assets into the engine's assets/ folder";
   const ups=state.blocks.filter(b=>b.type==="image"&&String(b.src||"").startsWith("data:"));
@@ -1266,11 +1238,11 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v16-merge (2026-07-16)";
+const BUILD_TAG="v17 (2026-07-16)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
-    ...(state.taper&&state.taper.enabled?{taper:(state.taper.shape==="hourglass"?(()=>{const g0=taperGeom()||{};return {model:"hourglass",topC:+state.taper.topC,waistC:+state.taper.waistC,botC:+state.taper.botC,hTop:+state.taper.hTop,hBot:+state.taper.hBot,wrap:+state.taper.wrap,wTop:g0.wT,wWaist:g0.wW,wBot:g0.wB,...(state.taper.darts>0?{darts:+state.taper.darts,dartCuts:g0.darts||[]}:{})};})():{model:"cone",topC:+state.taper.topC,botC:+state.taper.botC,h:+state.taper.h,wrap:+state.taper.wrap})}:{}),
+    ...(state.taper&&state.taper.enabled?{taper:(state.taper.shape==="hourglass"?(()=>{const g0=taperGeom()||{};return {model:"hourglass",topC:+state.taper.topC,waistC:+state.taper.waistC,botC:+state.taper.botC,hTop:+state.taper.hTop,hBot:+state.taper.hBot,wrap:+state.taper.wrap,wTop:g0.wT,wWaist:g0.wW,wBot:g0.wB};})():{model:"cone",topC:+state.taper.topC,botC:+state.taper.botC,h:+state.taper.h,wrap:+state.taper.wrap})}:{}),
     blocks:state.blocks.map(b=>{const o={id:b.id,type:b.type,box:b.box.map(Number)};
       const keys={nutrigrade:["grade","orientation","style","sugar"],barcode:["symbology","data","ladder","magnification"],datamatrix:["data"],
         image:["src","fit","name"],title:["lines","align","size","weight"],text:["title","body","size","lineGap","align"],
