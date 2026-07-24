@@ -212,7 +212,7 @@
     <button id="importBtn" data-i18n="importj">Import JSON</button>
     <button id="previewBtn" data-i18n="preview">👁 Preview</button>
     <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-    <span id="buildTag" class="abuild" title="Build version">v18.3 (2026-07-23)</span>
+    <span id="buildTag" class="abuild" title="Build version">v18.4 (2026-07-23)</span>
   </div>
 </header>
 
@@ -254,7 +254,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.3 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.4 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -590,7 +590,7 @@ function addBlock(kind){saveState();const b=BLOCK_DEFS[kind].make();b.id=uid(kin
 // ---------- render ----------
 // Single source of truth for the Label Builder version — shown in the header so you can
 // always tell which build is actually deployed.
-const LB_BUILD="LB 20260723-4 · true print preview + preview-fit + resize + subtitle + text auto-fit";
+const LB_BUILD="LB 20260723-5 · engine-match text/title + true preview + fit + resize + subtitle";
 (function(){const e=document.getElementById("lb-build");if(e)e.textContent=LB_BUILD;})();
 const labelEl=$("#label"), clearEl=$("#clearZone");
 function mm(v){return v*scale;}
@@ -828,7 +828,10 @@ function autoGrowNut(b){if(b.type!=="nutrition_table")return;
     const s=fitNutSize(b), needH=nutNeedH(b,s)+0.1;          // font that fits the box width, then fit height
     if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);
   }}
-function fitTitleSize(b){const bw=Math.max(1,b.box[2]-1),bh=Math.max(1,b.box[3]-1);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<90;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s-=0.05;}return s;}
+// Match the engine's el_title: shrink from the set size until the widest line fits the full box
+// WIDTH and all lines fit the full box HEIGHT (line-height 1.15). Uses the full box (no extra
+// margin) so the on-screen title size equals the printed one.
+function fitTitleSize(b){const bw=Math.max(1,b.box[2]),bh=Math.max(1,b.box[3]);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<200;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s=+(s-0.05).toFixed(2);}return s;}
 // Title sizing (hybrid, like text + nutrition table): the font renders at the size you set and the
 // box GROWS to fit — rightward first, then leftward once it hits the label edge (so a top-right
 // title stays anchored to the right). Full label width is the hard cap; fitTitleSize is the safety.
@@ -897,15 +900,32 @@ function wrapRich(text,sizeMM,boxWmm){
   }
   return out;
 }
-// Match the print engine's text auto-fit (el_text): shrink the font until every wrapped line
-// fits the box HEIGHT. When the box was auto-grown to fit (the normal case) this returns the
-// size unchanged; when the box height is fixed/too small it shrinks — exactly like the engine,
-// so the on-screen preview matches the printed PDF instead of showing oversized text.
+// Count wrapped lines EXACTLY like the print engine's wrap() so the auto-fit size matches the
+// PDF: split on newlines, greedy word-wrap at the full box width, and — critically — count every
+// paragraph including trailing/blank ones (a stray Enter at the end reserves a line in the engine
+// too). wrapRich() drops trailing blanks for display, which made the builder skip the shrink the
+// engine applies; this mirrors the engine instead.
+function engLineCount(text,sizeMM,boxWmm){
+  let n=0;
+  String(text==null?"":text).split("\n").forEach(para=>{
+    let cur="";
+    para.split(" ").forEach(w=>{
+      const trial=(cur+" "+w).trim();
+      if(measW(trial,sizeMM,false)<=boxWmm||!cur)cur=trial;
+      else{n++;cur=w;}
+    });
+    n++;                                   // final (or empty) line of the paragraph
+  });
+  return n;
+}
+// Match the print engine's text auto-fit (el_text): shrink the font until every line (incl. blank
+// trailing lines) fits the box HEIGHT. Auto-grown boxes return the size unchanged; a fixed/too-
+// small box shrinks — exactly like the engine, so the preview matches the printed PDF.
 function fitTextSize(b){
-  const lg=b.lineGap||1.25, w=Math.max(1,b.box[2]-1), h=Math.max(0.1,b.box[3]);
+  const lg=b.lineGap||1.25, w=Math.max(1,b.box[2]), h=Math.max(0.1,b.box[3]);
   let s=b.size||1.5;
   for(let k=0;k<400 && s>0.5;k++){
-    const n=(b.title?1:0)+wrapRich(b.body||"",s,w).length;
+    const n=(b.title?1:0)+engLineCount(b.body||"",s,w);
     if(n*s*lg<=h) break;
     s=+(s-0.05).toFixed(2);
   }
@@ -1315,13 +1335,19 @@ $("#importBtn").onclick=()=>{
 };
 $("#modalClose").onclick=()=>modal.classList.remove("on");
 $("#modalCopy").onclick=()=>{navigator.clipboard.writeText($("#modalText").value);$("#modalCopy").textContent="Copied";setTimeout(()=>$("#modalCopy").textContent="Copy",1200);};
-$("#modalLoad").onclick=()=>{try{const s=JSON.parse($("#modalText").value);if(!s.size||!s.blocks)throw 0;if(s.taper){s.taper.enabled=true;s.taper.shape=s.taper.model==="hourglass"?"hourglass":"cone";}saveState();state=s;selId=null;modal.classList.remove("on");render();}catch(err){alert("Not a valid spec JSON.");}};
+$("#modalLoad").onclick=()=>{try{const s=JSON.parse($("#modalText").value);if(!s.size||!s.blocks)throw 0;if(s.taper){s.taper.enabled=true;s.taper.shape=s.taper.model==="hourglass"?"hourglass":"cone";}
+  // Respect the imported boxes EXACTLY like the print engine: pin every box (width+height) so the
+  // builder never auto-grows them. The engine treats spec boxes as fixed and only shrinks the font
+  // to fit — so pinning + shrink-to-fit makes the on-screen layout match the printed PDF. (You can
+  // still hit "↺ Auto-fit box" on any block to re-enable growing.)
+  (s.blocks||[]).forEach(b=>{if(Array.isArray(b.box)){b._mw=true;b._mh=true;}});
+  saveState();state=s;selId=null;modal.classList.remove("on");render();}catch(err){alert("Not a valid spec JSON.");}};
 function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m[1]:"").toLowerCase();
   if(t.includes("svg"))return"svg";if(t.includes("pdf"))return"pdf";if(t.includes("postscript")||t.includes("illustrator"))return"ai";
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v18.3 (2026-07-23)";
+const BUILD_TAG="v18.4 (2026-07-23)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
