@@ -1589,7 +1589,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-MAP15'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-MAP16'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -4264,6 +4264,7 @@ function findQuotesForLostClient(clientName){
     var isMatch=false;
     for(var i=0;i<aliasTargets.length;i++){if(q.company.toLowerCase()===aliasTargets[i].toLowerCase()){isMatch=true;break;}}
     if(!isMatch)isMatch=companyNamesMatch(clientName,q.company);
+    if(!isMatch)isMatch=_coMatch(clientName,q.company);   // company_map.xlsx aliases (e.g. Interchamp Trading == Interchamp)
     if(isMatch){matchedRows.push(q);matchedNamesSet[q.company]=true;}
   });
   return{quotes:matchedRows,matchedNames:Object.keys(matchedNamesSet)};
@@ -5869,8 +5870,8 @@ function renderStaffClientHistory(fromCalc){
   var name=(document.getElementById('sq-client').value||'').toLowerCase().trim();
   if(!fromCalc)calcStaffQ();
   if(!name){box.style.display='none';return;}
-  var orders=(ORDERS||[]).filter(function(o){return o.name&&o.name.toLowerCase().indexOf(name)>-1;});
-  var quotes=(QUOTES_RAW||[]).filter(function(q){return q.company&&q.company.toLowerCase().indexOf(name)>-1;});
+  var orders=(ORDERS||[]).filter(function(o){return o.name&&(o.name.toLowerCase().indexOf(name)>-1||_coMatch(name,o.name));});
+  var quotes=(QUOTES_RAW||[]).filter(function(q){return q.company&&(q.company.toLowerCase().indexOf(name)>-1||_coMatch(name,q.company));});
   if(!orders.length&&!quotes.length){box.style.display='';el.innerHTML='<div class="dempty">'+TX.noClientHistory+'</div>';return;}
   box.style.display='';
   // Comparison row (your current quote) — shown when an estimate is active.
@@ -6038,6 +6039,11 @@ function _normCoBase(s){
 // Public normaliser used everywhere for company matching: base-normalise, THEN apply the explicit
 // alias map so hand-mapped variants (e.g. "Interchamp Trading" -> "Interchamp") resolve to one key.
 function _normCo(s){ var b=_normCoBase(s); return CO_ALIAS_MAP[b]||b; }
+// True when two company names resolve to the SAME canonical company — i.e. they're identical after
+// suffix-stripping, OR explicitly linked in company_map.xlsx (e.g. "Interchamp Trading" == "Interchamp").
+// This is the single alias-aware equality used across the checks AND the quote/lost-client matching,
+// so the Excel map governs the whole dashboard. Purely explicit: unrelated names never collapse.
+function _coMatch(a,b){ var ka=_normCo(a),kb=_normCo(b); return !!ka&&ka===kb; }
 // Position of a stage on the standard ladder (CRM_STAGES order): Enquiry=0 … Paid … Lost/Stalled=last.
 // Used for advance-only comparisons. -1 for unknown stages.
 function stageOrd(id){for(var i=0;i<CRM_STAGES.length;i++){if(CRM_STAGES[i].id===id)return i;}return -1;}
@@ -6861,8 +6867,8 @@ function renderClientHistory(){
   var rawName=(document.getElementById('q-client').value||'').trim();
   var name=rawName.toLowerCase();
   if(!name){if(box)box.style.display='none';updateContextBand();return;}
-  var matchedOrders=ORDERS.filter(function(o){return o.name&&o.name.toLowerCase().indexOf(name)>-1;});
-  var matchedQuotes=QUOTES_RAW.filter(function(q){return q.company&&q.company.toLowerCase().indexOf(name)>-1;});
+  var matchedOrders=ORDERS.filter(function(o){return o.name&&(o.name.toLowerCase().indexOf(name)>-1||_coMatch(name,o.name));});
+  var matchedQuotes=QUOTES_RAW.filter(function(q){return q.company&&(q.company.toLowerCase().indexOf(name)>-1||_coMatch(name,q.company));});
   if(box)box.style.display='';updateContextBand();
   // Header shows the actual matched company name(s) found in the data — never the raw search
   // text — since a substring search can match a different/additional company than intended.
