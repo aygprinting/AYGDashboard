@@ -1589,7 +1589,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-MAP13'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-MAP14'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1883,10 +1883,12 @@ function parseCompanyMap(buf){
     var wb=readWB(buf);
     var sh=wb.Sheets['CompanyMap']||wb.Sheets[wb.SheetNames[0]]; if(!sh)return map;
     var rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:null});
-    rows.slice(1).forEach(function(r){
+    rows.forEach(function(r){                                    // robust: skip banner/header/blank rows wherever they sit
       if(!r)return;
       var canon=r[2];                                            // col C = canonical company
       if(canon==null||String(canon).trim()==='')return;
+      var probe=((r[0]||'')+' '+(r[2]||'')+' '+(r[4]||'')).toLowerCase();
+      if(/how to use|confirm\/correct here|aliases \(comma/.test(probe))return; // banner + header row
       var ck=_normCoBase(canon); if(!ck)return;
       var variants=[r[0],r[1],r[2]];                             // chat name, suggested, canonical
       if(r[4]!=null)String(r[4]).split(',').forEach(function(a){variants.push(a);}); // col E aliases
