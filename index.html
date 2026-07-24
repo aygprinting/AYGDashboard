@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -1589,7 +1589,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-CHK9'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-CHK10'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3753,16 +3753,26 @@ function dayKey(v){
 function parseFlexDate(s){
   if(!s)return null;
   s=String(s).trim();
+  if(!s)return null;
   var m;
-  // "21 Jun 2026" or "21 June 2026"
-  m=s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
-  if(m){var mo=MON3[m[2].slice(0,3).toLowerCase()];if(mo!==undefined)return new Date(+m[3],mo,+m[1]);}
-  // "15/06/2026" or "15-06-2026" (DD/MM/YYYY — assume day-first, common in SG)
-  m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if(m){var d=+m[1],mo2=+m[2]-1;if(d>=1&&d<=31&&mo2>=0&&mo2<=11){var dt=new Date(+m[3],mo2,d);if(dt.getMonth()===mo2&&dt.getDate()===d)return dt;}}
-  // "2026-06-21" (ISO)
+  // Normalise a year token: 4-digit as-is, 2-digit -> 2000s (the email/WhatsApp pipeline writes
+  // dates as d/m/yy, and the CRM sometimes shows d/m/yy too). Returns null for an absent token.
+  function yr(y){ if(y===undefined||y==='')return null; y=+y; return y<100?2000+y:y; }
+  // No year at all (e.g. "24/7", "24 Jul"): resolve to the most recent occurrence not in the
+  // future — this year, or last year if that date would land ahead of today.
+  function inferYear(mo,d){ var now=new Date(),ty=now.getFullYear();
+    var todayMid=new Date(ty,now.getMonth(),now.getDate()).getTime();
+    if(new Date(ty,mo,d).getTime()-todayMid>86400000)ty-=1; return ty; }
+  function mk(y,mo,d){ if(y==null||mo<0||mo>11||d<1||d>31)return null; var dt=new Date(y,mo,d); return (dt.getMonth()===mo&&dt.getDate()===d)?dt:null; }
+  // ISO "2026-06-21"
   m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  if(m)return mk(+m[1],+m[2]-1,+m[3]);
+  // "21 Jun 2026" / "21 June 26" / "21 Jun" (year optional, 2- or 4-digit)
+  m=s.match(/^(\d{1,2})\s+([A-Za-z]{3,})\.?\s*(\d{2,4})?$/);
+  if(m){var mo=MON3[m[2].slice(0,3).toLowerCase()];if(mo!==undefined){var y1=m[3]?yr(m[3]):inferYear(mo,+m[1]);return mk(y1,mo,+m[1]);}}
+  // "15/06/2026" / "15-6-26" / "24/7" — day-first (SG), year optional and 2- or 4-digit
+  m=s.match(/^(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?$/);
+  if(m){var d=+m[1],mo2=+m[2]-1,y2=m[3]?yr(m[3]):inferYear(mo2,d);return mk(y2,mo2,d);}
   return null;
 }
 function daysSince(dateStr){
