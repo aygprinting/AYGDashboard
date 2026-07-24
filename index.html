@@ -1589,7 +1589,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-MAP14'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-MAP15'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6564,8 +6564,15 @@ function renderChecks(){
   var invLoaded=(INVOICES&&INVOICES.length>0);            // Xero invoices — unpaid-invoice / not-yet-invoiced
   var html='';
   // ── Group 1: CRM, Email & Invoices ──
+  // Alias-map status chip: the "behind"/stage checks can only pair a CRM name with its email/pipeline
+  // name when company_map.xlsx is loaded (e.g. "Interchamp Trading" == "Interchamp"). If it isn't
+  // loaded, name variants silently won't match — so surface the state right here.
+  var _aliasN=CO_ALIAS_MAP?Object.keys(CO_ALIAS_MAP).length:0;
+  var aliasChip=_aliasN
+    ? '<span title="company_map.xlsx loaded — CRM/email name variants are being reconciled" style="font-size:9px;color:var(--tel);background:rgba(20,184,166,.12);padding:2px 7px;border-radius:9px;white-space:nowrap">'+(zh?'公司名映射：':'name map: ')+_aliasN+(zh?' 条':'')+'</span>'
+    : '<span title="company_map.xlsx not loaded from SharePoint — name variants like &quot;Interchamp Trading&quot; vs &quot;Interchamp&quot; will NOT be matched. Add company_map.xlsx to the SharePoint folder and press Sync Data." style="font-size:9px;color:var(--amb);background:rgba(245,158,11,.14);padding:2px 7px;border-radius:9px;white-space:nowrap">⚠ '+(zh?'公司名映射未加载':'name map not loaded')+'</span>';
   html+='<div class="cc-title-row"><div class="cc-title">'+(TX.ccCrmGrpHd||'CRM, Email & Invoices')+'</div>'
-      +'<span style="font-size:9px;color:var(--dim)">'+(TX.ccNote||'')+'</span></div>';
+      +'<span style="display:flex;align-items:center;gap:8px">'+aliasChip+'<span style="font-size:9px;color:var(--dim)">'+(TX.ccNote||'')+'</span></span></div>';
   if(CLIENTS&&CLIENTS.length){
     function stageLbl(id){var s=CRM_STAGES.find(function(s){return s.id===id;});return s?(zh?s.zh:s.id):id;}
     var behindRows=CC.behind.length?CC.behind.map(function(x){
