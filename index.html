@@ -1589,7 +1589,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-CHK11'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-CHK12'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -5986,15 +5986,22 @@ function buildContactCheck(){
   // than the CRM's last-contact date. keyGapDays gives the size of the gap, shown on each row.
   function keyGapDays(aKey,bKey){var ad=new Date(Math.floor(aKey/10000),(Math.floor(aKey/100)%100)-1,aKey%100),bd=new Date(Math.floor(bKey/10000),(Math.floor(bKey/100)%100)-1,bKey%100);return Math.round((bd-ad)/86400000);}
   var today=new Date();var todayKey=today.getFullYear()*10000+(today.getMonth()+1)*100+today.getDate();
-  // Index pipeline by normalized company → last email date and pasting flag.
+  // Index pipeline by normalized company → newest contact date across BOTH channels + pasting flag.
+  // The company's latest contact is the newest of: the "Last Activity" cell (email/overall), the
+  // last WhatsApp message, and the last WhatsApp *client* message — so a recent WhatsApp still
+  // counts even if the Last-Activity cell lagged. That newest date is what we compare to the CRM.
   var pipeIdx={};
   CLIENTS_PIPE.forEach(function(c){
-    var d=parseFlexDate(c.last);
+    var best=null,bestStr='';
+    [c.last,c.waLast,c.waClientLast].forEach(function(v){
+      var d=parseFlexDate(v);
+      if(d&&!isNaN(d.getTime())&&(!best||d.getTime()>best.getTime())){best=d;bestStr=String(v).trim();}
+    });
     var k=_normCo(c.company);
-    var key=d&&!isNaN(d.getTime())?(d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate()):0;
+    var key=best?(best.getFullYear()*10000+(best.getMonth()+1)*100+best.getDate()):0;
     var pastes=/\bpast(e|ing)\b|pasting service|apply sticker|applying sticker|repack/i.test((c.sumEn||'')+' '+(c.histEn||''));
     if(!pipeIdx[k]||key>pipeIdx[k].key){
-      pipeIdx[k]={key:key,date:c.last,company:c.company,paste:pastes,stage:c.stageEn};
+      pipeIdx[k]={key:key,date:bestStr||c.last,company:c.company,paste:pastes,stage:c.stageEn};
     }else if(pastes){pipeIdx[k].paste=true;}
   });
   (CLIENTS||[]).forEach(function(cl){
