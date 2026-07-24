@@ -108,7 +108,10 @@
   .pvtag{position:absolute;bottom:0;right:0;font:7px var(--ui);background:rgba(20,20,20,.6);color:#fff;padding:0 3px;border-radius:3px 0 0 0;pointer-events:none}
   .imgblk{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff}
   .imgblk img{max-width:100%;max-height:100%}
-  .txtblk{width:100%;height:100%;background:#fff;padding:1px 2px;overflow:hidden;color:#000}
+  /* Label text renders in the SAME font the print engine uses (Liberation Sans, Arial is the
+     metric-compatible fallback) and with no padding, so on-screen line-wrapping matches the PDF
+     exactly instead of re-wrapping under a wider UI font. */
+  .txtblk{width:100%;height:100%;background:#fff;padding:0;overflow:hidden;color:#000;font-family:'Liberation Sans',Arial,sans-serif}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
   .modal.on{display:flex}
   .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;width:min(640px,90vw)}
@@ -212,7 +215,7 @@
     <button id="importBtn" data-i18n="importj">Import JSON</button>
     <button id="previewBtn" data-i18n="preview">👁 Preview</button>
     <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-    <span id="buildTag" class="abuild" title="Build version">v18.4 (2026-07-23)</span>
+    <span id="buildTag" class="abuild" title="Build version">v18.5 (2026-07-23)</span>
   </div>
 </header>
 
@@ -254,7 +257,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.4 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.5 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -590,7 +593,7 @@ function addBlock(kind){saveState();const b=BLOCK_DEFS[kind].make();b.id=uid(kin
 // ---------- render ----------
 // Single source of truth for the Label Builder version — shown in the header so you can
 // always tell which build is actually deployed.
-const LB_BUILD="LB 20260723-5 · engine-match text/title + true preview + fit + resize + subtitle";
+const LB_BUILD="LB 20260723-6 · engine font+wrap match + text/title fit + true preview + fit + resize";
 (function(){const e=document.getElementById("lb-build");if(e)e.textContent=LB_BUILD;})();
 const labelEl=$("#label"), clearEl=$("#clearZone");
 function mm(v){return v*scale;}
@@ -932,14 +935,16 @@ function fitTextSize(b){
   return Math.max(0.5,s);
 }
 function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
-  const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]-1));
+  // Wrap at the FULL box width (like the engine) \u2014 the render font now matches the measuring font,
+  // so these computed line breaks render 1:1 (each line is nowrap, so the browser can't re-break it).
+  const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]));
   const bulletIndent=mm(measW("\u2022 ",fs,false));
   const body=rich.map(ln=>{
     const inner=ln.segs.map(s=>s.bold?`<b>${esc(s.t)}</b>`:esc(s.t)).join("");
     const pre=ln.bullet?`<span style="display:inline-block">${esc(ln.bullet)}</span>`:(ln.indent?`<span style="display:inline-block;width:${bulletIndent}px"></span>`:"");
     // Empty line: render a non-breaking space so the blank row keeps its height (matches print).
     const content=(pre+inner)||"&nbsp;";
-    return `<div style="${ln.bullet||ln.indent?`padding-left:${ln.indent?bulletIndent:0}px;text-indent:${ln.indent?-bulletIndent:0}px`:''}">${content}</div>`;
+    return `<div style="white-space:nowrap;${ln.bullet||ln.indent?`padding-left:${ln.indent?bulletIndent:0}px;text-indent:${ln.indent?-bulletIndent:0}px`:''}">${content}</div>`;
   }).join("");
   return `<div class="txtblk" style="font-size:${fp}px;line-height:${lg};overflow:hidden;text-align:${al}">${b.title?`<b>${esc(b.title)}</b> `:""}${body}</div>`;}
 function ntPreview(b){const fs=fitNutSize(b);const fp=mm(fs);let r=`<div class="txtblk" style="font-size:${fp}px;overflow:hidden;border:${Math.max(1,mm(0.3))}px solid #000;border-radius:${mm(0.5)}px;padding:${mm(0.6)}px;box-sizing:border-box"><div style="font-weight:700;font-size:${fp*1.15}px">${esc(b.title||"")}</div>${b.subtitle?String(b.subtitle).split("\n").map(s=>`<div>${esc(s)||"&nbsp;"}</div>`).join(""):""}<table class="ntbl"><tr>${(b.header||[]).map(x=>`<td style="background:#e8e8e8;font-weight:700">${esc(x)}</td>`).join("")}</tr>`;(b.rows||[]).forEach((row,i)=>{r+=`<tr style="background:${i%2?'#f6f6f6':'#fff'}">${row.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`;});return r+"</table></div>";}
@@ -1347,7 +1352,7 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v18.4 (2026-07-23)";
+const BUILD_TAG="v18.5 (2026-07-23)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
