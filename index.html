@@ -1589,7 +1589,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-CHK12'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-MAP13'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1795,6 +1795,7 @@ async function fetchExcelFromSharePoint(){
     REAL_ACCESS_LEVEL='management';
     ADMIN_USER.syncTime=new Date().toLocaleString();
     ADMIN_USER.syncStatus='management';
+    try{await syncCompanyMap(token);}catch(e){}   // load optional name aliases before rendering
     parseAndRender(buf1,buf2);
     await applyMe();
     applyAccessLevel();
@@ -1853,6 +1854,56 @@ async function resolvePipeFileId(token){
   var homeDrive=(hit.parentReference&&hit.parentReference.driveId)||driveId;
   _pipeFile={driveId:homeDrive,id:hit.id};
   return _pipeFile;
+}
+// ── Company-name alias map (company_map.xlsx) ────────────────────────────────
+// Optional file on the same drive. Lets you hand-map name variants (CRM vs pipeline vs WhatsApp)
+// to ONE canonical company so the checks pair them up — e.g. "Interchamp Trading" == "Interchamp".
+// Columns: A Chat Name · B Suggested · C Company(canonical) · D Notes · E Aliases(comma-separated).
+// Fully fail-safe: if the file/sheet is missing or errors, the alias map stays empty and nothing
+// else changes. Cached per session after the first successful load.
+var _cmFile=null, _cmLoaded=false;
+async function resolveCompanyMapFileId(token){
+  if(_cmFile)return _cmFile;
+  var driveId=SP2.siteId;
+  function pick(list){var m=(list||[]).filter(function(f){var n=(f.name||'').toLowerCase();return n.indexOf('company_map')===0&&/\.xlsx$/.test(n);});m.sort(function(a,b){return new Date(b.lastModifiedDateTime||0)-new Date(a.lastModifiedDateTime||0);});return m[0];}
+  var hit=null;
+  try{var r=await graphFetch('/drives/'+driveId+'/root/search(q=\'company_map\')',token);if(r&&r.ok){var j=await r.json();hit=pick(j.value);}}catch(e){}
+  if(!hit){try{var rm=await graphFetch('/me/drive/root/search(q=\'company_map\')',token);if(rm&&rm.ok){var jm=await rm.json();hit=pick(jm.value);}}catch(e){}}
+  if(!hit)return null;
+  var homeDrive=(hit.parentReference&&hit.parentReference.driveId)||driveId;
+  _cmFile={driveId:homeDrive,id:hit.id};return _cmFile;
+}
+// Build the alias map from company_map.xlsx bytes. Header row skipped. Each data row maps its
+// Chat Name (A), Suggested (B) and every comma-separated Alias (E) to the canonical Company (C).
+// Rows without a canonical Company are ignored, so blank/spacer rows are harmless.
+function parseCompanyMap(buf){
+  var map={};
+  try{
+    if(typeof XLSX==='undefined')return map;
+    var wb=readWB(buf);
+    var sh=wb.Sheets['CompanyMap']||wb.Sheets[wb.SheetNames[0]]; if(!sh)return map;
+    var rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:null});
+    rows.slice(1).forEach(function(r){
+      if(!r)return;
+      var canon=r[2];                                            // col C = canonical company
+      if(canon==null||String(canon).trim()==='')return;
+      var ck=_normCoBase(canon); if(!ck)return;
+      var variants=[r[0],r[1],r[2]];                             // chat name, suggested, canonical
+      if(r[4]!=null)String(r[4]).split(',').forEach(function(a){variants.push(a);}); // col E aliases
+      variants.forEach(function(v){var vk=_normCoBase(v);if(vk)map[vk]=ck;});
+    });
+  }catch(e){}
+  return map;
+}
+async function syncCompanyMap(token){
+  try{
+    token=token||getAccessToken(); if(!token)return;
+    var f=await resolveCompanyMapFileId(token); if(!f)return;   // no file -> leave aliases empty
+    var dr=await graphFetch('/drives/'+f.driveId+'/items/'+f.id+'/content',token); if(!dr||!dr.ok)return;
+    var buf=await dr.arrayBuffer();
+    var map=parseCompanyMap(buf);
+    if(map&&Object.keys(map).length){CO_ALIAS_MAP=map;_cmLoaded=true;}
+  }catch(e){/* optional map — never break a sync over it */}
 }
 async function syncClientsUpdate(){
   var btn=document.getElementById('clients-sync-btn');
@@ -2112,6 +2163,7 @@ async function syncChecksAll(){
   try{
     await syncXeroInvoices();                       // -> INVOICES (unpaid-invoice checks)
     await syncClientsUpdate();                      // -> CLIENTS_PIPE (behind / pasting / stage checks)
+    try{await syncCompanyMap();}catch(e){}          // -> CO_ALIAS_MAP (company-name aliases)
     try{await syncOldAutoMain();}catch(e){}         // -> OLD_AUTO_MAIN (older BCRS history)
     try{renderChecks();}catch(e){}
     if(stat){stat.textContent=(TX.synced||'Synced')+': '+INVOICES.length+' '+(TX.xeroInvoicesLbl||'invoices')+' · '+CLIENTS_PIPE.length+' '+(TX.clientsCount||'clients');stat.className='sync-note';}
@@ -5968,7 +6020,11 @@ function renderBcrsPortal(){
 // last EMAIL date. ADVANCE-ONLY: only surfaces cases where the pipeline email is NEWER than the
 // CRM date (CRM may be behind), plus impossible CRM dates. Never suggests moving a date backward,
 // because CRM also captures phone/WhatsApp/in-person contact that email data can't see. Read-only.
-function _normCo(s){
+// Explicit company-name aliases loaded from company_map.xlsx (col C = canonical, col E = aliases).
+// Maps a normalised variant -> normalised canonical, e.g. "interchamptrading" -> "interchamp".
+// Empty until syncCompanyMap() loads the file; if the file is absent, matching just works as before.
+var CO_ALIAS_MAP={};
+function _normCoBase(s){
   s=String(s||'').toLowerCase().trim();
   s=s.replace(/\([^)]*\)/g,' ');   // drop parenthetical suffixes, e.g. "(Etika Holdings)", "(SG)"
   s=s.replace(/;.*$/,' ');          // drop "; alias" suffixes so the parent name still matches
@@ -5977,6 +6033,9 @@ function _normCo(s){
   s=s.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
   return s.replace(/[^a-z0-9]/g,'');
 }
+// Public normaliser used everywhere for company matching: base-normalise, THEN apply the explicit
+// alias map so hand-mapped variants (e.g. "Interchamp Trading" -> "Interchamp") resolve to one key.
+function _normCo(s){ var b=_normCoBase(s); return CO_ALIAS_MAP[b]||b; }
 // Position of a stage on the standard ladder (CRM_STAGES order): Enquiry=0 … Paid … Lost/Stalled=last.
 // Used for advance-only comparisons. -1 for unknown stages.
 function stageOrd(id){for(var i=0;i<CRM_STAGES.length;i++){if(CRM_STAGES[i].id===id)return i;}return -1;}
