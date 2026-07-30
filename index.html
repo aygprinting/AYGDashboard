@@ -1597,7 +1597,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-MAP17'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-MAP18'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6460,7 +6460,7 @@ function renderClientsUpdate(){
     return '<div class="cc-title-row" style="flex-wrap:wrap;gap:8px"><div class="cc-title">'+cfg.title+'</div>'
         +'<div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">'
           +'<span class="reader-search-wrap">'
-            +'<input class="ipt" id="'+cfg.searchId+'" autocomplete="off" value="'+(cfg.search||'').replace(/"/g,'&quot;')+'" placeholder="'+(TX.clientsSearchPh||'Search company, contact, notes\u2026')+'" oninput="'+cfg.oninput+'(this.value)" onkeydown="if(event.key===\'Escape\'){'+cfg.onclose+'();}" style="min-width:220px;font-size:12px">'
+            +'<input class="ipt" id="'+cfg.searchId+'" autocomplete="off" value="'+(cfg.search||'').replace(/"/g,'&quot;')+'" placeholder="'+(TX.clientsSearchPh||'Search company, contact, notes\u2026')+'" oninput="'+cfg.oninput+'(this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();'+cfg.onenter+'(this.value);}else if(event.key===\'Escape\'){'+cfg.onclose+'();}" style="min-width:220px;font-size:12px">'
             +sugHtml
           +'</span>'
           +'<select class="cf-sort" onchange="'+cfg.onselect+'(this.value)" style="min-width:180px"><option value="">'+(sq?(pool2.length+' '+(TX.matchesLbl||'matches')):(TX.selectCompany||'Select company\u2026'))+'</option>'+opts+'</select>'
@@ -6566,8 +6566,8 @@ function renderClientsUpdate(){
   put('cl-days7-body',days7Html);
   put('cl-days14-body',days14Html);
   put('cl-tasks-body',tasksHtml);
-  put('cl-company-body',readerCard({data:CLIENTS_PIPE,sel:clientsSel,search:clientsSearch,title:(TX.companyReaderHd||'Company Summary & History'),searchId:'clients-search',oninput:'clientsSearchInput',onselect:'selectClient',onpick:'pickClientSuggestion',onclose:'closeClientsSug',sugOpen:clientsSugOpen}));
-  put('cl-suppliers-body',readerCard({data:SUPPLIERS_PIPE,sel:supplierSel,search:supplierSearch,title:(TX.supplierReaderHd||'Suppliers & Others'),searchId:'supplier-search',oninput:'supplierSearchInput',onselect:'selectSupplier',onpick:'pickSupplierSuggestion',onclose:'closeSupplierSug',sugOpen:supplierSugOpen}));
+  put('cl-company-body',readerCard({data:CLIENTS_PIPE,sel:clientsSel,search:clientsSearch,title:(TX.companyReaderHd||'Company Summary & History'),searchId:'clients-search',oninput:'clientsSearchInput',onselect:'selectClient',onpick:'pickClientSuggestion',onclose:'closeClientsSug',onenter:'clientsSearchEnter',sugOpen:clientsSugOpen}));
+  put('cl-suppliers-body',readerCard({data:SUPPLIERS_PIPE,sel:supplierSel,search:supplierSearch,title:(TX.supplierReaderHd||'Suppliers & Others'),searchId:'supplier-search',oninput:'supplierSearchInput',onselect:'selectSupplier',onpick:'pickSupplierSuggestion',onclose:'closeSupplierSug',onenter:'supplierSearchEnter',sugOpen:supplierSugOpen}));
   applyClSectionState();
 }
 var CHK_SEC_KEY='aygops-chk-sections';
@@ -6716,6 +6716,19 @@ function selectSupplier(name){supplierSel=name||null;supplierSugOpen=false;rende
 // Pick a company from the autocomplete dropdown: load it, put its name in the box, close the dropdown.
 function pickClientSuggestion(name){clientsSel=name;clientsSearch=name;clientsSugOpen=false;renderClientsUpdate();}
 function pickSupplierSuggestion(name){supplierSel=name;supplierSearch=name;supplierSugOpen=false;renderClientsUpdate();}
+// Top-ranked company-name match for a query — same ranking the dropdown uses (substring match,
+// names that START with the query first, then alphabetical). Shared by render + the Enter key.
+function topCompanyMatch(data,q){
+  q=String(q||'').toLowerCase().trim(); if(!q)return null;
+  var seen={},names=[];
+  (data||[]).forEach(function(c){var n=c.company;if(n&&!seen[n]){seen[n]=1;names.push(c);}});
+  var m=names.filter(function(c){return c.company.toLowerCase().indexOf(q)>-1;});
+  m.sort(function(a,b){var ap=a.company.toLowerCase().indexOf(q)===0?0:1,bp=b.company.toLowerCase().indexOf(q)===0?0:1;if(ap!==bp)return ap-bp;return a.company.localeCompare(b.company);});
+  return m.length?m[0].company:null;
+}
+// Enter in the search box → auto-fill/select the first suggestion match.
+function clientsSearchEnter(v){var n=topCompanyMatch(CLIENTS_PIPE,v!=null?v:clientsSearch);if(n)pickClientSuggestion(n);}
+function supplierSearchEnter(v){var n=topCompanyMatch(SUPPLIERS_PIPE,v!=null?v:supplierSearch);if(n)pickSupplierSuggestion(n);}
 function closeClientsSug(){if(clientsSugOpen){clientsSugOpen=false;renderClientsUpdate();}}
 function closeSupplierSug(){if(supplierSugOpen){supplierSugOpen=false;renderClientsUpdate();}}
 function supplierSearchInput(v){
