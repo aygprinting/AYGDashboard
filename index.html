@@ -195,6 +195,14 @@ html,body{overscroll-behavior-y:contain}
 .btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--b2);background:transparent;color:var(--t);font-size:12px;transition:all .12s}
 .btn:hover{background:var(--s2)}.btn-g{background:rgba(110,231,183,.1);border-color:rgba(110,231,183,.3);color:var(--grn)}
 .ipt{background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:5px 8px;color:var(--t);font-size:calc(var(--fs) * 0.857);outline:none}
+.reader-search-wrap{position:relative;display:inline-block}
+.reader-sug{position:absolute;top:calc(100% + 3px);left:0;right:0;z-index:60;background:var(--s2);border:1px solid var(--b);border-radius:var(--r);box-shadow:0 8px 24px rgba(0,0,0,.28);max-height:280px;overflow-y:auto}
+.reader-sug-item{padding:6px 10px;font-size:12px;color:var(--t);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.reader-sug-item:last-child{border-bottom:none}
+.reader-sug-item:hover,.reader-sug-item.sug-active{background:var(--b)}
+.reader-sug-item strong{color:var(--grn);font-weight:700}
+.reader-sug-stage{font-size:9px;color:var(--dim);flex-shrink:0}
+.reader-sug-empty{padding:7px 10px;font-size:11px;color:var(--dim)}
 .board{display:flex;gap:7px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
 .col{flex:0 0 178px;background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:8px;min-height:60px}
 .col.dov{border-color:var(--grn)}
@@ -1589,7 +1597,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-MAP16'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260724-MAP17'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1691,8 +1699,10 @@ function deriveChannel(srcCell,en,zh){
 var CLIENTS_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-clients-synced-at');return s?new Date(s):null;}catch(e){return null;}})(); // separate timestamp for this section
 var clientsSel=null;       // currently selected company for the reader
 var clientsSearch='';      // free-text filter for the company reader
+var clientsSugOpen=false;  // company-name autocomplete dropdown open?
 var supplierSel=null;      // selected supplier/other for its reader
 var supplierSearch='';     // free-text filter for the supplier reader
+var supplierSugOpen=false; // supplier-name autocomplete dropdown open?
 // ── PKCE ────────────────────────────────────────────────────────────────
 function b64url(buf){return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');}
 async function pkce(){var v=b64url(crypto.getRandomValues(new Uint8Array(32)));var d=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));return{verifier:v,challenge:b64url(d)};}
@@ -6421,9 +6431,38 @@ function renderClientsUpdate(){
           +'<div class="clients-reader-col"><div class="clients-reader-hd">'+(TX.historyHd||'History')+'</div>'+renderHistoryTimeline(hist)+'</div>'
         +'</div>';
     }
+    // \u2500\u2500 Company-name autocomplete: as you type in the search box, matching company names pop up
+    // in a dropdown attached to the same box. Picking one loads that company. The right-side
+    // "select" is kept as-is for browsing/matching. Suggestions match on the COMPANY NAME only.
+    var sugHtml='';
+    if(cfg.sugOpen&&sq){
+      var seenN={},names=[];
+      cfg.data.forEach(function(c){var n=c.company;if(n&&!seenN[n]){seenN[n]=1;names.push(c);}});
+      var matches=names.filter(function(c){return c.company.toLowerCase().indexOf(sq)>-1;});
+      matches.sort(function(a,b){
+        var ap=a.company.toLowerCase().indexOf(sq)===0?0:1, bp=b.company.toLowerCase().indexOf(sq)===0?0:1;
+        if(ap!==bp)return ap-bp; return a.company.localeCompare(b.company);
+      });
+      var shown=matches.slice(0,8);
+      if(shown.length){
+        sugHtml='<div class="reader-sug" id="'+cfg.searchId+'-sug">'+shown.map(function(c){
+          var n=c.company, esc=n.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+          var idx=n.toLowerCase().indexOf(sq);
+          var safe=function(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+          var disp=idx>-1?(safe(n.slice(0,idx))+'<strong>'+safe(n.slice(idx,idx+sq.length))+'</strong>'+safe(n.slice(idx+sq.length))):safe(n);
+          var stg=zh?(c.stageZh||c.stageEn||''):(c.stageEn||'');
+          return '<div class="reader-sug-item" onmousedown="event.preventDefault();'+cfg.onpick+'(\''+esc+'\')"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis">'+disp+'</span>'+(stg?'<span class="reader-sug-stage">'+stg+'</span>':'')+'</div>';
+        }).join('')+'</div>';
+      }else{
+        sugHtml='<div class="reader-sug" id="'+cfg.searchId+'-sug"><div class="reader-sug-empty">'+(TX.noMatchesFound||'No matching company')+'</div></div>';
+      }
+    }
     return '<div class="cc-title-row" style="flex-wrap:wrap;gap:8px"><div class="cc-title">'+cfg.title+'</div>'
         +'<div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-wrap:wrap">'
-          +'<input class="ipt" id="'+cfg.searchId+'" value="'+(cfg.search||'').replace(/"/g,'&quot;')+'" placeholder="'+(TX.clientsSearchPh||'Search company, contact, notes\u2026')+'" oninput="'+cfg.oninput+'(this.value)" style="min-width:200px;font-size:12px">'
+          +'<span class="reader-search-wrap">'
+            +'<input class="ipt" id="'+cfg.searchId+'" autocomplete="off" value="'+(cfg.search||'').replace(/"/g,'&quot;')+'" placeholder="'+(TX.clientsSearchPh||'Search company, contact, notes\u2026')+'" oninput="'+cfg.oninput+'(this.value)" onkeydown="if(event.key===\'Escape\'){'+cfg.onclose+'();}" style="min-width:220px;font-size:12px">'
+            +sugHtml
+          +'</span>'
           +'<select class="cf-sort" onchange="'+cfg.onselect+'(this.value)" style="min-width:180px"><option value="">'+(sq?(pool2.length+' '+(TX.matchesLbl||'matches')):(TX.selectCompany||'Select company\u2026'))+'</option>'+opts+'</select>'
         +'</div>'
       +'</div>'+rh;
@@ -6527,8 +6566,8 @@ function renderClientsUpdate(){
   put('cl-days7-body',days7Html);
   put('cl-days14-body',days14Html);
   put('cl-tasks-body',tasksHtml);
-  put('cl-company-body',readerCard({data:CLIENTS_PIPE,sel:clientsSel,search:clientsSearch,title:(TX.companyReaderHd||'Company Summary & History'),searchId:'clients-search',oninput:'clientsSearchInput',onselect:'selectClient'}));
-  put('cl-suppliers-body',readerCard({data:SUPPLIERS_PIPE,sel:supplierSel,search:supplierSearch,title:(TX.supplierReaderHd||'Suppliers & Others'),searchId:'supplier-search',oninput:'supplierSearchInput',onselect:'selectSupplier'}));
+  put('cl-company-body',readerCard({data:CLIENTS_PIPE,sel:clientsSel,search:clientsSearch,title:(TX.companyReaderHd||'Company Summary & History'),searchId:'clients-search',oninput:'clientsSearchInput',onselect:'selectClient',onpick:'pickClientSuggestion',onclose:'closeClientsSug',sugOpen:clientsSugOpen}));
+  put('cl-suppliers-body',readerCard({data:SUPPLIERS_PIPE,sel:supplierSel,search:supplierSearch,title:(TX.supplierReaderHd||'Suppliers & Others'),searchId:'supplier-search',oninput:'supplierSearchInput',onselect:'selectSupplier',onpick:'pickSupplierSuggestion',onclose:'closeSupplierSug',sugOpen:supplierSugOpen}));
   applyClSectionState();
 }
 var CHK_SEC_KEY='aygops-chk-sections';
@@ -6672,19 +6711,35 @@ function renderChecks(){
   }
   el.innerHTML=html;
 }
-function selectClient(name){clientsSel=name||null;renderClientsUpdate();}
-function selectSupplier(name){supplierSel=name||null;renderClientsUpdate();}
+function selectClient(name){clientsSel=name||null;clientsSugOpen=false;renderClientsUpdate();}
+function selectSupplier(name){supplierSel=name||null;supplierSugOpen=false;renderClientsUpdate();}
+// Pick a company from the autocomplete dropdown: load it, put its name in the box, close the dropdown.
+function pickClientSuggestion(name){clientsSel=name;clientsSearch=name;clientsSugOpen=false;renderClientsUpdate();}
+function pickSupplierSuggestion(name){supplierSel=name;supplierSearch=name;supplierSugOpen=false;renderClientsUpdate();}
+function closeClientsSug(){if(clientsSugOpen){clientsSugOpen=false;renderClientsUpdate();}}
+function closeSupplierSug(){if(supplierSugOpen){supplierSugOpen=false;renderClientsUpdate();}}
 function supplierSearchInput(v){
-  supplierSearch=v;renderClientsUpdate();
+  supplierSearch=v;supplierSugOpen=v.trim().length>0;renderClientsUpdate();
   var el=document.getElementById('supplier-search');
   if(el){el.focus();var n=el.value.length;try{el.setSelectionRange(n,n);}catch(e){}}
 }
 function clientsSearchInput(v){
-  clientsSearch=v;
+  clientsSearch=v;clientsSugOpen=v.trim().length>0;   // open the name suggestions while there's text
   // Re-render, then restore focus + caret to the search box (innerHTML rebuild loses it).
   renderClientsUpdate();
   var el=document.getElementById('clients-search');
   if(el){el.focus();var n=el.value.length;try{el.setSelectionRange(n,n);}catch(e){}}
+}
+// Close either autocomplete dropdown when clicking anywhere outside the reader control rows.
+// Bound once; uses the bubble phase so a click on another control still triggers that control first.
+if(!window._readerSugCloserBound){
+  window._readerSugCloserBound=true;
+  document.addEventListener('click',function(e){
+    if(!(clientsSugOpen||supplierSugOpen))return;
+    if(e.target&&e.target.closest&&e.target.closest('.cc-title-row'))return; // input/select/suggestions handle themselves
+    clientsSugOpen=false;supplierSugOpen=false;
+    try{renderClientsUpdate();}catch(_){}
+  });
 }
 
 // ── QUOTES ────────────────────────────────────────────────────────────────
