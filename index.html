@@ -1613,7 +1613,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260724-MAP20'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260731-COMP1'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
