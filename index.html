@@ -249,7 +249,7 @@ html,body{overscroll-behavior-y:contain}
 .src-note svg{width:12px;height:12px;flex-shrink:0;opacity:.7}
 @media(max-width:720px){.ov-cols{grid-template-columns:1fr !important}}
 @media(max-width:720px){.clients-reader-grid{grid-template-columns:1fr}}
-.ov-act-upd{cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0)}.ov-act-upd:active{opacity:.6}
+.ov-act-upd{cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0)}.ov-act-upd:active{opacity:.6}.ov-act-upd::after{content:'\25be';margin-left:5px;color:var(--pnk);font-size:9px;vertical-align:middle;opacity:.75}.ov-act-upd.exp::after{content:'\25b4'}.ov-act-upd:hover{color:var(--t)!important}
 .ov-act-upd.exp{color:var(--t)!important}
 @media(max-width:640px){.ov-act-table{font-size:11px!important}.ov-act-table td{padding:6px 5px!important}.ov-act-co{width:36%!important;word-break:break-word}.ov-act-st{width:auto!important}}
 .clients-days-row{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:start}
@@ -1616,7 +1616,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260731-COMP5'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260731-COMP6'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
