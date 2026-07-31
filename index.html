@@ -249,6 +249,9 @@ html,body{overscroll-behavior-y:contain}
 .src-note svg{width:12px;height:12px;flex-shrink:0;opacity:.7}
 @media(max-width:720px){.ov-cols{grid-template-columns:1fr !important}}
 @media(max-width:720px){.clients-reader-grid{grid-template-columns:1fr}}
+.ov-act-upd{cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0)}.ov-act-upd:active{opacity:.6}
+.ov-act-upd.exp{color:var(--t)!important}
+@media(max-width:640px){.ov-act-table{font-size:11px!important}.ov-act-table td{padding:6px 5px!important}.ov-act-co{width:36%!important;word-break:break-word}.ov-act-st{width:auto!important}}
 .clients-days-row{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:start}
 #clients-sections .ord-sec-grid{display:block;padding:0}
 #clients-sections .ord-section.collapsed .ord-sec-grid{display:none}
@@ -1613,7 +1616,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260731-COMP4'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260731-COMP5'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7286,6 +7289,7 @@ function recalcFromRmb(skipTable){
 // guards its own source and shows a "sync X" prompt when that source isn't loaded.
 // Management-only (gated via STAFF_HIDDEN_TABS).
 function overviewGoto(t){var b=document.querySelector('.tab[data-tab="'+t+'"]');if(b)goTab(t,b);}
+function toggleActUpd(el){if(!el)return;var f=el.getAttribute('data-full');if(f==null)return;if(el.getAttribute('data-exp')==='1'){el.textContent=el.getAttribute('data-short');el.setAttribute('data-exp','0');el.classList.remove('exp');}else{el.textContent=f;el.setAttribute('data-exp','1');el.classList.add('exp');}}
 function renderOverview(){
   var el=document.getElementById('overview-body');if(!el)return;
   var zh=lang==='zh';
@@ -7416,11 +7420,11 @@ function renderOverview(){
   H+='<div style="background:var(--sur);border:1px solid var(--b);border-radius:var(--rl);padding:15px;margin-top:12px">';
   H+='<div style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--m);margin-bottom:11px;font-weight:700">'+(zh?'每日动态 — 来自客户邮件':'Daily activity — from Clients emails')+'</div>';
   if(dailyLoaded){
-    H+='<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
+    H+='<table class="ov-act-table" style="width:100%;border-collapse:collapse;font-size:12px"><tbody>';
     CLIENTS_DAILY.slice(0,8).forEach(function(day){
       if(!day.items||!day.items.length)return;
       H+='<tr><td colspan="3" style="background:var(--s2);color:var(--dim);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px">'+day.label+' · '+day.items.length+(zh?' 条':' updates')+'</td></tr>';
-      day.items.forEach(function(it){var col=(typeof stageColor==='function')?stageColor(it.stageEn||''):'var(--dim)';var _full=(zh?it.updZh:it.updEn)||'',_disp,_ta='';if(_full.length>90){var _cut=_full.slice(0,90),_sp=_cut.lastIndexOf(' ');if(_sp>40)_cut=_cut.slice(0,_sp);_disp=esc(_cut)+'\u2026';_ta=' title="'+esc(_full).replace(/"/g,'&quot;')+'"';}else{_disp=esc(_full);}H+='<tr><td style="padding:7px 8px;border-top:1px solid var(--b);width:150px;vertical-align:top">'+esc(it.company)+'</td><td style="padding:7px 8px;border-top:1px solid var(--b);width:118px;vertical-align:top"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:#0f1720;background:'+col+'">'+esc(zh?(it.stageZh||it.stageEn):it.stageEn)+'</span></td><td style="padding:7px 8px;border-top:1px solid var(--b);color:var(--dim);cursor:default"'+_ta+'>'+_disp+'</td></tr>';});
+      day.items.forEach(function(it){var col=(typeof stageColor==='function')?stageColor(it.stageEn||''):'var(--dim)';var _full=(zh?it.updZh:it.updEn)||'',_cellAttr='',_cellHtml;if(_full.length>90){var _cut=_full.slice(0,90),_sp=_cut.lastIndexOf(' ');if(_sp>40)_cut=_cut.slice(0,_sp);var _short=_cut+'\u2026';var _fa=esc(_full).replace(/"/g,'&quot;'),_sa=esc(_short).replace(/"/g,'&quot;');_cellAttr=' class="ov-act-upd" data-full="'+_fa+'" data-short="'+_sa+'" data-exp="0" title="'+_fa+'" onclick="toggleActUpd(this)"';_cellHtml=esc(_short);}else{_cellHtml=esc(_full);}H+='<tr><td class="ov-act-co" style="padding:7px 8px;border-top:1px solid var(--b);width:150px;vertical-align:top">'+esc(it.company)+'</td><td class="ov-act-st" style="padding:7px 8px;border-top:1px solid var(--b);width:118px;vertical-align:top"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:#0f1720;background:'+col+'">'+esc(zh?(it.stageZh||it.stageEn):it.stageEn)+'</span></td><td style="padding:7px 8px;border-top:1px solid var(--b);color:var(--dim)"'+_cellAttr+'>'+_cellHtml+'</td></tr>';});
     });
     H+='</tbody></table>';
   }else{H+='<div style="font-size:12px;color:var(--dim);margin-bottom:11px">'+(zh?'尚未加载客户数据。':'Clients data not loaded yet.')+'</div>'+syncBtn('clients',TX.clientsSync||'Sync Clients');}
