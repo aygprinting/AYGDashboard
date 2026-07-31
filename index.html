@@ -1613,7 +1613,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260731-COMP2'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260731-COMP3'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7420,7 +7420,7 @@ function renderOverview(){
     CLIENTS_DAILY.slice(0,8).forEach(function(day){
       if(!day.items||!day.items.length)return;
       H+='<tr><td colspan="3" style="background:var(--s2);color:var(--dim);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px">'+day.label+' · '+day.items.length+(zh?' 条':' updates')+'</td></tr>';
-      day.items.forEach(function(it){var col=(typeof stageColor==='function')?stageColor(it.stageEn||''):'var(--dim)';H+='<tr><td style="padding:7px 8px;border-top:1px solid var(--b);width:150px;vertical-align:top">'+esc(it.company)+'</td><td style="padding:7px 8px;border-top:1px solid var(--b);width:118px;vertical-align:top"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:#0f1720;background:'+col+'">'+esc(zh?(it.stageZh||it.stageEn):it.stageEn)+'</span></td><td style="padding:7px 8px;border-top:1px solid var(--b);color:var(--dim)">'+esc((zh?it.updZh:it.updEn)||'').slice(0,90)+'</td></tr>';});
+      day.items.forEach(function(it){var col=(typeof stageColor==='function')?stageColor(it.stageEn||''):'var(--dim)';var _full=(zh?it.updZh:it.updEn)||'',_disp,_ta='';if(_full.length>90){var _cut=_full.slice(0,90),_sp=_cut.lastIndexOf(' ');if(_sp>40)_cut=_cut.slice(0,_sp);_disp=esc(_cut)+'\u2026';_ta=' title="'+esc(_full).replace(/"/g,'&quot;')+'"';}else{_disp=esc(_full);}H+='<tr><td style="padding:7px 8px;border-top:1px solid var(--b);width:150px;vertical-align:top">'+esc(it.company)+'</td><td style="padding:7px 8px;border-top:1px solid var(--b);width:118px;vertical-align:top"><span style="display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;color:#0f1720;background:'+col+'">'+esc(zh?(it.stageZh||it.stageEn):it.stageEn)+'</span></td><td style="padding:7px 8px;border-top:1px solid var(--b);color:var(--dim);cursor:default"'+_ta+'>'+_disp+'</td></tr>';});
     });
     H+='</tbody></table>';
   }else{H+='<div style="font-size:12px;color:var(--dim);margin-bottom:11px">'+(zh?'尚未加载客户数据。':'Clients data not loaded yet.')+'</div>'+syncBtn('clients',TX.clientsSync||'Sync Clients');}
