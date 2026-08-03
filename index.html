@@ -1634,7 +1634,7 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260731-COMP7'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+var BUILD='20260731-COMP8'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -2932,11 +2932,17 @@ function parseAndRender(buf1,buf2){
     var cpr=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
     COMP_PRICING={'75x30':[],'65x24':[],'75x65':[],'65x59':[],'27x17':[]};
     var cc=[['75x30',2,3],['65x24',5,6],['75x65',8,9],['65x59',11,12],['27x17',14,15]];
-    cpr.slice(3).forEach(function(row){
-      if(!row[0]||isNaN(parseFloat(row[0])))return;
+    // Only parse the contiguous Sato block (rows below the header). Stop at the first
+    // blank/label row after data begins, so the Honsen and Jewel blocks further down the
+    // same sheet are NOT ingested as Sato tiers (they are hardcoded in the dashboard).
+    var _cprows=cpr.slice(3),_started=false;
+    for(var _i=0;_i<_cprows.length;_i++){
+      var row=_cprows[_i];
+      if(!row[0]||isNaN(parseFloat(row[0]))){if(_started)break;else continue;}
+      _started=true;
       var pk=ri(row[0]),pc=ri(row[1]);
       cc.forEach(function(sz){if(row[sz[1]]&&row[sz[2]]){var pp=Math.round(parseFloat(row[sz[2]])*1e6)/1e6;COMP_PRICING[sz[0]].push({packs:pk,pcs:pc,ppp:pp});}});
-    });
+    }
   });
 
   safely('Competitors',function(){
