@@ -346,15 +346,15 @@ document.addEventListener("focusin",e=>{if(e.target.closest("#props")||["sizeW",
 
 function defaultSpec(){
   return {size:{w:59,h:65}, corner:2, clearance:2, clearApply:["image","barcode","datamatrix"], lang:"en", invert:false, blocks:[
-    {id:"ng",type:"nutrigrade",box:[1.7,0.5,24.4,10.5],grade:"D",orientation:"horizontal",style:"full",sugar:16},
+    {id:"ng",type:"nutrigrade",box:[1.1,0.3,24.4,10.5],grade:"D",orientation:"horizontal",style:"full",sugar:16},
     {id:"title",type:"title",box:[28.1,1.1,30.4,3.3],lines:["REDBULL ENERGY DRINK 250ML"],align:"center",size:1.8},
-    {id:"nutrition",type:"nutrition_table",box:[1,11.3,33.7,29.7],title:"NUTRITION INFORMATION",subtitle:"Servings: 1 · Serving size: 250ml (1 Can)",header:["","Per Serving","Per 100ml"],rows:[["Energy","174kcal*","69.6kcal*"],["Protein","0g","0g"],["Total Fat","0g","0g"],["- Saturated Fat","0g","0g"],["- Trans Fat","0g","0g"],["Cholesterol","0mg","0mg"],["Carbohydrate","42.0g","16.8g"],["Dietary Fibre","0g","0g"],["Sodium","260mg","104mg"],["Sugar","41.0g","16.4g"]],size:1.45},
-    {id:"dm",type:"datamatrix",box:[42,52.9,10,10],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"},
-    {id:"tenc",type:"image",box:[42.5,6.7,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[37,19.7,20,30],data:"0123456789104",ladder:false,rotate:270},
-    {id:"notes",type:"text",box:[1,41.6,33.7,5.5],body:"*1kcal=4.2kJ. Max 3 cans/day. Net Weight: 250ml. Place of Origin: Vietnam. Not suitable for diabetics, young children and persons sensitive to caffeine.",size:1.2},
-    {id:"ingredients",type:"text",box:[1,47.7,33.7,11.5],title:"INGREDIENTS:",body:"Water, Sugar, Citric acid (330), Taurine (1000mg), Sodium hydro carbonate (500ii), Synthetic flavour, Caffeine, Inositol, Lysine, Choline, Sodium Benzoate (211), Vitamin B3/B5/B6/B12, Colouring: Tartrazine (102), Ponceau 4R (124).",size:1.4},
-    {id:"importer",type:"text",box:[1,60,33.7,4],body:"Imported by: GOURMET SUPPLIES PTE LTD. 16 Senoko Crescent, Singapore 758270. TEL: 6752 5888 / 6753 5888",size:1.2}
+    {id:"nutrition",type:"nutrition_table",box:[0.9,10.9,28.7,27.9],title:"NUTRITION INFORMATION",subtitle:"Servings: 1 · Serving size: 250ml (1 Can)",header:["","Per Serving","Per 100ml"],rows:[["Energy","174kcal*","69.6kcal*"],["Protein","0g","0g"],["Total Fat","0g","0g"],["- Saturated Fat","0g","0g"],["- Trans Fat","0g","0g"],["Cholesterol","0mg","0mg"],["Carbohydrate","42.0g","16.8g"],["Dietary Fibre","0g","0g"],["Sodium","260mg","104mg"],["Sugar","41.0g","16.4g"]],size:1.45},
+    {id:"dm",type:"datamatrix",box:[40.1,53,10,10],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"},
+    {id:"tenc",type:"image",box:[40.6,6.4,9,9.7],src:"bcrs_10c.png",fit:"contain"},
+    {id:"ean",type:"barcode",box:[34.5,19.9,21.13,29.83],data:"0123456789104",ladder:false,magnification:0.8,rotate:270},
+    {id:"notes",type:"text",box:[0.9,39.2,28.7,5.4],body:"*1kcal=4.2kJ. Max 3 cans/day. Net Weight: 250ml. Place of Origin: Vietnam. Not suitable for diabetics, young children and persons sensitive to caffeine.",size:1.3},
+    {id:"ingredients",type:"text",box:[1.1,45.1,28.5,13.25],title:"INGREDIENTS:",body:"Water, Sugar, Citric acid (330), Taurine (1000mg), Sodium hydro carbonate (500ii), Synthetic flavour, Caffeine, Inositol, Lysine, Choline, Sodium Benzoate (211), Vitamin B3/B5/B6/B12, Colouring: Tartrazine (102), Ponceau 4R (124).",size:1.4},
+    {id:"importer",type:"text",box:[1.1,59.3,28.5,5.3],body:"Imported by: GOURMET SUPPLIES PTE LTD. 16 Senoko Crescent, Singapore 758270. \nTEL: 6752 5888 / 6753 5888",size:1.2}
   ]};
 }
 
@@ -664,6 +664,18 @@ function paint(){
   clearEl.style.width=mm(w-2*c)+"px";clearEl.style.height=mm(h-2*c)+"px";
   [...labelEl.querySelectorAll(".blk,.guide,.czone,.dimlabel")].forEach(e=>e.remove());
   drawTaper(tg);
+  // Record each auto-growing block's AUTHORED box (the size you actually set) before the hybrid
+  // auto-grow inflates it. The overlap check judges against these authored boxes — matching the
+  // print engine, which keeps the box fixed and shrinks the font, so on-screen warnings agree with
+  // the printed PDF. x/y always track the current position; a hand-pinned width/height is
+  // authoritative and kept in sync.
+  state.blocks.forEach(b=>{
+    if(b.type!=="text"&&b.type!=="nutrition_table"&&b.type!=="title")return;
+    if(!b._agBox)b._agBox=b.box.slice();
+    b._agBox[0]=b.box[0];b._agBox[1]=b.box[1];
+    if(b._mw)b._agBox[2]=b.box[2];
+    if(b._mh)b._agBox[3]=b.box[3];
+  });
   // Hybrid text sizing: grow text boxes to fit their content before drawing them.
   state.blocks.forEach(b=>{if(b.type==="text")autoGrowText(b);else if(b.type==="nutrition_table")autoGrowNut(b);else if(b.type==="title")autoGrowTitle(b);});
   const bad=validate();
@@ -707,8 +719,10 @@ function validate(){
   const B=state.blocks;
   B.forEach(b=>{if(!needsClear(b))return;const[x,y,bw,bh]=b.box;
     if(x<c-1e-6||y<c-1e-6||x+bw>w-c+1e-6||y+bh>h-c+1e-6)add(b.id,`${b.id}: <${c}mm to border`);});
+  // Judge spacing against the AUTHORED box (pre auto-grow) so the builder agrees with the print engine.
+  const lay=b=>((b.type==="text"||b.type==="nutrition_table"||b.type==="title")&&b._agBox)?b._agBox:b.box;
   for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){
-    const g=gap(B[i].box,B[j].box);
+    const g=gap(lay(B[i]),lay(B[j]));
     if(g<0){add(B[i].id,`${B[i].id}/${B[j].id}: overlap`);add(B[j].id,`overlap`);continue;}
     if((needsClear(B[i])||needsClear(B[j]))&&g<c-1e-6){add(B[i].id,`${B[i].id}/${B[j].id}: gap ${g.toFixed(1)}<${c}`);add(B[j].id,`gap`);}
   }
