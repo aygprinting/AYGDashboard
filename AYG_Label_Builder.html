@@ -572,7 +572,7 @@ function tpSync(){
 
 const BLOCK_DEFS = {
   nutrigrade:{ic:"◧",make:()=>({type:"nutrigrade",box:[4,4,25.60,11],grade:"D",orientation:"horizontal",sugar:8,style:"full"})},
-  barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,22.85],data:"0123456789104",ladder:false,magnification:1.0})},
+  barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,26.42],data:"0123456789104",ladder:false,magnification:1.0})},
   datamatrix:{ic:"▦",make:()=>({type:"datamatrix",box:[4,4,14,14],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"})},
   image:{ic:"⬚",make:()=>({type:"image",box:[4,4,10.0,10.7],src:"bcrs_10c.png",fit:"contain"})},
   title:{ic:"T",make:()=>({type:"title",box:[4,4,40,10],align:"left",size:3.5,lines:["TITLE"]})},
@@ -713,7 +713,7 @@ function validate(){
     if((needsClear(B[i])||needsClear(B[j]))&&g<c-1e-6){add(B[i].id,`${B[i].id}/${B[j].id}: gap ${g.toFixed(1)}<${c}`);add(B[j].id,`gap`);}
   }
   B.forEach(b=>{if(b.type==="image"&&/10c|bcrs/i.test(b.src||"")){if(b.box[3]<9.7-1e-6||b.box[2]<9.0-1e-6)add(b.id,`${b.id}: 10¢ below min 9.7(H)×9.0(W)mm`);}
-    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?14.58:18.28;if(lng<mnL-0.09||shrt<mnS-0.09)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
+    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?19.52:21.13;if(lng<mnL-0.09||shrt<mnS-0.09)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
   const tg=taperGeom();
   if(tg){
     const zh=state.lang==="zh";
@@ -775,7 +775,7 @@ function ngPreview(b){
 function barPreview(b){
   const seq=[3,1,1,2,1,3,2,1,1,2,1,1,3,1,2,1,1,2,3,1,1,2,1,3,1,1,2,1,2,1];
   let bars="";seq.forEach((wd,i)=>{bars+=`<div style="flex:0 0 ${wd}px;height:100%;background:${i%2?'#fff':'#000'}"></div>`;});
-  const strip=`<div style="display:flex;height:74%;width:100%;align-items:stretch;justify-content:center">${bars}</div>`+
+  const strip=`<div style="display:flex;height:86%;width:100%;align-items:stretch;justify-content:center">${bars}</div>`+
               `<div style="font:6px monospace;letter-spacing:1px;text-align:center">${esc(b.data||"")}</div>`;
   if(b.ladder){
     const sz=Math.min(mm(b.box[2]),mm(b.box[3]));
@@ -1151,8 +1151,13 @@ function renderProps(){
   const iv=p.querySelector("[data-invsel]");if(iv)iv.onchange=e=>{saveState();const v=e.target.value;b.invert=(v==="auto")?undefined:(v==="on");render();};
   const up=p.querySelector("[data-upload]");if(up)up.onchange=e=>{const file=e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{saveState();b.src=rd.result;render();};rd.readAsDataURL(file);};
   p.querySelectorAll("[data-mag]").forEach(btn=>btn.onclick=()=>{saveState();
-    const T13={"0.80":[29.83,18.28],"0.90":[33.56,20.57],"1.00":[37.29,22.85]};
-    const T8={"0.80":[21.38,14.58],"0.90":[24.06,16.41],"1.00":[26.73,18.23]};
+    // [long, short] mm per magnification. Long = nominal symbol WIDTH (incl. quiet zones, unchanged).
+    // Short = full symbol HEIGHT INCLUDING the human-readable OCR-B digits — set to long × (svg vh/vw)
+    // so the box matches the generated barcode's true aspect ratio (EAN-13 216×153 → ×0.70833;
+    // EAN-8 138×126 → ×0.91304). This includes the digit band AND fixes the previous letterbox that
+    // printed the code undersized. (Bars-only heights were 22.85 / 20.57 / 18.28 for EAN-13.)
+    const T13={"0.80":[29.83,21.13],"0.90":[33.56,23.77],"1.00":[37.29,26.42]};
+    const T8={"0.80":[21.38,19.52],"0.90":[24.06,21.97],"1.00":[26.73,24.41]};
     const T=(b.symbology||"ean13")==="ean8"?T8:T13;const[lng,shrt]=T[btn.dataset.mag];const rot=((b.rotate||0)%360);if(rot===90||rot===270){b.box[3]=lng;b.box[2]=shrt;}else{b.box[2]=lng;b.box[3]=shrt;}b.magnification=parseFloat(btn.dataset.mag);render();});
   p.querySelectorAll("[data-dm]").forEach(btn=>btn.onclick=()=>{saveState();const ssz=+btn.dataset.dm;b.box[2]=ssz;b.box[3]=ssz;render();});
   // Nutri-Grade size: dropdown sets the SHORT side; long side = short * ratio (2.3273).
