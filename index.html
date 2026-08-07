@@ -6612,19 +6612,23 @@ function renderChecks(){
   function chkNotLoaded(){return '<div style="font-size:11px;color:var(--amb);padding:6px 2px 2px;display:flex;align-items:center;gap:5px"><span>⚠</span><span>'+(TX.chkNotLoaded||'Not loaded — press “Sync Data” above')+'</span></div>';}
   // Each check is its own collapsible card (reuses the .ord-section chevron/collapse machinery).
   // Header turns green at zero when loaded, amber-dim when its data source isn't synced yet.
-  function chkSection(id,title,flagColor,count,rows,clearMsg,loaded){
+  function chkSection(id,title,flagColor,count,rows,clearMsg,loaded,desc){
     if(loaded===undefined)loaded=true;
     var clear=count===0;
     var hdColor=!loaded?'var(--m)':(clear?'var(--grn)':flagColor);
     var col=chkState[id]?' collapsed':'';
     var countTxt=loaded?(' ('+count+')'):'';
     var body=!loaded?chkNotLoaded():(clear?chkClear(clearMsg):rows);
+    // Optional "how it's derived" note, shown just under the section title. Sits inside the
+    // collapsible grid so it hides/shows with the section. Explains which data sources the check
+    // compares and what triggers a flag.
+    var descHtml=desc?('<div class="chk-desc" style="font-size:10px;color:var(--dim);line-height:1.5;padding:5px 2px 7px;border-bottom:1px dashed var(--b)">'+desc+'</div>'):'';
     return '<div class="ord-section'+col+'" id="chk-sec-'+id+'" style="margin-bottom:10px">'
       +'<div class="ord-sec-head" onclick="toggleChkSec(\''+id+'\')" style="margin-bottom:0">'
         +'<svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
         +'<span class="ord-sec-title" style="color:'+hdColor+'">'+title+countTxt+'</span>'
       +'</div>'
-      +'<div class="ord-sec-grid" style="padding:2px 2px 0">'+body+'</div>'
+      +'<div class="ord-sec-grid" style="padding:2px 2px 0">'+descHtml+body+'</div>'
     +'</div>';
   }
   var pipeLoaded=(CLIENTS_PIPE&&CLIENTS_PIPE.length>0);   // email pipeline (Clients sync) — behind / stage / pasting
@@ -6684,12 +6688,12 @@ function renderChecks(){
         +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap">'+(x.price?'<span style="color:var(--dim)">'+(TX.xeroCur||'S$')+' '+fmtMoney(x.price)+'</span> ':'')+'<span style="color:'+sc+'">· '+sLbl+'</span></span>'
       +'</div>';
     }).join(''):'';
-    html+=chkSection('behind',(TX.ccBehindHd||'CRM may be behind'),'var(--amb)',CC.behind.length,behindRows,(TX.ccNoneBehind||'CRM dates are current with email'),pipeLoaded)
-      +chkSection('stage',(TX.ccStageHd||'CRM stage vs pipeline'),'#a78bfa',(CC.stageMismatch?CC.stageMismatch.length:0),stageRows,(TX.ccStageClear||'CRM stages match the pipeline'),pipeLoaded)
-      +chkSection('paste',(TX.ccPasteHd||'Pasting services mentioned'),'#0ea5a4',CC.pasting.length,pasteRows,(TX.ccPasteClear||'No unmarked pasting mentions'),pipeLoaded)
-      +chkSection('inv',(TX.ccInvHd||'Unpaid invoice vs CRM'),'#ef4444',(CC.invMismatch?CC.invMismatch.length:0),invRows,(TX.ccInvClear||'All unpaid invoices match an active client'),invLoaded)
-      +chkSection('notinv',(TX.ccNotInvHd||'In production / delivered — not yet invoiced'),'#f59e0b',(CC.notInvoiced?CC.notInvoiced.length:0),notInvRows,(TX.ccNotInvClear||'Every active order has an invoice'),invLoaded)
-      +chkSection('bad',(TX.ccBadHd||'Date looks wrong'),'#ef4444',CC.bad.length,badRows,(TX.ccBadClear||'All CRM contact dates look valid'),true);
+    html+=chkSection('behind',(TX.ccBehindHd||'CRM may be behind'),'var(--amb)',CC.behind.length,behindRows,(TX.ccNoneBehind||'CRM dates are current with email'),pipeLoaded,(zh?"来源：对比客户最新的电邮／WhatsApp 活动日期与 CRM（联系人表）的「最后联系」日期。当电邮／WhatsApp 更晚时标记，行尾显示 CRM 落后的天数。":"How it's derived: compares each client's newest email / WhatsApp activity date against the Last Date of Contact in the CRM (Contacts tab). Flagged when the email/WhatsApp date is newer — the row shows how many days the CRM is behind."))
+      +chkSection('stage',(TX.ccStageHd||'CRM stage vs pipeline'),'#a78bfa',(CC.stageMismatch?CC.stageMismatch.length:0),stageRows,(TX.ccStageClear||'CRM stages match the pipeline'),pipeLoaded,(zh?"来源：对比由电邮推断的销售阶段与 CRM（联系人表）的阶段。仅当电邮阶段在标准流程中比 CRM 更靠后时标记 — 即 CRM 可能需要更新。":"How it's derived: compares the email-derived pipeline stage against the CRM stage (Contacts tab). Flagged only when the pipeline stage is further along the standard ladder than the CRM — i.e. the CRM likely needs advancing."))
+      +chkSection('paste',(TX.ccPasteHd||'Pasting services mentioned'),'#0ea5a4',CC.pasting.length,pasteRows,(TX.ccPasteClear||'No unmarked pasting mentions'),pipeLoaded,(zh?"来源：在电邮／WhatsApp 摘要中扫描「贴标签／贴纸粘贴」服务的提及，再核对 CRM 的「Pasting 贴标签」列。当有提及但该列未标记 'Y' 时标记。":"How it's derived: scans the email / WhatsApp summary for mentions of a pasting / sticker-application service, then checks the CRM's 'Pasting 贴标签' column. Flagged when pasting is mentioned but that column isn't marked 'Y'."))
+      +chkSection('inv',(TX.ccInvHd||'Unpaid invoice vs CRM'),'#ef4444',(CC.invMismatch?CC.invMismatch.length:0),invRows,(TX.ccInvClear||'All unpaid invoices match an active client'),invLoaded,(zh?"来源：将每张未付的 Xero 发票（状态为待付款、应付 > 0）按公司名匹配 CRM 客户。当公司在 CRM 中无记录（「不在 CRM」）或其 CRM 阶段为「Lost / Stalled」（「CRM: Lost」）时标记。":"How it's derived: matches each unpaid Xero invoice (status Awaiting Payment, amount due > 0) to a CRM client by company name. Flagged when the company has no CRM record ('not in CRM'), or its CRM stage is 'Lost / Stalled' ('CRM: Lost')."))
+      +chkSection('notinv',(TX.ccNotInvHd||'In production / delivered — not yet invoiced'),'#f59e0b',(CC.notInvoiced?CC.notInvoiced.length:0),notInvRows,(TX.ccNotInvClear||'Every active order has an invoice'),invLoaded,(zh?"来源：取 CRM 订单中状态为「生产中／配送中／已交货」的订单，核对是否有对应的 Xero 发票 — 先按发票／参考编号，再按公司名。找不到时标记。免费样品（标记 NA 或价格为 0）会略过。":"How it's derived: takes CRM Orders that are In Production / Out for Delivery / Delivered and checks for a matching Xero invoice — first by invoice/reference number, then by company name. Flagged when none is found. Free samples (marked NA or priced 0) are skipped."))
+      +chkSection('bad',(TX.ccBadHd||'Date looks wrong'),'#ef4444',CC.bad.length,badRows,(TX.ccBadClear||'All CRM contact dates look valid'),true,(zh?"来源：标记 CRM 联系人表中「最后联系」日期位于未来的行 — CRM 的日期录入错误。":"How it's derived: flags CRM Contacts rows whose Last Date of Contact falls in the future — a date-entry error in the CRM."));
   }else{
     html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccNeedsCrm||'Log in / main sync required to compare CRM contact dates.')+'</div>';
   }
@@ -6724,10 +6728,10 @@ function renderChecks(){
       var why=(x.aygRef==='X')?(TX.ccAygRejMarkTag||'marked X'):(x.portal||'—');
       return aygRow(x,'<span style="color:var(--m)">'+why+'</span>');
     }).join('');
-    html+=chkSection('ayg_mismatch',(TX.ccAygMismatchHd||'Portal status vs CRM (Delivered)'),'#a78bfa',_mismatch.length,mismatchRows,(TX.ccAygMismatchClear||'No delivered orders disagree with the portal'))
-      +chkSection('ayg_nottally',(TX.ccAygNotTallyHd||'AYG reference doesn’t tally'),'#f59e0b',_notTally.length,notTallyRows,(TX.ccAygNotTallyClear||'All AYG references reconcile with the CRM'))
-      +chkSection('ayg_noref',(TX.ccAygNoRefHd||'No AYG reference number'),'#ef4444',_noRef.length,noRefRows,(TX.ccAygNoRefClear||'Every portal order has an AYG reference'))
-      +chkSection('ayg_reject',(TX.ccAygRejectHd||'Rejected'),'#9ca3af',_reject.length,rejectRows,(TX.ccAygRejectClear||'No rejected orders'));
+    html+=chkSection('ayg_mismatch',(TX.ccAygMismatchHd||'Portal status vs CRM (Delivered)'),'#a78bfa',_mismatch.length,mismatchRows,(TX.ccAygMismatchClear||'No delivered orders disagree with the portal'),true,(zh?"来源：对比每个 BCRS 门户订单的状态与 CRM 订单状态（通过 AYG Portal Status 表）。仅显示 CRM 标为「已交货」但门户不一致的行 — 即需要处理的。":"How it's derived: compares each BCRS portal order's status with the CRM Orders status (via the AYG Portal Status sheet). Surfaces only rows where the CRM says Delivered but the portal disagrees — the actionable ones."))
+      +chkSection('ayg_nottally',(TX.ccAygNotTallyHd||'AYG reference doesn’t tally'),'#f59e0b',_notTally.length,notTallyRows,(TX.ccAygNotTallyClear||'All AYG references reconcile with the CRM'),true,(zh?"来源：取每个 BCRS 门户订单上的 AYG 参考编号，在 Auto Main／CRM 中查找。当参考存在于门户但在 CRM 中找不到时标记（「不在 CRM」）。":"How it's derived: takes the AYG reference on each BCRS portal order and looks it up in Auto Main / the CRM. Flagged when the reference is on the portal but can't be found in the CRM ('not in CRM')."))
+      +chkSection('ayg_noref',(TX.ccAygNoRefHd||'No AYG reference number'),'#ef4444',_noRef.length,noRefRows,(TX.ccAygNoRefClear||'Every portal order has an AYG reference'),true,(zh?"来源：检查每个 BCRS 门户订单是否有关联的 AYG 参考编号（来自 Auto Main）。当门户订单完全没有 AYG 参考时标记。":"How it's derived: checks each BCRS portal order for a linked AYG reference (from Auto Main). Flagged when the portal order has no AYG reference at all."))
+      +chkSection('ayg_reject',(TX.ccAygRejectHd||'Rejected'),'#9ca3af',_reject.length,rejectRows,(TX.ccAygRejectClear||'No rejected orders'),true,(zh?"来源：列出被拒绝（或在 AYG 参考中手动标记为「X」）的 BCRS 门户订单，与真正的对账缺口区分开。":"How it's derived: lists BCRS portal orders that were rejected (or manually marked 'X' in the AYG reference), keeping them separate from genuine reconciliation gaps."));
   }else{
     html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccAygNeedsSync||'Log in / main sync required to load the AYG portal status.')+'</div>';
   }
