@@ -2216,12 +2216,18 @@ async function syncChecksAll(){
   if(btn){btn.disabled=true;btn.classList.add('syncing');}
   if(stat){stat.textContent=(TX.loadingData||'Loading data...');stat.className='sync-note loading';}
   try{
+    // AYG Operations (+ BCRS) FIRST — this is the only thing that refreshes PORTAL_STATUS, ORDERS
+    // and AUTO_MAIN, i.e. everything the AYG Portal reference checks are built from. Without it the
+    // button refreshed invoices and the pipeline but left the portal section frozen at whatever was
+    // loaded at sign-in, so corrections made in the workbook never appeared no matter how often it
+    // was pressed. Non-fatal: if the download fails the remaining checks still refresh.
+    try{await fetchExcelFromSharePoint();}catch(e){console.error('ops reload failed:',e);}
     await syncXeroInvoices();                       // -> INVOICES (unpaid-invoice checks)
     await syncClientsUpdate();                      // -> CLIENTS_PIPE (behind / pasting / stage checks)
     try{await syncCompanyMap();}catch(e){}          // -> CO_ALIAS_MAP (company-name aliases)
     try{await syncOldAutoMain();}catch(e){}         // -> OLD_AUTO_MAIN (older BCRS history)
     try{renderChecks();}catch(e){}
-    if(stat){stat.textContent=(TX.synced||'Synced')+': '+INVOICES.length+' '+(TX.xeroInvoicesLbl||'invoices')+' · '+CLIENTS_PIPE.length+' '+(TX.clientsCount||'clients');stat.className='sync-note';}
+    if(stat){stat.textContent=(TX.synced||'Synced')+': '+INVOICES.length+' '+(TX.xeroInvoicesLbl||'invoices')+' · '+CLIENTS_PIPE.length+' '+(TX.clientsCount||'clients')+' · '+PORTAL_STATUS.length+' portal'+(aygSnapAt()?(' @ '+aygSnapAt()):'');stat.className='sync-note';}
   }catch(e){
     if(stat){stat.textContent=(TX.syncFailed||'Sync failed')+': '+e.message;stat.className='sync-note err';}
   }finally{
