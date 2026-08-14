@@ -1634,7 +1634,11 @@ var NEWCUST_META={dailyDate:'',winStart:'',winEnd:'',dataStart:''};
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
-var BUILD='20260731-COMP8'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
+// Row 1 of that sheet ("AYG Portal Status — updated DD/MM/YYYY HH:MM · N orders · ..."). The Match?
+// verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
+// below quote it so a stale flag can be told apart from a genuinely missing order.
+var PORTAL_SYNC_NOTE='';
+var BUILD='20260814-CHECKS1'; // single source of truth for the build/version stamp (Checks & Reconciliation — Sync Data button + not-loaded states + Rejected section)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -2758,7 +2762,7 @@ function parseAndRender(buf1,buf2){
             price:Math.round(_fn2(row[8])*100)/100,shipping:0,profit:0,
             status:st,received:_cv2(row[10]),delivery:_cv2(row[11]),tracking:(_cv2(row[13])||'').slice(0,120),
             address:(_cv2(row[14])||'').slice(0,150),contact:_cv2(row[15])||'',mobile:(_cv2(row[16])||'').slice(0,20),
-            invoice:(_cv2(row[19])||'').slice(0,35),payment:_cv2(row[20])||'',printer:'',shipper:'',
+            invoice:(_cv2(row[19])||'').slice(0,35),invoiceFull:(_cv2(row[19])||'').slice(0,300),payment:_cv2(row[20])||'',printer:'',shipper:'',
             days:_cv2(row[22])||'',comment:(_cv2(row[21])||'').slice(0,80),
             totalRmb:0,totalSgd:Math.round(_fn2(row[8])*100)/100,gst:0,totalCost:0,marginPct:0,
             qtyPerSku:Math.round(_fn2(row[23])*100)/100,pricePerPcRmb:0});
@@ -2913,7 +2917,7 @@ function parseAndRender(buf1,buf2){
     or.slice(hi+1).forEach(function(row,i){
       if(!row[5]||!cv(row[5]))return;var co=cv(row[5]);if(!co)return;
       var st=cv(row[18])||'Pending';
-      ORDERS.push({id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100});
+      ORDERS.push({id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),invoiceFull:(cv(row[28])||'').slice(0,300),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100});
     });
   });
 
@@ -3088,12 +3092,13 @@ function parseAndRender(buf1,buf2){
     var psSheet=wbOps.Sheets['AYG Portal Status'];if(!psSheet)return;
     var psr=XLSX.utils.sheet_to_json(psSheet,{header:1,defval:null});
     PORTAL_STATUS=[];
+    PORTAL_SYNC_NOTE=cv(psr[0]&&psr[0][0])||'';   // row 1 summary — gives the snapshot timestamp
     psr.slice(2).forEach(function(row){
       if(!row||(!row[1]&&!row[3]))return;
       var match=cv(row[11]);if(!match)return;
       PORTAL_STATUS.push({
         orderRef:cv(row[1]), aygRef:cv(row[2]), company:cv(row[3]),
-        product:cv(row[5]), portal:cv(row[9]), crm:cv(row[10]), match:match
+        product:cv(row[5]), qty:ri(row[7]), portal:cv(row[9]), crm:cv(row[10]), match:match
       });
     });
   });
@@ -6600,6 +6605,138 @@ function toggleChkSec(id){
   var st=getChkSecState();st[id]=collapsed;
   try{localStorage.setItem(CHK_SEC_KEY,JSON.stringify(st));}catch(e){}
 }
+
+// ── AYG reference diagnostics ───────────────────────────────────────────
+// The "AYG reference doesn't tally" list only says THAT a portal order failed to reconcile. These
+// helpers work out WHY, and — where the evidence is strong — name the likely fix, so a flagged line
+// can be judged without opening the workbook.
+//
+// The Match? verdicts in the AYG Portal Status sheet are a snapshot written when the portal pull
+// last ran; the CRM can have moved on since. Test 1 exists precisely to catch that, because a stale
+// flag and a genuinely missing order look identical in the list.
+var _AYG_TONE={stale:'#0ea5a4',typo:'#f59e0b',missing:'#ef4444'};
+function _aygKey(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');}
+// A CRM order row can carry several references in one cell ("A | B | C") — split them all out.
+function _aygOrderRefs(o){
+  return String((o&&(o.invoiceFull||o.invoice))||'').split(/[|,;]+/).map(function(s){return s.trim();})
+    .filter(function(s){return /BCRS/i.test(s);});
+}
+function _aygNum(n){return String(n||0).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+// When the portal snapshot was taken, pulled out of the sheet's own row-1 summary.
+function aygSnapAt(){var m=/updated\s+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4}(?:\s+[0-9:]+)?)/i.exec(PORTAL_SYNC_NOTE||'');return m?m[1].trim():'';}
+function _aygSnapLine(zh){
+  var t=aygSnapAt();if(!t)return '';
+  return zh?(' 本节的判定来自 '+t+' 的门户快照 — 之后在 CRM 补上的资料，要重新同步才会反映。')
+           :(' These verdicts come from the portal snapshot taken '+t+' — anything added to the CRM since then only clears on the next sync.');
+}
+// Portal side: how many line items and how many pieces sit under one AYG reference.
+function _aygPortalTotals(ref){
+  var k=_aygKey(ref),lines=0,qty=0;
+  (PORTAL_STATUS||[]).forEach(function(r){if(_aygKey(r.aygRef)===k){lines++;qty+=(r.qty||0);}});
+  return {lines:lines,qty:qty};
+}
+// CRM side: every Orders row carrying a reference from the same producer, grouped by the exact
+// reference cell — so one row holding three references stays ONE order worth one quantity.
+function _aygCrmGroups(pid){
+  var out={};
+  (ORDERS||[]).forEach(function(o){
+    var refs=_aygOrderRefs(o);if(!refs.length)return;
+    if(!refs.some(function(r){return r.toUpperCase().indexOf(pid+'-')===0;}))return;
+    var key=refs.map(_aygKey).join('|');
+    if(!out[key])out[key]={refs:refs,qty:0,rows:0,name:o.name,status:o.status||''};
+    out[key].qty+=(o.qty||0);out[key].rows++;
+  });
+  return out;
+}
+// Every reference the portal itself knows about. A CRM reference in this set already belongs to a
+// real portal order, so it can't also be the mis-typed version of a different one — without this,
+// two genuine orders a month apart (…070426 vs …070826) read as a one-character typo.
+function _aygPortalRefSet(){
+  var set={};
+  (PORTAL_STATUS||[]).forEach(function(r){var k=_aygKey(r.aygRef);if(k&&k!=='X')set[k]=1;});
+  return set;
+}
+// A CRM group is a candidate explanation only if none of its references are already spoken for.
+function _aygUnclaimed(g,set){return !g.refs.some(function(r){return set[_aygKey(r)];});}
+// Levenshtein, cheap and capped — used only to spot a reference differing by a character or two
+// (nearly always the DDMMYY block), which is the signature of a hand-typed reference.
+function _aygEdit(a,b){
+  a=String(a);b=String(b);if(Math.abs(a.length-b.length)>3)return 99;
+  var prev=[],cur=[],i,j;
+  for(j=0;j<=b.length;j++)prev[j]=j;
+  for(i=1;i<=a.length;i++){
+    cur=[i];
+    for(j=1;j<=b.length;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a.charAt(i-1)===b.charAt(j-1)?0:1));
+    prev=cur.slice();
+  }
+  return prev[b.length];
+}
+// Returns {tone,text} explaining one flagged reference, or null if there's nothing useful to say.
+// Tests run in order of how strong the evidence is; the first hit wins.
+function aygRefDiag(ref,company,zh){
+  var k=_aygKey(ref);if(!k||k==='X')return null;
+  // Without the Orders sheet in memory every test below would report "not in the CRM", which would
+  // be a lie about the data rather than a finding. Say so instead.
+  if(!ORDERS||!ORDERS.length)return {tone:'missing',text:zh?'CRM 订单资料未载入，无法判断原因 — 请先按上方「同步资料」。':'CRM Orders aren\u2019t loaded, so the reason can\u2019t be worked out — press \u201cSync Data\u201d above first.'};
+  var pt=_aygPortalTotals(ref);
+  var tail=zh?(' 门户：'+pt.lines+' 行 · '+_aygNum(pt.qty)+' 张。')
+             :(' Portal side: '+pt.lines+' line'+(pt.lines===1?'':'s')+' · '+_aygNum(pt.qty)+' pcs.');
+
+  // 1 — the reference IS in the CRM now, so the verdict is simply older than the data.
+  var hit=[];
+  (ORDERS||[]).forEach(function(o){if(_aygOrderRefs(o).some(function(r){return _aygKey(r)===k;}))hit.push(o);});
+  if(hit.length){
+    var hq=0,noSt=0;
+    hit.forEach(function(o){hq+=(o.qty||0);if(!o.status||/^pending$/i.test(o.status))noSt++;});
+    var when=aygSnapAt();
+    var t=zh?('已经不成立 — CRM 现在已有此参考编号（'+hit[0].name+'，'+_aygNum(hq)+' 张，共 '+hit.length+' 行）。此判定来自'+(when?(' '+when+' 的'):'上一次')+'快照，重新同步即可清除。')
+             :('Already resolved — the CRM now holds this reference ('+hit[0].name+', '+_aygNum(hq)+' pcs across '+hit.length+' row'+(hit.length===1?'':'s')+'). The verdict is from the '+(when||'last')+' snapshot; re-sync to clear it.');
+    if(noSt)t+=zh?(' 注意：'+(noSt===1?'该行':'其中 '+noSt+' 行')+'还没填状态，下次同步只会变成「状态不符」而不是完全对上 — 补上状态才会真正清掉。')
+                 :(' Note: '+(noSt===1?'that row has':noSt+' of those rows have')+' no Status yet, so the next sync will record a status mismatch rather than a clean match — fill the Status in to clear it properly.');
+    return {tone:'stale',text:t+tail};
+  }
+
+  var pid=String(ref).split('-')[0].toUpperCase();
+  var groups=_aygCrmGroups(pid),allKeys=Object.keys(groups),claimed=_aygPortalRefSet();
+  var keys=allKeys.filter(function(kk){return _aygUnclaimed(groups[kk],claimed);});
+
+  // 2 — same producer, a DIFFERENT reference, identical piece count. That is a mis-typed reference:
+  // quantities matching to the piece across independently entered rows is not a coincidence.
+  if(pt.qty>0){
+    for(var i=0;i<keys.length;i++){
+      var g=groups[keys[i]];
+      if(g.qty===pt.qty){
+        var shown=g.refs.join(' | ');
+        return {tone:'typo',text:(zh?('很可能是参考编号打错了 — CRM 里 '+g.name+' 有一笔「'+shown+'」，张数完全相同（'+_aygNum(g.qty)+' 张，'+g.rows+' 行）。那格应该改成 '+ref+'。')
+                                     :('Looks like a mis-typed reference — the CRM has “'+shown+'” for '+g.name+' with an identical '+_aygNum(g.qty)+' pcs across '+g.rows+' row'+(g.rows===1?'':'s')+'. That cell should probably read '+ref+'.'))+tail};
+      }
+    }
+  }
+
+  // 3 — no quantity match, but a reference that differs by a character or two.
+  var best=null;
+  keys.forEach(function(kk){
+    groups[kk].refs.forEach(function(r){
+      var d=_aygEdit(_aygKey(r),k);
+      if(d>0&&d<=2&&(!best||d<best.d))best={d:d,ref:r,g:groups[kk]};
+    });
+  });
+  if(best){
+    return {tone:'typo',text:(zh?('CRM 里最接近的编号是「'+best.ref+'」（相差 '+best.d+' 个字符，'+_aygNum(best.g.qty)+' 张）— 先核对日期那段，再当作缺失订单。')
+                                :('Closest CRM reference is “'+best.ref+'” — '+best.d+' character'+(best.d===1?'':'s')+' different, '+_aygNum(best.g.qty)+' pcs. Check the date block before treating this as a missing order.'))+tail};
+  }
+
+  // 4 — the producer is trading, this particular order just isn't in Orders.
+  if(allKeys.length){
+    return {tone:'missing',text:(zh?('CRM 没有任何一行带有此参考编号。该厂商另有 '+allKeys.length+' 笔订单在档，所以客户本身没问题 — 这笔订单很可能根本没输入 Orders。')
+                                   :('No CRM row carries this reference. This producer has '+allKeys.length+' other order'+(allKeys.length===1?'':'s')+' on file, so the customer is set up — this order was most likely never entered into Orders.'))+tail};
+  }
+
+  // 5 — nothing at all for this producer.
+  return {tone:'missing',text:(zh?('CRM Orders 里完全没有厂商 '+pid+' 的记录 — 这笔订单（可能连客户）从未录入。')
+                                 :('Nothing in CRM Orders for producer '+pid+' at all — this order, and possibly the customer, has never been entered.'))+tail};
+}
+
 function renderChecks(){
   var el=document.getElementById('chk-body');if(!el)return;
   var zh=lang==='zh';
@@ -6706,22 +6843,33 @@ function renderChecks(){
     var _notTally=PORTAL_STATUS.filter(function(r){return /NOT IN CRM/i.test(r.match);});
     var _noRef=PORTAL_STATUS.filter(function(r){return /NO AUTO MAIN/i.test(r.match);});
     var _reject=PORTAL_STATUS.filter(function(r){return /REJECT/i.test(r.match);});
-    function aygRow(x,detailHtml){
+    function aygRow(x,detailHtml,noteHtml){
       var co=(x.company||'—');
       var prod=x.product?'<div style="font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+x.product+'</div>':'';
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="goTab(\'bcrsportal\',document.querySelector(\'[data-tab=bcrsportal]\'))">'
-        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+co+'</span>'+prod+'</span>'
+      return '<div style="display:flex;align-items:'+(noteHtml?'flex-start':'center')+';justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="goTab(\'bcrsportal\',document.querySelector(\'[data-tab=bcrsportal]\'))">'
+        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+co+'</span>'+prod+(noteHtml||'')+'</span>'
         +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right;display:flex;align-items:center;gap:5px;justify-content:flex-end">'+detailHtml+'</span>'
       +'</div>';
     }
     var mismatchRows=_mismatch.map(function(x){return aygRow(x,'<span style="color:var(--dim)">'+(x.portal||'—')+'</span> <span style="color:#a78bfa">→ '+(x.crm||'—')+'</span>');}).join('');
+    // Every line item under one reference fails for the same reason, so the explanation is printed
+    // once — on the first line of each group — rather than repeated down all 40-odd rows.
+    var _aygSeen={};
     var notTallyRows=_notTally.map(function(x){
       var ref=x.aygRef||'—';
       var refEsc=(x.aygRef||'').replace(/'/g,"\\'");
       var detail='<span style="font-family:\'JetBrains Mono\',monospace;color:var(--t)">'+ref+'</span>'
         +'<button onclick="event.stopPropagation();copyCellText(event,\''+refEsc+'\')" title="'+(TX.ccCopyRef||'Copy reference')+'" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;padding:0 5px;font-size:11px;line-height:16px;color:var(--m);cursor:pointer">⧉</button>'
         +'<span style="color:#f59e0b">· '+(TX.ccAygNotTallyTag||'not in CRM')+'</span>';
-      return aygRow(x,detail);
+      var note='',_gk=_aygKey(x.aygRef);
+      if(!_aygSeen[_gk]){
+        _aygSeen[_gk]=1;
+        var _d=null;try{_d=aygRefDiag(x.aygRef,x.company,zh);}catch(_e){console.error('aygRefDiag',_e);}
+        if(_d)note='<div style="font-size:10px;line-height:1.55;color:var(--m);background:var(--s2);'
+          +'border-left:2px solid '+(_AYG_TONE[_d.tone]||'var(--m)')+';border-radius:0 4px 4px 0;'
+          +'padding:5px 7px;margin:5px 8px 2px 0;white-space:normal">'+_d.text+'</div>';
+      }
+      return aygRow(x,detail,note);
     }).join('');
     var noRefRows=_noRef.map(function(x){return aygRow(x,'<span style="color:#ef4444">'+(TX.ccAygNoRefTag||'no AYG ref')+'</span>');}).join('');
     var rejectRows=_reject.map(function(x){
@@ -6729,7 +6877,7 @@ function renderChecks(){
       return aygRow(x,'<span style="color:var(--m)">'+why+'</span>');
     }).join('');
     html+=chkSection('ayg_mismatch',(TX.ccAygMismatchHd||'Portal status vs CRM (Delivered)'),'#a78bfa',_mismatch.length,mismatchRows,(TX.ccAygMismatchClear||'No delivered orders disagree with the portal'),true,(zh?"来源：对比每个 BCRS 门户订单的状态与 CRM 订单状态（通过 AYG Portal Status 表）。仅显示 CRM 标为「已交货」但门户不一致的行 — 即需要处理的。":"How it's derived: compares each BCRS portal order's status with the CRM Orders status (via the AYG Portal Status sheet). Surfaces only rows where the CRM says Delivered but the portal disagrees — the actionable ones."))
-      +chkSection('ayg_nottally',(TX.ccAygNotTallyHd||'AYG reference doesn’t tally'),'#f59e0b',_notTally.length,notTallyRows,(TX.ccAygNotTallyClear||'All AYG references reconcile with the CRM'),true,(zh?"来源：取每个 BCRS 门户订单上的 AYG 参考编号，在 Auto Main／CRM 中查找。当参考存在于门户但在 CRM 中找不到时标记（「不在 CRM」）。":"How it's derived: takes the AYG reference on each BCRS portal order and looks it up in Auto Main / the CRM. Flagged when the reference is on the portal but can't be found in the CRM ('not in CRM')."))
+      +chkSection('ayg_nottally',(TX.ccAygNotTallyHd||'AYG reference doesn’t tally'),'#f59e0b',_notTally.length,notTallyRows,(TX.ccAygNotTallyClear||'All AYG references reconcile with the CRM'),true,(zh?"来源：取每个 BCRS 门户订单上的 AYG 参考编号，在 Auto Main／CRM 中查找。当参考存在于门户但在 CRM 中找不到时标记（「不在 CRM」）。":"How it's derived: takes the AYG reference on each BCRS portal order and looks it up in Auto Main / the CRM. Flagged when the reference is on the portal but can't be found in the CRM ('not in CRM').")+_aygSnapLine(zh))
       +chkSection('ayg_noref',(TX.ccAygNoRefHd||'No AYG reference number'),'#ef4444',_noRef.length,noRefRows,(TX.ccAygNoRefClear||'Every portal order has an AYG reference'),true,(zh?"来源：检查每个 BCRS 门户订单是否有关联的 AYG 参考编号（来自 Auto Main）。当门户订单完全没有 AYG 参考时标记。":"How it's derived: checks each BCRS portal order for a linked AYG reference (from Auto Main). Flagged when the portal order has no AYG reference at all."))
       +chkSection('ayg_reject',(TX.ccAygRejectHd||'Rejected'),'#9ca3af',_reject.length,rejectRows,(TX.ccAygRejectClear||'No rejected orders'),true,(zh?"来源：列出被拒绝（或在 AYG 参考中手动标记为「X」）的 BCRS 门户订单，与真正的对账缺口区分开。":"How it's derived: lists BCRS portal orders that were rejected (or manually marked 'X' in the AYG reference), keeping them separate from genuine reconciliation gaps."));
   }else{
