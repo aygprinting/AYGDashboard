@@ -1328,7 +1328,9 @@ html,body{overscroll-behavior-y:contain}
     </div>
   </div>
 
-  <input class="ipt" id="bcrsportal-q" data-tx-ph="bcrsPortalPh" placeholder="Search all columns — ID, company, product, barcode, email, address, status…" oninput="renderBcrsPortal()" style="width:100%;margin-bottom:10px;box-sizing:border-box">
+  <input class="ipt" id="bcrsportal-q" data-tx-ph="bcrsPortalPh" placeholder="Search all columns — ID, company, product, barcode, email, address, status…" oninput="onBcrsSearchInput()" style="width:100%;margin-bottom:10px;box-sizing:border-box">
+  <!-- Shown only when a jump from Checks & Reconciliation couldn't find the order in Auto Main. -->
+  <div id="bcrsportal-jumpnote" style="display:none;font-size:11px;color:var(--amb);margin:-4px 0 10px;padding:5px 8px;background:rgba(245,158,11,.10);border-left:2px solid var(--amb);border-radius:0 4px 4px 0"></div>
   <div style="overflow-x:auto">
     <table class="comp-table" id="bcrsportal-table">
       <thead><tr>
@@ -1642,6 +1644,8 @@ var BUILD='20260814-CHECKS1'; // single source of truth for the build/version st
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
+var BCRS_JUMP=null;                 // {type,key,q} — row to flash/scroll to after a jump from Checks
+var OLDMAIN_JUMP=null;              // same, for the Old Order History table
 var ORDER_COMPANIES=[];
 
 var STD_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
@@ -2072,6 +2076,7 @@ function renderOldMain(){
   var tbody=document.getElementById('oldmain-tbody');
   var cntEl=document.getElementById('oldmain-sec-count');
   if(!tbody)return;
+  var ojump=OLDMAIN_JUMP;OLDMAIN_JUMP=null;   // consumed by this render only
   var q=(document.getElementById('oldmain-q').value||'').toLowerCase().trim();
   var list=OLD_AUTO_MAIN.slice();
   if(q){
@@ -2110,7 +2115,9 @@ function renderOldMain(){
   function cpCell(val,mono){if(!val)return '<span style="color:var(--t)">\u2014</span>';return '<span style="display:flex;align-items:flex-start;gap:0;white-space:normal;word-break:break-all"><span style="'+(mono?'font-family:\'JetBrains Mono\',monospace;font-size:10px':'font-size:11px')+'">'+(val)+'</span>'+cpBtn(val)+'</span>';}
   tbody.innerHTML=list.map(function(r){
     var sc=statusColors[r.status]||'var(--m)';
-    return '<tr>'+
+    // Flash the row this render was jumped to from Checks & Reconciliation.
+    var flash=(ojump&&_bcrsRowKey(r,ojump.type)===ojump.key)?' class="xero-flash"':'';
+    return '<tr'+flash+'>'+
       '<td style="color:var(--t)">'+r.no+'</td>'+
       '<td style="font-size:10px;color:var(--m)">'+r.ref+'</td>'+
       '<td>'+cpCell(r.orderId,true)+'</td>'+
@@ -2129,6 +2136,10 @@ function renderOldMain(){
       '<td style="font-size:11px;color:var(--m);max-width:200px;white-space:normal;word-break:break-word">'+cpCell(r.additionalReq,false)+'</td>'+
     '</tr>';
   }).join('');
+  if(ojump){
+    var ojr=tbody.querySelector('tr.xero-flash');
+    if(ojr){try{ojr.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){ojr.scrollIntoView();}}
+  }
 }
 // \u2500\u2500 Xero Invoice Pull \u2014 on-demand sync (prefix match, newest by modified time) \u2500\u2500
 var _xeroFileId=null;
@@ -2404,6 +2415,19 @@ function sortXero(col){
 function jumpToXero(invoice,filter){
   XERO_FILTER=filter||'unpaid';
   XERO_JUMP=invoice||'';
+  // A search term left in the box from an earlier visit would filter the target row straight back
+  // out, so the jump would silently land on nothing. Clear it.
+  var q=document.getElementById('xero-q');if(q)q.value='';
+  // Same for the summary-chip filter: if this invoice wouldn't survive it (status changed since the
+  // check was built), widen to All rather than land on an empty table.
+  var inv=null;(INVOICES||[]).forEach(function(v){if(!inv&&v.invoice===invoice)inv=v;});
+  if(inv){
+    var dk=xeroDueKey(inv.dueDate),td=xeroTodayKey(),unpaid=(inv.status==='Awaiting Payment'&&inv.due>0);
+    var passes=XERO_FILTER==='unpaid'?unpaid
+              :XERO_FILTER==='overdue'?(unpaid&&dk>0&&dk<td)
+              :XERO_FILTER==='draft'?(inv.status==='Draft'):true;
+    if(!passes)XERO_FILTER='all';
+  }
   var btn=document.querySelector('[data-tab=xero]');
   if(btn)goTab('xero',btn);
   else renderXero();
@@ -5978,10 +6002,80 @@ function sortBcrs(col){
   else{BCRS_SORT.col=col;BCRS_SORT.dir=(col==='no'||col==='qty'||col==='price'||col==='date')?'desc':'asc';}
   renderBcrsPortal();
 }
+// ── Jump from a Checks & Reconciliation row into the BCRS Order Portal Pull ──────────────
+// A flagged line names one portal order, so the jump should land on THAT row, not just on the tab.
+// The pull is searched for the most specific identifier that actually exists in it — AYG
+// reference, then the portal Order ID, then the company — so the search box is never filled with
+// a term that returns an empty table (exactly what would happen on the "no AYG reference" and
+// "rejected" rows, where the reference is blank or 'X'). Older orders sit in Old Order History
+// rather than Auto Main, so that table is tried second.
+// Typing in the search box means the user has moved on from the jump — drop the note.
+function onBcrsSearchInput(){
+  var n=document.getElementById('bcrsportal-jumpnote');if(n)n.style.display='none';
+  renderBcrsPortal();
+}
+function _bcrsRowKey(r,type){
+  if(type==='company')return _normCo(r.company);
+  return _aygKey(type==='orderId'?r.orderId:r.ref);
+}
+function _bcrsFind(list,type,val){
+  if(!val)return null;
+  var k=(type==='company')?_normCo(val):_aygKey(val);
+  if(!k||k==='X')return null;
+  var hit=null;
+  (list||[]).forEach(function(r){if(!hit&&_bcrsRowKey(r,type)===k)hit=r;});
+  return hit;
+}
+// Best available handle on one portal order within a given table, or null if it isn't there.
+function _bcrsPick(list,ref,orderRef,company){
+  var tries=[['ref',(ref&&ref!=='X')?ref:''],['orderId',orderRef],['company',company]];
+  for(var i=0;i<tries.length;i++){
+    var t=tries[i][0],hit=_bcrsFind(list,t,tries[i][1]);
+    // Query the matched row's OWN text, so name/punctuation variants between the portal-status
+    // sheet and the pull ("ABC Pte Ltd" vs "ABC Pte. Ltd.") can't filter the row back out.
+    if(hit)return {type:t,key:_bcrsRowKey(hit,t),q:(t==='company')?hit.company:(t==='orderId'?hit.orderId:hit.ref)};
+  }
+  return null;
+}
+function jumpToBcrs(ref,orderRef,company){
+  var zh=(lang==='zh');
+  var pick=_bcrsPick(AUTO_MAIN||[],ref,orderRef,company);
+  var oldPick=pick?null:_bcrsPick(OLD_AUTO_MAIN||[],ref,orderRef,company);
+  BCRS_JUMP=pick;
+  var qEl=document.getElementById('bcrsportal-q');
+  // Filter the current pull to the matched row; when the match is in old history (or nowhere),
+  // clear the box instead so a stale term doesn't leave the main table looking empty.
+  if(qEl)qEl.value=pick?pick.q:'';
+  if(oldPick){var oq=document.getElementById('oldmain-q');if(oq)oq.value=oldPick.q;}
+  var btn=document.querySelector('[data-tab=bcrsportal]');
+  if(btn)goTab('bcrsportal',btn); else renderBcrsPortal();
+  // goTab restores the Old Order History section's saved collapse state, so expand and flash it
+  // afterwards — otherwise the row would be highlighted inside a collapsed section.
+  if(oldPick){
+    var sec=document.getElementById('ord-sec-oldmain');
+    if(sec){sec.style.display='';sec.classList.remove('collapsed');try{localStorage.setItem('aygops-oldmain-collapsed','0');}catch(e){}}
+    OLDMAIN_JUMP=oldPick;
+    renderOldMain();
+    if(sec){try{sec.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}}
+  }
+  var note=document.getElementById('bcrsportal-jumpnote');
+  if(note){
+    if(pick){note.style.display='none';}
+    else{
+      note.style.display='';
+      note.textContent=oldPick
+        ? (zh?'此订单不在当前拉取中 — 已在下方「旧订单记录」中定位。':'Not in the current pull — found and highlighted in Old Order History below.')
+        : ((OLD_AUTO_MAIN&&OLD_AUTO_MAIN.length)
+            ? (zh?'此订单在 Auto Main 和旧订单记录中都找不到 — 显示完整列表。':'This order isn’t in the Auto Main pull or Old Order History — showing the full list.')
+            : (zh?'此订单不在 Auto Main 拉取中 — 可能在旧记录里，请先按「同步旧记录」。':'This order isn’t in the Auto Main pull — it may be in older records; press “Sync old history” above to search those too.'));
+    }
+  }
+}
 function renderBcrsPortal(){
   var tbody=document.getElementById('bcrsportal-tbody');
   var cntEl=document.getElementById('bcrsportal-count');
   if(!tbody)return;
+  var jump=BCRS_JUMP;BCRS_JUMP=null;   // consumed by this render only
   var q=(document.getElementById('bcrsportal-q').value||'').toLowerCase().trim();
   var list=AUTO_MAIN.slice();
   if(q){
@@ -6041,7 +6135,9 @@ function renderBcrsPortal(){
   }
   tbody.innerHTML=list.map(function(r){
     var sc=statusColors[r.status]||'var(--m)';
-    return '<tr>'+
+    // Flash the row this render was jumped to from Checks & Reconciliation.
+    var flash=(jump&&_bcrsRowKey(r,jump.type)===jump.key)?' class="xero-flash"':'';
+    return '<tr'+flash+'>'+
       '<td style="color:var(--t)">'+r.no+'</td>'+
       '<td style="font-size:10px;color:var(--m)">'+r.ref+'</td>'+
       '<td>'+cpCell(r.orderId,true)+'</td>'+
@@ -6060,6 +6156,10 @@ function renderBcrsPortal(){
       '<td style="font-size:11px;color:var(--m);max-width:200px;white-space:normal;word-break:break-word">'+cpCell(r.additionalReq,false)+'</td>'+
     '</tr>';
   }).join('');
+  if(jump){
+    var jr=tbody.querySelector('tr.xero-flash');
+    if(jr){try{jr.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){jr.scrollIntoView();}}
+  }
 }
 
 // ── Last-contact checker: cross-reference CRM (Contacts) last-contact date against the pipeline's
@@ -6849,10 +6949,15 @@ function renderChecks(){
     var _notTally=PORTAL_STATUS.filter(function(r){return /NOT IN CRM/i.test(r.match);});
     var _noRef=PORTAL_STATUS.filter(function(r){return /NO AUTO MAIN/i.test(r.match);});
     var _reject=PORTAL_STATUS.filter(function(r){return /REJECT/i.test(r.match);});
+    // Escapes a value for use inside a single-quoted JS string in an onclick attribute.
+    function _ja(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');}
     function aygRow(x,detailHtml,noteHtml){
       var co=(x.company||'—');
       var prod=x.product?'<div style="font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+x.product+'</div>':'';
-      return '<div style="display:flex;align-items:'+(noteHtml?'flex-start':'center')+';justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="goTab(\'bcrsportal\',document.querySelector(\'[data-tab=bcrsportal]\'))">'
+      // Jump straight to this order's line in the portal pull — AYG ref first, then the portal
+      // Order Ref, then the company, so rows with a blank or 'X' reference still land somewhere.
+      var jump='jumpToBcrs(\''+_ja(x.aygRef)+'\',\''+_ja(x.orderRef)+'\',\''+_ja(x.company)+'\')';
+      return '<div style="display:flex;align-items:'+(noteHtml?'flex-start':'center')+';justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="'+jump+'">'
         +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+co+'</span>'+prod+(noteHtml||'')+'</span>'
         +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right;display:flex;align-items:center;gap:5px;justify-content:flex-end">'+detailHtml+'</span>'
       +'</div>';
