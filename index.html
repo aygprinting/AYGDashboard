@@ -8613,8 +8613,8 @@ if('serviceWorker' in navigator){
       sub:function(){return typeName('bcrs')+(isOld?' · '+TT('gsOld','old'):'')+' · '+(s(r.productName)||s(r.productCode)||'—')+(r.barcode?' · '+s(r.barcode):'')+(r.ref?' · '+s(r.ref):'')+(r.status?' · '+s(r.status):'');},
       hay:low([r.company,r.ref,r.orderId,r.producerId,r.productCode,r.productName,r.barcode,r.email,r.address,r.status,r.stickerSize,r.qty].join(' ')),
       nav:isOld
-        ?{tab:'bcrsportal',box:{sel:'#oldmain-q',term:s(r.barcode)||s(r.ref)||s(r.company),expand:'#ord-sec-oldmain'}}
-        :{tab:'bcrsportal',box:{sel:'#bcrsportal-q',term:s(r.ref)||s(r.company)||s(r.barcode)}}});
+        ?{tab:'bcrsportal',box:{sel:'#oldmain-q',term:s(r.barcode)||s(r.orderId)||s(r.ref)||s(r.company),expand:'#ord-sec-oldmain'}}
+        :{tab:'bcrsportal',box:{sel:'#bcrsportal-q',term:s(r.barcode)||s(r.orderId)||s(r.ref)||s(r.company)}}});
   }
 
   function scoreEntry(e,q,tokens){
