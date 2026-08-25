@@ -463,6 +463,34 @@ html,body{overscroll-behavior-y:contain}
 .gs-foot{border-top:1px solid var(--b);padding:8px 14px;display:flex;gap:16px;color:var(--dim);font-size:11px;flex-wrap:wrap}
 .gs-foot kbd{font-family:'JetBrains Mono',monospace;background:var(--s2);border:1px solid var(--b);border-radius:3px;padding:1px 5px;margin-right:2px}
 @media(max-width:768px){#gsearch-overlay{padding:0}.gs-panel{max-width:none;height:100%;max-height:none;border-radius:0;border:none}}
+/* ── Global Search — barcode / Data Matrix scanner (AYG Dash 11) ──────
+   Camera button in the search head + a full-screen capture overlay. Decoding is
+   native BarcodeDetector where the browser has it (Chrome/Edge, incl. Android),
+   otherwise a lazily-loaded ZXing UMD build. Nothing downloads until first use. */
+.gs-scan-btn{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:33px;height:30px;background:var(--s2);border:1px solid var(--b);border-radius:8px;color:var(--m);cursor:pointer;padding:0;transition:background .12s,color .12s,border-color .12s}
+.gs-scan-btn:hover{background:var(--s3);color:var(--t);border-color:var(--b2)}
+#gscan-overlay{position:fixed;inset:0;z-index:1600;display:none;background:rgba(0,0,0,.82);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px}
+#gscan-overlay.on{display:flex}
+.gscan-panel{width:100%;max-width:560px;background:var(--sur);border:1px solid var(--b2);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 90px rgba(0,0,0,.6)}
+.gscan-head{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--b)}
+.gscan-head>svg{flex-shrink:0;color:var(--tel)}
+.gscan-title{flex:1;min-width:0;color:var(--t);font-size:14px;font-weight:600}
+.gscan-x{flex-shrink:0;background:var(--s2);border:1px solid var(--b);border-radius:8px;color:var(--m);cursor:pointer;font-size:12px;padding:4px 11px}
+.gscan-x:hover{background:var(--s3);color:var(--t)}
+.gscan-stage{position:relative;background:#000;aspect-ratio:4/3;overflow:hidden;min-height:200px}
+#gscan-video{width:100%;height:100%;object-fit:cover;display:block}
+.gscan-retic{position:absolute;left:10%;top:22%;width:80%;height:56%;border:2px solid rgba(45,212,191,.9);border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.34);pointer-events:none}
+.gscan-retic:after{content:'';position:absolute;left:6px;right:6px;top:50%;height:2px;border-radius:2px;background:rgba(45,212,191,.8);animation:gscanSweep 2s ease-in-out infinite}
+@keyframes gscanSweep{0%,100%{transform:translateY(-320%)}50%{transform:translateY(320%)}}
+@media(prefers-reduced-motion:reduce){.gscan-retic:after{animation:none}}
+.gscan-tools{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--b);flex-wrap:wrap}
+.gscan-tools button{background:var(--s2);border:1px solid var(--b);border-radius:8px;color:var(--m);cursor:pointer;font-size:12px;padding:5px 11px}
+.gscan-tools button:hover{background:var(--s3);color:var(--t)}
+.gscan-tools button.on{background:var(--amb);border-color:var(--amb);color:#0c0c0e;font-weight:600}
+.gscan-note{flex:1;min-width:130px;text-align:right;font-size:11px;color:var(--dim);line-height:1.5;word-break:break-all}
+.gscan-note.err{color:var(--red)}
+.gscan-note.ok{color:var(--grn)}
+@media(max-width:768px){#gscan-overlay{padding:0}.gscan-panel{max-width:none;height:100%;border-radius:0;border:none}.gscan-stage{flex:1;aspect-ratio:auto}}
 /* ── Watchlist (flagged companies) ── chips, banners and row accents. Colours are the
    existing status tokens so a flag reads as part of the same system as an order stage. */
 .wl-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;letter-spacing:.03em;white-space:nowrap;vertical-align:middle;cursor:help}
@@ -8466,6 +8494,7 @@ if('serviceWorker' in navigator){
     <div class="gs-head">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       <input id="gs-input" type="text" data-tx-ph="gsearchPh" placeholder="Search clients, orders, quotes, invoices, BCRS…" autocomplete="off" spellcheck="false">
+      <button id="gs-scan-btn" class="gs-scan-btn" type="button" onclick="gsScanOpen()" title="Scan barcode / Data Matrix" aria-label="Scan barcode or Data Matrix"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H8"></path><path d="M16 3h2.5A2.5 2.5 0 0 1 21 5.5V8"></path><path d="M21 16v2.5a2.5 2.5 0 0 1-2.5 2.5H16"></path><path d="M8 21H5.5A2.5 2.5 0 0 1 3 18.5V16"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
       <div class="gs-mode" title="Match mode">
         <button id="gs-mode-similar" type="button" onclick="setSearchMode('similar')" data-tx="gsModeSimilar">Similar</button>
         <button id="gs-mode-exact" type="button" onclick="setSearchMode('exact')" data-tx="gsModeExact">Exact</button>
@@ -8474,6 +8503,25 @@ if('serviceWorker' in navigator){
     </div>
     <div class="gs-results" id="gs-results"></div>
     <div class="gs-foot"><span><kbd>&uarr;</kbd><kbd>&darr;</kbd> <span data-tx="gsNav">navigate</span></span><span><kbd>&crarr;</kbd> <span data-tx="gsOpen">open</span></span><span><kbd>esc</kbd> <span data-tx="gsClose">close</span></span><span id="gs-count" style="margin-left:auto"></span></div>
+  </div>
+</div>
+<!-- ── Barcode / Data Matrix scanner overlay (feeds the global search box) ─────── -->
+<div id="gscan-overlay" onclick="if(event.target===this)gsScanClose()">
+  <div class="gscan-panel" role="dialog" aria-modal="true" aria-label="Barcode scanner">
+    <div class="gscan-head">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H8"></path><path d="M16 3h2.5A2.5 2.5 0 0 1 21 5.5V8"></path><path d="M21 16v2.5a2.5 2.5 0 0 1-2.5 2.5H16"></path><path d="M8 21H5.5A2.5 2.5 0 0 1 3 18.5V16"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>
+      <span class="gscan-title" data-tx="gscanTitle">Scan barcode or Data Matrix</span>
+      <button class="gscan-x" type="button" onclick="gsScanClose()" data-tx="gscanCloseBtn">Close</button>
+    </div>
+    <div class="gscan-stage">
+      <video id="gscan-video" playsinline autoplay muted></video>
+      <div class="gscan-retic"></div>
+    </div>
+    <div class="gscan-tools">
+      <button id="gscan-torch" type="button" onclick="gsScanTorch()" style="display:none" data-tx="gscanTorch">Torch</button>
+      <button id="gscan-flip" type="button" onclick="gsScanFlip()" style="display:none" data-tx="gscanFlip">Flip camera</button>
+      <span id="gscan-note" class="gscan-note"></span>
+    </div>
   </div>
 </div>
 <script>
@@ -8809,6 +8857,376 @@ if('serviceWorker' in navigator){
     var _rcu=window.renderClientsUpdate;
     window.renderClientsUpdate=function(){var r=_rcu.apply(this,arguments);try{buildSearchIndex();}catch(_){}return r;};
   }
+})();
+</script>
+<script>
+/* == Barcode / Data Matrix scanner for Global Search - AYG Dash 11 ===========
+   Adds a camera button to the search head. A scan fills #gs-input and runs the
+   normal search, so the result list, deep-links and Similar/Exact modes all
+   behave exactly as if the value had been typed.
+
+   Decoding: native BarcodeDetector when the browser exposes it AND supports
+   data_matrix (Chrome/Edge desktop + Android). Otherwise a ZXing UMD build is
+   pulled from a CDN on first use only - nothing is downloaded at page load, and
+   the app is untouched if the scanner is never opened.
+
+   Payload handling: a raw scan is rarely the string stored in the sheet. A BCRS
+   Data Matrix carries the long AYG payload (P000022-200726-BCRS-001-...), and a
+   GS1 barcode carries AI-prefixed data. gsScanTerm() turns the scan into a list
+   of candidate search terms, best-first, and the first one that actually hits
+   the search index is what lands in the box. */
+(function(){
+  var _EN={
+    gscanTitle:'Scan barcode or Data Matrix',
+    gscanCloseBtn:'Close', gscanTorch:'Torch', gscanFlip:'Flip camera',
+    gscanBtnTitle:'Scan barcode / Data Matrix',
+    gscanStarting:'Starting camera…',
+    gscanHint:'Hold the code inside the frame',
+    gscanNoSecure:'Camera needs an https:// page — open the dashboard over https, not as a local file.',
+    gscanDenied:'Camera permission denied. Allow camera access for this site, then try again.',
+    gscanNoCam:'No camera found on this device.',
+    gscanBusy:'Camera is in use by another app or tab.',
+    gscanNoEngine:'No decoder available — this browser has no built-in scanner and the ZXing library could not be loaded.',
+    gscanLoading:'Loading decoder…'
+  };
+  var _ZH={
+    gscanTitle:'扫描条形码或 Data Matrix',
+    gscanCloseBtn:'关闭', gscanTorch:'闪光灯', gscanFlip:'切换摄像头',
+    gscanBtnTitle:'扫描条形码 / Data Matrix',
+    gscanStarting:'正在启动摄像头…',
+    gscanHint:'请将码对准取景框',
+    gscanNoSecure:'摄像头需要 https:// 页面 — 请通过 https 打开仪表板，而非本地文件。',
+    gscanDenied:'摄像头权限被拒绝。请允许本站访问摄像头后重试。',
+    gscanNoCam:'此设备未找到摄像头。',
+    gscanBusy:'摄像头正被其他应用或标签页占用。',
+    gscanNoEngine:'无可用解码器 — 此浏览器无内置扫描功能，且 ZXing 库加载失败。',
+    gscanLoading:'正在加载解码器…'
+  };
+  try{ if(window.TX_EN)for(var k in _EN)TX_EN[k]=_EN[k]; }catch(_){}
+  try{ if(window.TX_ZH)for(var k2 in _ZH)TX_ZH[k2]=_ZH[k2]; }catch(_){}
+  function TT(k,fb){var T=window.TX||{};return (T[k]!==undefined&&T[k]!==null&&T[k]!=='')?T[k]:fb;}
+
+  var SC={stream:null,track:null,timer:0,detector:null,reader:null,hints:null,active:false,
+          tick:0,devices:[],devIdx:-1,torch:false,starting:false};
+
+  /* ---- payload -> candidate search terms -------------------------------- */
+  function ean13Check(d12){var s=0;for(var i=0;i<12;i++){s+=(+d12.charAt(i))*((i%2)?3:1);}return String((10-(s%10))%10);}
+
+  // Exposed so it can be unit-tested / called from the console.
+  window.gsScanTerm=function(raw){
+    var s=String(raw==null?'':raw).trim();
+    var body=s.replace(/^\][A-Za-z][0-9A-Za-z]/,'');   // AIM symbology id: ]d2, ]C1, ]E0...
+    var out=[];
+    function add(v){v=String(v==null?'':v).trim();if(v&&out.indexOf(v)<0)out.push(v);}
+
+    // 1) GS1 GTIN (AI 01) - bracketed "(01)" or raw "01" after start / FNC1 (GS, \x1d).
+    var m=body.match(/(?:\(01\)|(?:^|[\x1d])01)(\d{14})/);
+    if(m){
+      var g=m[1];
+      if(g.charAt(0)==='0')add(g.slice(1));            // indicator 0 -> the EAN-13 is the last 13
+      else{var b=g.slice(1,13);add(b+ean13Check(b));}  // carton code -> base item EAN-13
+      add(g);
+    }
+    // 2) an all-digits scan (a plain EAN-13 / UPC read)
+    if(/^\d+$/.test(body)){
+      if(body.length===14){
+        if(body.charAt(0)==='0')add(body.slice(1));
+        else{var b2=body.slice(1,13);add(b2+ean13Check(b2));}
+      }
+      add(body);
+    }
+    // 3) any 13-digit run inside a longer payload
+    var runs=body.match(/\d{13}/g); if(runs)runs.forEach(add);
+    // 4) the payload as scanned, then trimmed segment-by-segment from the right.
+    //    An AYG Data Matrix is longer than the AYG Ref stored in Auto Main, so
+    //    "P000022-200726-BCRS-001-EXTRA" falls back to "P000022-200726-BCRS-001".
+    add(body.replace(/[\x00-\x1f]/g,' ').replace(/\s+/g,' ').trim());
+    var parts=body.split('-');
+    for(var n=parts.length-1;n>=3;n--)add(parts.slice(0,n).join('-'));
+    add(s);
+    return out;
+  };
+
+  function hasHits(term){
+    var q=String(term).toLowerCase();
+    try{ if(window.GS&&!GS.built&&typeof buildSearchIndex==='function')buildSearchIndex(); }catch(_){}
+    var ix=(window.GS&&GS.index)||[];
+    for(var i=0;i<ix.length;i++){ if(ix[i].hay.indexOf(q)>-1)return true; }
+    return false;
+  }
+  function bestTerm(raw){
+    var c=gsScanTerm(raw);
+    for(var i=0;i<c.length;i++){ if(hasHits(c[i]))return c[i]; }
+    return c[0]||String(raw||'');
+  }
+
+  /* ---- small UI helpers ------------------------------------------------- */
+  function note(msg,cls){
+    var el=document.getElementById('gscan-note');
+    if(!el)return;
+    el.textContent=msg||'';
+    el.className='gscan-note'+(cls?' '+cls:'');
+  }
+  function beep(){
+    try{
+      var A=window.AudioContext||window.webkitAudioContext;if(!A)return;
+      var c=new A(),o=c.createOscillator(),g=c.createGain();
+      o.type='square';o.frequency.value=1180;g.gain.value=.05;
+      o.connect(g);g.connect(c.destination);o.start();
+      setTimeout(function(){try{o.stop();c.close();}catch(_){}},110);
+    }catch(_){}
+    try{ if(navigator.vibrate)navigator.vibrate(35); }catch(_){}
+  }
+
+  /* ---- decoder setup ---------------------------------------------------- */
+  var ZX_URLS=[
+    'https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.3/index.min.js',
+    'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js',
+    'https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js'
+  ];
+  function loadScript(u){
+    return new Promise(function(res,rej){
+      var s=document.createElement('script');
+      s.src=u;s.async=true;
+      s.onload=function(){res();};
+      s.onerror=function(){rej(new Error('load failed: '+u));};
+      document.head.appendChild(s);
+    });
+  }
+  async function ensureZX(){
+    if(window.ZXing)return true;
+    note(TT('gscanLoading','Loading decoder…'));
+    for(var i=0;i<ZX_URLS.length;i++){
+      try{ await loadScript(ZX_URLS[i]); if(window.ZXing)return true; }catch(_){}
+    }
+    return false;
+  }
+  async function pickEngine(){
+    SC.detector=null;SC.reader=null;
+    try{
+      if('BarcodeDetector' in window){
+        var sup=await window.BarcodeDetector.getSupportedFormats();
+        // Only use the native path if it can actually do Data Matrix - that is the
+        // whole point here, and some builds ship BarcodeDetector without it.
+        if(sup&&sup.indexOf('data_matrix')>-1){
+          var want=['data_matrix','ean_13','ean_8','upc_a','upc_e','code_128','code_39','code_93','itf','qr_code']
+                     .filter(function(f){return sup.indexOf(f)>-1;});
+          SC.detector=new window.BarcodeDetector({formats:want});
+          return true;
+        }
+      }
+    }catch(_){}
+    if(await ensureZX()){
+      try{
+        // Core MultiFormatReader rather than BrowserMultiFormatReader: the Browser*
+        // wrappers own their own camera loop and their canvas helpers have moved
+        // between 0.18/0.19/0.21, while MultiFormatReader + BinaryBitmap has been
+        // stable throughout. We already own the stream, so we only need the decoder.
+        var Z=window.ZXing,h=new Map();
+        h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[
+          Z.BarcodeFormat.DATA_MATRIX,Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,
+          Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E,Z.BarcodeFormat.CODE_128,
+          Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.ITF,Z.BarcodeFormat.QR_CODE]);
+        h.set(Z.DecodeHintType.TRY_HARDER,true);
+        SC.reader=new Z.MultiFormatReader();
+        try{ SC.reader.setHints(h); }catch(_){}
+        SC.hints=h;
+        return true;
+      }catch(_){}
+    }
+    return false;
+  }
+
+  /* ---- capture loop ----------------------------------------------------- */
+  var cnv=null,ctx=null;
+  function frame(){
+    if(!SC.active)return;
+    var v=document.getElementById('gscan-video');
+    if(!v||!v.videoWidth||!v.videoHeight)return schedule();
+    if(!cnv){cnv=document.createElement('canvas');ctx=cnv.getContext('2d',{willReadFrequently:true});}
+    var vw=v.videoWidth,vh=v.videoHeight;
+    // Alternate full-frame and reticle-crop passes: the crop gives a small Data
+    // Matrix enough pixels to decode, the full frame catches a wide EAN-13 held back.
+    if(SC.tick++%2){
+      var cw=Math.round(vw*.8),ch=Math.round(vh*.56);
+      cnv.width=cw;cnv.height=ch;
+      ctx.drawImage(v,Math.round((vw-cw)/2),Math.round((vh-ch)/2),cw,ch,0,0,cw,ch);
+    }else{
+      var sc=Math.min(1,1280/vw);
+      cnv.width=Math.round(vw*sc);cnv.height=Math.round(vh*sc);
+      ctx.drawImage(v,0,0,cnv.width,cnv.height);
+    }
+    if(SC.detector){
+      SC.detector.detect(cnv).then(function(codes){
+        if(!SC.active)return;
+        if(codes&&codes.length)hit(codes[0].rawValue,codes[0].format);
+        else schedule();
+      }).catch(function(){schedule();});
+      return;
+    }
+    if(SC.reader){
+      var Z=window.ZXing;
+      try{
+        var lum=new Z.HTMLCanvasElementLuminanceSource(cnv);
+        var bins=[Z.HybridBinarizer,Z.GlobalHistogramBinarizer];
+        for(var bi=0;bi<bins.length;bi++){
+          try{
+            var r=SC.reader.decode(new Z.BinaryBitmap(new bins[bi](lum)),SC.hints);
+            if(r){
+              var fmt='';
+              try{fmt=Z.BarcodeFormat[r.getBarcodeFormat()]||'';}catch(_){}
+              return hit(r.getText(),fmt);
+            }
+          }catch(_){ /* NotFoundException on most frames - expected */ }
+          try{ SC.reader.reset(); }catch(_){}
+        }
+      }catch(_){}
+    }
+    schedule();
+  }
+  function schedule(){ if(SC.active)SC.timer=setTimeout(frame,110); }
+
+  function hit(raw,fmt){
+    if(!SC.active)return;
+    SC.active=false;
+    beep();
+    var term=bestTerm(raw);
+    try{ if(window.GS)GS.lastScan={raw:raw,format:fmt||'',term:term}; }catch(_){}
+    stopCam();
+    var ov=document.getElementById('gscan-overlay');
+    if(ov)ov.classList.remove('on');
+    // Hand the value to global search exactly as if it had been typed.
+    try{ if(typeof openSearch==='function'&&!(window.GS&&GS.open))openSearch(); }catch(_){}
+    var inp=document.getElementById('gs-input');
+    if(inp){
+      inp.value=term;
+      inp.dispatchEvent(new Event('input',{bubbles:true}));
+      try{inp.focus();inp.select();}catch(_){}
+    }
+    // A payload that differed from the term searched is logged, so a miss is
+    // diagnosable rather than mysterious.
+    if(String(term)!==String(raw).trim()){
+      try{console.info('[scan]',fmt||'code','raw:',raw,'-> searched:',term);}catch(_){}
+    }
+  }
+
+  /* ---- camera ----------------------------------------------------------- */
+  function stopCam(){
+    SC.active=false;
+    if(SC.timer){clearTimeout(SC.timer);SC.timer=0;}
+    try{ if(SC.reader&&SC.reader.reset)SC.reader.reset(); }catch(_){}
+    try{ if(SC.stream)SC.stream.getTracks().forEach(function(t){t.stop();}); }catch(_){}
+    SC.stream=null;SC.track=null;SC.torch=false;
+    var v=document.getElementById('gscan-video');
+    if(v){try{v.pause();}catch(_){} v.srcObject=null;}
+    var tb=document.getElementById('gscan-torch');
+    if(tb){tb.classList.remove('on');tb.style.display='none';}
+  }
+
+  async function startCam(deviceId){
+    var v=document.getElementById('gscan-video');
+    var constraints={audio:false,video:deviceId
+      ?{deviceId:{exact:deviceId},width:{ideal:1280},height:{ideal:720}}
+      :{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}};
+    SC.stream=await navigator.mediaDevices.getUserMedia(constraints);
+    SC.track=SC.stream.getVideoTracks()[0]||null;
+    v.srcObject=SC.stream;
+    try{ await v.play(); }catch(_){}
+    // Torch, where the platform exposes it (Android Chrome).
+    try{
+      var caps=(SC.track&&SC.track.getCapabilities)?SC.track.getCapabilities():null;
+      var tb=document.getElementById('gscan-torch');
+      if(tb)tb.style.display=(caps&&('torch' in caps))?'':'none';
+    }catch(_){}
+    // Offer the flip button only when there really is more than one camera.
+    try{
+      var ds=await navigator.mediaDevices.enumerateDevices();
+      SC.devices=ds.filter(function(d){return d.kind==='videoinput';});
+      var fb=document.getElementById('gscan-flip');
+      if(fb)fb.style.display=SC.devices.length>1?'':'none';
+      if(deviceId){
+        SC.devIdx=-1;
+        SC.devices.forEach(function(d,i){ if(d.deviceId===deviceId)SC.devIdx=i; });
+      }
+    }catch(_){}
+  }
+
+  window.gsScanOpen=async function(){
+    var ov=document.getElementById('gscan-overlay');
+    if(!ov||SC.starting)return;
+    SC.starting=true;
+    ov.classList.add('on');
+    note(TT('gscanStarting','Starting camera…'));
+    try{
+      if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+        note(TT('gscanNoSecure','Camera needs an https:// page.'),'err');return;
+      }
+      if(!(await pickEngine())){
+        note(TT('gscanNoEngine','No decoder available.'),'err');return;
+      }
+      await startCam(null);
+      SC.active=true;SC.tick=0;
+      note(TT('gscanHint','Hold the code inside the frame'));
+      schedule();
+    }catch(e){
+      var n=(e&&e.name)||'';
+      if(n==='NotAllowedError'||n==='SecurityError')note(TT('gscanDenied','Camera permission denied.'),'err');
+      else if(n==='NotFoundError'||n==='OverconstrainedError')note(TT('gscanNoCam','No camera found on this device.'),'err');
+      else if(n==='NotReadableError'||n==='AbortError')note(TT('gscanBusy','Camera is in use by another app or tab.'),'err');
+      else note((e&&e.message)||String(e),'err');
+      stopCam();
+    }finally{ SC.starting=false; }
+  };
+
+  window.gsScanClose=function(){
+    stopCam();
+    var ov=document.getElementById('gscan-overlay');
+    if(ov)ov.classList.remove('on');
+    note('');
+    var inp=document.getElementById('gs-input');
+    if(inp&&window.GS&&GS.open){try{inp.focus();}catch(_){}}
+  };
+
+  window.gsScanTorch=async function(){
+    if(!SC.track||!SC.track.applyConstraints)return;
+    try{
+      SC.torch=!SC.torch;
+      await SC.track.applyConstraints({advanced:[{torch:SC.torch}]});
+      var tb=document.getElementById('gscan-torch');
+      if(tb)tb.classList.toggle('on',SC.torch);
+    }catch(_){ SC.torch=false; }
+  };
+
+  window.gsScanFlip=async function(){
+    if(SC.devices.length<2)return;
+    var wasActive=SC.active;
+    SC.active=false;
+    if(SC.timer){clearTimeout(SC.timer);SC.timer=0;}
+    try{ if(SC.stream)SC.stream.getTracks().forEach(function(t){t.stop();}); }catch(_){}
+    SC.devIdx=(SC.devIdx+1)%SC.devices.length;
+    try{
+      await startCam(SC.devices[SC.devIdx].deviceId);
+      SC.active=wasActive;SC.tick=0;
+      note(TT('gscanHint','Hold the code inside the frame'));
+      schedule();
+    }catch(e){ note((e&&e.message)||String(e),'err'); }
+  };
+
+  // Esc closes the scanner without also closing the search overlay behind it.
+  document.addEventListener('keydown',function(ev){
+    var ov=document.getElementById('gscan-overlay');
+    if(ev.key==='Escape'&&ov&&ov.classList.contains('on')){
+      ev.preventDefault();ev.stopPropagation();gsScanClose();
+    }
+  },true);
+  // Never leave the camera light on if the tab is hidden or the page is torn down.
+  document.addEventListener('visibilitychange',function(){ if(document.hidden&&SC.stream)gsScanClose(); });
+  window.addEventListener('pagehide',function(){ try{stopCam();}catch(_){} });
+  // Keep the button tooltip in the active language.
+  document.addEventListener('DOMContentLoaded',function(){
+    var b=document.getElementById('gs-scan-btn');
+    if(b)b.title=TT('gscanBtnTitle','Scan barcode / Data Matrix');
+  });
 })();
 </script>
 </body>
