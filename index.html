@@ -1699,7 +1699,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260818-WATCHLIST1'; // single source of truth for the build/version stamp (adds the Watchlist — flagged companies — feature)
+var BUILD='20260825-SCANNER1'; // single source of truth for the build/version stamp (adds the Global Search barcode / Data Matrix scanner, and makes BCRS search results deep-link by barcode instead of AYG Ref)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3320,6 +3320,7 @@ async function initApp(){
   // Stamp the build/version into every place that shows it (single source: BUILD).
   var _cb=document.getElementById('clients-build-stamp');if(_cb)_cb.textContent='build '+BUILD;
   var _ab=document.getElementById('acc-build');if(_ab)_ab.textContent=BUILD;
+  try{console.info('%cAYG Dash','background:#2dd4bf;color:#0c0c0e;font-weight:700;padding:1px 6px;border-radius:3px','build '+BUILD);}catch(e){}
   if(window.location.search.includes('code=')||window.location.search.includes('error=')){
     var ok=await handleCallback();
     if(ok)await fetchExcelFromSharePoint();
