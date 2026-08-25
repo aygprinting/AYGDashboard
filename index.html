@@ -491,6 +491,8 @@ html,body{overscroll-behavior-y:contain}
 .gscan-note.err{color:var(--red)}
 .gscan-note.ok{color:var(--grn)}
 @media(max-width:768px){#gscan-overlay{padding:0}.gscan-panel{max-width:none;height:100%;border-radius:0;border:none}.gscan-stage{flex:1;aspect-ratio:auto}}
+.gscan-drop{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(12,12,14,.82);border:2px dashed var(--tel);border-radius:0;color:var(--tel);font-size:14px;font-weight:600;pointer-events:none;z-index:2}
+.gscan-stage.dragging .gscan-drop{display:flex}
 /* ── Watchlist (flagged companies) ── chips, banners and row accents. Colours are the
    existing status tokens so a flag reads as part of the same system as an order stage. */
 .wl-chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;letter-spacing:.03em;white-space:nowrap;vertical-align:middle;cursor:help}
@@ -1699,7 +1701,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260825-SCANNER1'; // single source of truth for the build/version stamp (adds the Global Search barcode / Data Matrix scanner, and makes BCRS search results deep-link by barcode instead of AYG Ref)
+var BUILD='20260825-SCANNER2'; // single source of truth for the build/version stamp (adds the Global Search barcode / Data Matrix scanner - camera, image upload, paste and drag-drop - and makes BCRS search results deep-link by barcode instead of AYG Ref)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -8508,19 +8510,22 @@ if('serviceWorker' in navigator){
 </div>
 <!-- ── Barcode / Data Matrix scanner overlay (feeds the global search box) ─────── -->
 <div id="gscan-overlay" onclick="if(event.target===this)gsScanClose()">
-  <div class="gscan-panel" role="dialog" aria-modal="true" aria-label="Barcode scanner">
+  <div class="gscan-panel" id="gscan-panel" role="dialog" aria-modal="true" aria-label="Barcode scanner">
     <div class="gscan-head">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5.5A2.5 2.5 0 0 1 5.5 3H8"></path><path d="M16 3h2.5A2.5 2.5 0 0 1 21 5.5V8"></path><path d="M21 16v2.5a2.5 2.5 0 0 1-2.5 2.5H16"></path><path d="M8 21H5.5A2.5 2.5 0 0 1 3 18.5V16"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg>
       <span class="gscan-title" data-tx="gscanTitle">Scan barcode or Data Matrix</span>
       <button class="gscan-x" type="button" onclick="gsScanClose()" data-tx="gscanCloseBtn">Close</button>
     </div>
-    <div class="gscan-stage">
+    <div class="gscan-stage" id="gscan-stage">
       <video id="gscan-video" playsinline autoplay muted></video>
       <div class="gscan-retic"></div>
+      <div class="gscan-drop" id="gscan-drop" data-tx="gscanDropNow">Drop the image to read it</div>
     </div>
     <div class="gscan-tools">
+      <button id="gscan-upload" type="button" onclick="document.getElementById('gscan-file').click()" data-tx="gscanUpload">Upload image</button>
       <button id="gscan-torch" type="button" onclick="gsScanTorch()" style="display:none" data-tx="gscanTorch">Torch</button>
       <button id="gscan-flip" type="button" onclick="gsScanFlip()" style="display:none" data-tx="gscanFlip">Flip camera</button>
+      <input id="gscan-file" type="file" accept="image/*" onchange="gsScanFile(this)" style="display:none">
       <span id="gscan-note" class="gscan-note"></span>
     </div>
   </div>
@@ -8862,9 +8867,11 @@ if('serviceWorker' in navigator){
 </script>
 <script>
 /* == Barcode / Data Matrix scanner for Global Search - AYG Dash 11 ===========
-   Adds a camera button to the search head. A scan fills #gs-input and runs the
-   normal search, so the result list, deep-links and Similar/Exact modes all
-   behave exactly as if the value had been typed.
+   Adds a camera button to the search head. A code can arrive three ways - live
+   camera, an uploaded image file, or an image pasted / dragged onto the panel -
+   and whichever it is, the decoded value lands in #gs-input and runs the normal
+   search, so the result list, deep-links and Similar/Exact modes behave exactly
+   as if the value had been typed.
 
    Decoding: native BarcodeDetector when the browser exposes it AND supports
    data_matrix (Chrome/Edge desktop + Android). Otherwise a ZXing UMD build is
@@ -8880,26 +8887,36 @@ if('serviceWorker' in navigator){
   var _EN={
     gscanTitle:'Scan barcode or Data Matrix',
     gscanCloseBtn:'Close', gscanTorch:'Torch', gscanFlip:'Flip camera',
+    gscanUpload:'Upload image',
     gscanBtnTitle:'Scan barcode / Data Matrix',
     gscanStarting:'Starting camera…',
-    gscanHint:'Hold the code inside the frame',
-    gscanNoSecure:'Camera needs an https:// page — open the dashboard over https, not as a local file.',
-    gscanDenied:'Camera permission denied. Allow camera access for this site, then try again.',
-    gscanNoCam:'No camera found on this device.',
-    gscanBusy:'Camera is in use by another app or tab.',
+    gscanHint:'Hold the code inside the frame — or upload, paste or drop an image',
+    gscanDropNow:'Drop the image to read it',
+    gscanDecoding:'Reading image…',
+    gscanNoCode:'No barcode or Data Matrix found in that image. Try a sharper or closer crop.',
+    gscanBadImage:'That file could not be read as an image.',
+    gscanNoSecure:'Camera needs an https:// page — you can still upload, paste or drop an image.',
+    gscanDenied:'Camera permission denied — you can still upload, paste or drop an image.',
+    gscanNoCam:'No camera found — you can still upload, paste or drop an image.',
+    gscanBusy:'Camera is in use by another app or tab — you can still upload an image.',
     gscanNoEngine:'No decoder available — this browser has no built-in scanner and the ZXing library could not be loaded.',
     gscanLoading:'Loading decoder…'
   };
   var _ZH={
     gscanTitle:'扫描条形码或 Data Matrix',
     gscanCloseBtn:'关闭', gscanTorch:'闪光灯', gscanFlip:'切换摄像头',
+    gscanUpload:'上传图片',
     gscanBtnTitle:'扫描条形码 / Data Matrix',
     gscanStarting:'正在启动摄像头…',
-    gscanHint:'请将码对准取景框',
-    gscanNoSecure:'摄像头需要 https:// 页面 — 请通过 https 打开仪表板，而非本地文件。',
-    gscanDenied:'摄像头权限被拒绝。请允许本站访问摄像头后重试。',
-    gscanNoCam:'此设备未找到摄像头。',
-    gscanBusy:'摄像头正被其他应用或标签页占用。',
+    gscanHint:'请将码对准取景框 — 也可上传、粘贴或拖入图片',
+    gscanDropNow:'松开以读取该图片',
+    gscanDecoding:'正在识别图片…',
+    gscanNoCode:'该图片中未找到条形码或 Data Matrix。请使用更清晰或更近的裁剪图。',
+    gscanBadImage:'该文件无法作为图片读取。',
+    gscanNoSecure:'摄像头需要 https:// 页面 — 仍可上传、粘贴或拖入图片。',
+    gscanDenied:'摄像头权限被拒绝 — 仍可上传、粘贴或拖入图片。',
+    gscanNoCam:'未找到摄像头 — 仍可上传、粘贴或拖入图片。',
+    gscanBusy:'摄像头正被其他应用或标签页占用 — 仍可上传图片。',
     gscanNoEngine:'无可用解码器 — 此浏览器无内置扫描功能，且 ZXing 库加载失败。',
     gscanLoading:'正在加载解码器…'
   };
@@ -8908,7 +8925,7 @@ if('serviceWorker' in navigator){
   function TT(k,fb){var T=window.TX||{};return (T[k]!==undefined&&T[k]!==null&&T[k]!=='')?T[k]:fb;}
 
   var SC={stream:null,track:null,timer:0,detector:null,reader:null,hints:null,active:false,
-          tick:0,devices:[],devIdx:-1,torch:false,starting:false};
+          tick:0,devices:[],devIdx:-1,torch:false,starting:false,busy:false};
 
   /* ---- payload -> candidate search terms -------------------------------- */
   function ean13Check(d12){var s=0;for(var i=0;i<12;i++){s+=(+d12.charAt(i))*((i%2)?3:1);}return String((10-(s%10))%10);}
@@ -9003,7 +9020,7 @@ if('serviceWorker' in navigator){
     return false;
   }
   async function pickEngine(){
-    SC.detector=null;SC.reader=null;
+    if(SC.detector||SC.reader)return true;
     try{
       if('BarcodeDetector' in window){
         var sup=await window.BarcodeDetector.getSupportedFormats();
@@ -9022,7 +9039,7 @@ if('serviceWorker' in navigator){
         // Core MultiFormatReader rather than BrowserMultiFormatReader: the Browser*
         // wrappers own their own camera loop and their canvas helpers have moved
         // between 0.18/0.19/0.21, while MultiFormatReader + BinaryBitmap has been
-        // stable throughout. We already own the stream, so we only need the decoder.
+        // stable throughout. We already own the pixels, so we only need the decoder.
         var Z=window.ZXing,h=new Map();
         h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[
           Z.BarcodeFormat.DATA_MATRIX,Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,
@@ -9038,7 +9055,44 @@ if('serviceWorker' in navigator){
     return false;
   }
 
-  /* ---- capture loop ----------------------------------------------------- */
+  /* ---- one decode attempt over a canvas ---------------------------------
+     deep=true also tries an inverted luminance pass (white-on-dark labels and
+     photo negatives). Left off in the live loop, where it would halve the frame
+     rate for a case the camera rarely produces. */
+  async function decodeCanvas(c,deep){
+    if(SC.detector){
+      try{
+        var codes=await SC.detector.detect(c);
+        if(codes&&codes.length)return {text:codes[0].rawValue,format:codes[0].format};
+      }catch(_){}
+      return null;
+    }
+    if(SC.reader){
+      var Z=window.ZXing;
+      try{
+        var lum=new Z.HTMLCanvasElementLuminanceSource(c);
+        var srcs=[lum];
+        if(deep){ try{ srcs.push(new Z.InvertedLuminanceSource(lum)); }catch(_){} }
+        for(var si=0;si<srcs.length;si++){
+          var bins=[Z.HybridBinarizer,Z.GlobalHistogramBinarizer];
+          for(var bi=0;bi<bins.length;bi++){
+            try{
+              var r=SC.reader.decode(new Z.BinaryBitmap(new bins[bi](srcs[si])),SC.hints);
+              if(r){
+                var fmt='';
+                try{fmt=Z.BarcodeFormat[r.getBarcodeFormat()]||'';}catch(_){}
+                return {text:r.getText(),format:fmt};
+              }
+            }catch(_){ /* NotFoundException on most attempts - expected */ }
+            try{ SC.reader.reset(); }catch(_){}
+          }
+        }
+      }catch(_){}
+    }
+    return null;
+  }
+
+  /* ---- live capture loop ------------------------------------------------ */
   var cnv=null,ctx=null;
   function frame(){
     if(!SC.active)return;
@@ -9057,42 +9111,19 @@ if('serviceWorker' in navigator){
       cnv.width=Math.round(vw*sc);cnv.height=Math.round(vh*sc);
       ctx.drawImage(v,0,0,cnv.width,cnv.height);
     }
-    if(SC.detector){
-      SC.detector.detect(cnv).then(function(codes){
-        if(!SC.active)return;
-        if(codes&&codes.length)hit(codes[0].rawValue,codes[0].format);
-        else schedule();
-      }).catch(function(){schedule();});
-      return;
-    }
-    if(SC.reader){
-      var Z=window.ZXing;
-      try{
-        var lum=new Z.HTMLCanvasElementLuminanceSource(cnv);
-        var bins=[Z.HybridBinarizer,Z.GlobalHistogramBinarizer];
-        for(var bi=0;bi<bins.length;bi++){
-          try{
-            var r=SC.reader.decode(new Z.BinaryBitmap(new bins[bi](lum)),SC.hints);
-            if(r){
-              var fmt='';
-              try{fmt=Z.BarcodeFormat[r.getBarcodeFormat()]||'';}catch(_){}
-              return hit(r.getText(),fmt);
-            }
-          }catch(_){ /* NotFoundException on most frames - expected */ }
-          try{ SC.reader.reset(); }catch(_){}
-        }
-      }catch(_){}
-    }
-    schedule();
+    decodeCanvas(cnv,false).then(function(res){
+      if(!SC.active)return;
+      if(res)finish(res.text,res.format,'camera');
+      else schedule();
+    }).catch(function(){ schedule(); });
   }
   function schedule(){ if(SC.active)SC.timer=setTimeout(frame,110); }
 
-  function hit(raw,fmt){
-    if(!SC.active)return;
+  function finish(raw,fmt,how){
     SC.active=false;
     beep();
     var term=bestTerm(raw);
-    try{ if(window.GS)GS.lastScan={raw:raw,format:fmt||'',term:term}; }catch(_){}
+    try{ if(window.GS)GS.lastScan={raw:raw,format:fmt||'',term:term,via:how||''}; }catch(_){}
     stopCam();
     var ov=document.getElementById('gscan-overlay');
     if(ov)ov.classList.remove('on');
@@ -9107,9 +9138,86 @@ if('serviceWorker' in navigator){
     // A payload that differed from the term searched is logged, so a miss is
     // diagnosable rather than mysterious.
     if(String(term)!==String(raw).trim()){
-      try{console.info('[scan]',fmt||'code','raw:',raw,'-> searched:',term);}catch(_){}
+      try{console.info('[scan]',fmt||'code','via',how||'-','raw:',raw,'-> searched:',term);}catch(_){}
     }
   }
+
+  /* ---- still-image decoding (upload / paste / drop) ---------------------- */
+  function loadImage(file){
+    return new Promise(function(res,rej){
+      if(window.createImageBitmap&&window.Blob&&file instanceof Blob){
+        createImageBitmap(file).then(res).catch(function(){ viaTag(); });
+      }else viaTag();
+      function viaTag(){
+        try{
+          var url=URL.createObjectURL(file);
+          var im=new Image();
+          im.onload=function(){ res(im); setTimeout(function(){try{URL.revokeObjectURL(url);}catch(_){}} ,0); };
+          im.onerror=function(){ try{URL.revokeObjectURL(url);}catch(_){} rej(new Error('image')); };
+          im.src=url;
+        }catch(e){ rej(e); }
+      }
+    });
+  }
+  function drawImg(img,scale,rot){
+    var iw=img.width||img.naturalWidth, ih=img.height||img.naturalHeight;
+    var w=Math.max(1,Math.round(iw*scale)), h=Math.max(1,Math.round(ih*scale));
+    var swap=(rot===90||rot===270);
+    var c=document.createElement('canvas');
+    c.width=swap?h:w; c.height=swap?w:h;
+    var x=c.getContext('2d',{willReadFrequently:true});
+    x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height);   // flatten any transparency to white
+    x.save();
+    x.translate(c.width/2,c.height/2);
+    if(rot)x.rotate(rot*Math.PI/180);
+    x.imageSmoothingQuality='high';
+    x.drawImage(img,-w/2,-h/2,w,h);
+    x.restore();
+    return c;
+  }
+  // A photo is not a video frame: it can be rotated, huge, tiny, or a dark-mode
+  // screenshot. Work through scale x rotation until something decodes.
+  async function decodeImage(img){
+    var iw=img.width||img.naturalWidth, ih=img.height||img.naturalHeight;
+    if(!iw||!ih)return null;
+    var big=Math.max(iw,ih);
+    var scales=[Math.min(1,2400/big)];
+    if(big<1000)scales.push(Math.min(4,1800/big));          // upscale a small crop
+    if(big>2400)scales.push(Math.min(1,1200/big));          // and a cheaper downscale
+    for(var si=0;si<scales.length;si++){
+      for(var rot=0;rot<360;rot+=90){
+        var res=await decodeCanvas(drawImg(img,scales[si],rot),true);
+        if(res)return res;
+      }
+    }
+    return null;
+  }
+  async function handleImage(file){
+    if(!file||SC.busy)return;
+    SC.busy=true;
+    var wasActive=SC.active;
+    SC.active=false;
+    if(SC.timer){clearTimeout(SC.timer);SC.timer=0;}
+    note(TT('gscanDecoding','Reading image…'));
+    try{
+      if(!(await pickEngine())){ note(TT('gscanNoEngine','No decoder available.'),'err'); return; }
+      var img=await loadImage(file);
+      var res=await decodeImage(img);
+      try{ if(img.close)img.close(); }catch(_){}
+      if(res){ finish(res.text,res.format,'image'); return; }
+      note(TT('gscanNoCode','No barcode or Data Matrix found in that image.'),'err');
+    }catch(e){
+      note(TT('gscanBadImage','That file could not be read as an image.'),'err');
+    }finally{
+      SC.busy=false;
+      if(wasActive&&SC.stream){ SC.active=true; SC.tick=0; schedule(); }
+    }
+  }
+  window.gsScanFile=function(input){
+    var f=input&&input.files&&input.files[0];
+    if(input)input.value='';               // so re-picking the same file fires change again
+    if(f)handleImage(f);
+  };
 
   /* ---- camera ----------------------------------------------------------- */
   function stopCam(){
@@ -9159,11 +9267,13 @@ if('serviceWorker' in navigator){
     ov.classList.add('on');
     note(TT('gscanStarting','Starting camera…'));
     try{
-      if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-        note(TT('gscanNoSecure','Camera needs an https:// page.'),'err');return;
-      }
+      // The decoder is needed for the upload path too, so set it up before the
+      // camera - a machine with no webcam can still read an image.
       if(!(await pickEngine())){
         note(TT('gscanNoEngine','No decoder available.'),'err');return;
+      }
+      if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+        note(TT('gscanNoSecure','Camera needs an https:// page.'),'err');return;
       }
       await startCam(null);
       SC.active=true;SC.tick=0;
@@ -9183,6 +9293,8 @@ if('serviceWorker' in navigator){
     stopCam();
     var ov=document.getElementById('gscan-overlay');
     if(ov)ov.classList.remove('on');
+    var st=document.getElementById('gscan-stage');
+    if(st)st.classList.remove('dragging');
     note('');
     var inp=document.getElementById('gs-input');
     if(inp&&window.GS&&GS.open){try{inp.focus();}catch(_){}}
@@ -9213,21 +9325,59 @@ if('serviceWorker' in navigator){
     }catch(e){ note((e&&e.message)||String(e),'err'); }
   };
 
+  function overlayOpen(){
+    var ov=document.getElementById('gscan-overlay');
+    return !!(ov&&ov.classList.contains('on'));
+  }
+
+  // Paste an image straight into the open scanner (screenshot of a label, a photo
+  // copied from Explorer/Finder, an image copied out of an email).
+  document.addEventListener('paste',function(ev){
+    if(!overlayOpen()||!ev.clipboardData)return;
+    var items=ev.clipboardData.items||[];
+    for(var i=0;i<items.length;i++){
+      if(items[i].kind==='file'&&/^image\//.test(items[i].type||'')){
+        var f=items[i].getAsFile();
+        if(f){ ev.preventDefault(); handleImage(f); return; }
+      }
+    }
+  });
+
+  // Drag an image file onto the panel.
+  document.addEventListener('DOMContentLoaded',function(){
+    var st=document.getElementById('gscan-stage');
+    var panel=document.getElementById('gscan-panel');
+    if(!st||!panel)return;
+    function hasFile(ev){
+      var dt=ev.dataTransfer;
+      return !!(dt&&dt.types&&Array.prototype.indexOf.call(dt.types,'Files')>-1);
+    }
+    panel.addEventListener('dragover',function(ev){
+      if(!hasFile(ev))return;
+      ev.preventDefault();ev.dataTransfer.dropEffect='copy';st.classList.add('dragging');
+    });
+    panel.addEventListener('dragleave',function(ev){
+      if(ev.target===panel||ev.target===st)st.classList.remove('dragging');
+    });
+    panel.addEventListener('drop',function(ev){
+      if(!hasFile(ev))return;
+      ev.preventDefault();st.classList.remove('dragging');
+      var f=ev.dataTransfer.files&&ev.dataTransfer.files[0];
+      if(f)handleImage(f);
+    });
+    var b=document.getElementById('gs-scan-btn');
+    if(b)b.title=TT('gscanBtnTitle','Scan barcode / Data Matrix');
+  });
+
   // Esc closes the scanner without also closing the search overlay behind it.
   document.addEventListener('keydown',function(ev){
-    var ov=document.getElementById('gscan-overlay');
-    if(ev.key==='Escape'&&ov&&ov.classList.contains('on')){
+    if(ev.key==='Escape'&&overlayOpen()){
       ev.preventDefault();ev.stopPropagation();gsScanClose();
     }
   },true);
   // Never leave the camera light on if the tab is hidden or the page is torn down.
   document.addEventListener('visibilitychange',function(){ if(document.hidden&&SC.stream)gsScanClose(); });
   window.addEventListener('pagehide',function(){ try{stopCam();}catch(_){} });
-  // Keep the button tooltip in the active language.
-  document.addEventListener('DOMContentLoaded',function(){
-    var b=document.getElementById('gs-scan-btn');
-    if(b)b.title=TT('gscanBtnTitle','Scan barcode / Data Matrix');
-  });
 })();
 </script>
 </body>
