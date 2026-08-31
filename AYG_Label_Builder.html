@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AYG Label Builder</title>
+<!-- Load the SAME font family the print engine (label.py / cairosvg) renders with: Noto Sans CJK SC.
+     Google Fonts serves it as "Noto Sans SC" (identical Latin+SC glyph metrics). If the machine has
+     the desktop "Noto Sans CJK SC" installed, that wins first and matches the engine exactly. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#11151c; --panel:#1a2029; --panel2:#222a35; --line:#313c4a;
@@ -108,10 +114,10 @@
   .pvtag{position:absolute;bottom:0;right:0;font:7px var(--ui);background:rgba(20,20,20,.6);color:#fff;padding:0 3px;border-radius:3px 0 0 0;pointer-events:none}
   .imgblk{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#fff}
   .imgblk img{max-width:100%;max-height:100%}
-  /* Label text renders in the SAME font the print engine uses (Liberation Sans, Arial is the
-     metric-compatible fallback) and with no padding, so on-screen line-wrapping matches the PDF
-     exactly instead of re-wrapping under a wider UI font. */
-  .txtblk{width:100%;height:100%;background:#fff;padding:0;overflow:hidden;color:#000;font-family:'Liberation Sans',Arial,sans-serif}
+  /* Label text renders in the SAME font the print engine uses (Noto Sans CJK SC; Noto Sans SC is
+     the metric-identical webfont fallback) and with no padding, so on-screen line-wrapping matches
+     the PDF exactly instead of re-wrapping under a different-width font. */
+  .txtblk{width:100%;height:100%;background:#fff;padding:0;overflow:hidden;color:#000;font-family:'Noto Sans CJK SC','Noto Sans SC',Arial,sans-serif}
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
   .modal.on{display:flex}
   .modal .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;width:min(640px,90vw)}
@@ -810,7 +816,7 @@ function dmPattern(){
     s+=`<div style="background:${on?'#000':'#fff'}"></div>`;}
   return s+"</div>";}
 const _mctx=(()=>{try{return document.createElement("canvas").getContext("2d");}catch(e){return null;}})();
-function measW(s,sizeMM,bold){if(!_mctx)return (s||"").length*sizeMM*0.52;_mctx.font=(bold?"700 ":"400 ")+(sizeMM*10)+"px 'Liberation Sans',Arial,sans-serif";return _mctx.measureText(s).width/10;}
+function measW(s,sizeMM,bold){if(!_mctx)return (s||"").length*sizeMM*0.52;_mctx.font=(bold?"700 ":"400 ")+(sizeMM*10)+"px 'Noto Sans CJK SC','Noto Sans SC',Arial,sans-serif";return _mctx.measureText(s).width/10;}
 function wrapLines(text,sizeMM,boxWmm,bold){const out=[];(text||"").split("\n").forEach(p=>{const ws=p.split(" ");let cur="";ws.forEach(w=>{const tri=(cur+" "+w).trim();if(measW(tri,sizeMM,bold)<=boxWmm||!cur)cur=tri;else{out.push(cur);cur=w;}});out.push(cur);});return out;}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 // Hybrid text sizing: the font renders at the EXACT size the user sets (no shrink-to-fit);
@@ -874,7 +880,7 @@ function autoGrowTitle(b){if(b.type!=="title")return;
     const needH=lines.length*fs*1.15+1.2;
     if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);
   }}
-function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font:700 ${fp}px var(--ui);line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
+function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font-weight:700;font-size:${fp}px;font-family:'Noto Sans CJK SC','Noto Sans SC',Arial,sans-serif;line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
 // Parse a body line into {bullet, segments:[{t,bold}]}. Bullet = "• "/"- "/"* " prefix.
 function parseInline(line){
   let bullet="";const bm=line.match(/^(\u2022 |- |\* )/);if(bm){bullet=bm[1];line=line.slice(bm[1].length);}
