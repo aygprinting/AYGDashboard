@@ -225,7 +225,7 @@
     <button id="importBtn" data-i18n="importj">Import JSON</button>
     <button id="previewBtn" data-i18n="preview">👁 Preview</button>
     <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-    <span id="buildTag" class="abuild" title="Build version">v18.5 (2026-07-23)</span>
+    <span id="buildTag" class="abuild" title="Build version">v18.6 (2026-09-03)</span>
   </div>
 </header>
 
@@ -267,7 +267,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.5 (2026-07-23)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.6 (2026-09-03)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -822,7 +822,17 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
 // Hybrid text sizing: the font renders at the EXACT size the user sets (no shrink-to-fit);
 // instead the box height grows to fit the wrapped content, so nothing overflows.
 // Returns the needed inner height in mm and (as a side effect via caller) can set box[3].
-function textNeededH(b){const bw=Math.max(1,b.box[2]-1);const lg=b.lineGap||1.25;const s=b.size||1.5;
+// Rotation-aware layout axes. A 90/270 block flows its text along the box HEIGHT and stacks
+// lines across the box WIDTH — matching the print engine (build_inner), which swaps the box
+// [x,y,w,h]->[.,.,h,w] BEFORE wrapping and only then rotates the finished text. So the dimension
+// used to wrap/measure ("wrap width") and the dimension grown to fit stacked lines ("stack")
+// must swap for side-on titles/text; otherwise the editor wraps against the narrow axis and shows
+// a stacked mess even though the PDF comes out as one straight line.
+function _rotd(b){return ((b.rotate||0)%360+360)%360;}
+function _isSide(b){const r=_rotd(b);return r===90||r===270;}
+function _wrapIdx(b){return _isSide(b)?3:2;}   // box index whose length is the line/wrap width
+function _stackIdx(b){return _isSide(b)?2:3;}  // box index that grows to fit stacked lines
+function textNeededH(b){const bw=Math.max(1,b.box[_wrapIdx(b)]-1);const lg=b.lineGap||1.25;const s=b.size||1.5;
   let ln=b.title?1:0;ln+=wrapRich(b.body||"",s,bw).length;
   return ln*s*lg;}
 // Grow (or shrink) a text block's box height to fit its content at the exact font size.
@@ -831,9 +841,10 @@ function textNeededH(b){const bw=Math.max(1,b.box[2]-1);const lg=b.lineGap||1.25
 // The user's own height (set by dragging the handle) is respected as a minimum — we never
 // shrink it — so manual resizing still works and an empty box doesn't collapse to a sliver.
 function autoGrowText(b){if(b.type!=="text")return;
-  if(b._mh)return;                                     // height set by hand — leave it alone
+  const si=_stackIdx(b);                               // grow the STACK axis (height, or width if side-on)
+  if(_isSide(b)?b._mw:b._mh)return;                    // that axis set by hand — leave it alone
   const need=textNeededH(b)+1.0;                       // content height + small padding
-  if((b.box[3]||0) < need-0.05) b.box[3]=+need.toFixed(2);   // grow only; never shrink
+  if((b.box[si]||0) < need-0.05) b.box[si]=+need.toFixed(2);   // grow only; never shrink
 }
 // Nutrition table sizing (hybrid — same idea as text blocks and the print engine): the font
 // renders at the size you set and the box GROWS in height to fit. The font only shrinks if the
@@ -858,27 +869,33 @@ function autoGrowNut(b){if(b.type!=="nutrition_table")return;
 // Match the engine's el_title: shrink from the set size until the widest line fits the full box
 // WIDTH and all lines fit the full box HEIGHT (line-height 1.15). Uses the full box (no extra
 // margin) so the on-screen title size equals the printed one.
-function fitTitleSize(b){const bw=Math.max(1,b.box[2]),bh=Math.max(1,b.box[3]);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<200;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s=+(s-0.05).toFixed(2);}return s;}
+function fitTitleSize(b){const bw=Math.max(1,b.box[_wrapIdx(b)]),bh=Math.max(1,b.box[_stackIdx(b)]);let s=b.size||3.5;const lines=b.lines||[];for(let k=0;k<200;k++){const lh=s*1.15;const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);if((widest<=bw&&lines.length*lh<=bh)||s<=0.5)break;s=+(s-0.05).toFixed(2);}return s;}
 // Title sizing (hybrid, like text + nutrition table): the font renders at the size you set and the
 // box GROWS to fit — rightward first, then leftward once it hits the label edge (so a top-right
 // title stays anchored to the right). Full label width is the hard cap; fitTitleSize is the safety.
 function autoGrowTitle(b){if(b.type!=="title")return;
   const s=b.size||3.5,lines=b.lines||[],margin=0.5;
+  const side=_isSide(b),wi=_wrapIdx(b),si=_stackIdx(b);
+  const wrapPin=side?b._mh:b._mw, stackPin=side?b._mw:b._mh;
+  const cap=side?state.size.h:state.size.w;                  // label extent ALONG the line (flips when side-on)
   const widest=lines.reduce((m,l)=>Math.max(m,measW(l,s,true)),0);
-  const wantW=Math.min(widest+1.4, state.size.w-2*margin);
-  if(!b._mw && (b.box[2]||0)<wantW-0.05){                    // width not pinned by hand
-    let x=b.box[0];const maxRight=state.size.w-margin;
-    if(x+wantW>maxRight)x=Math.max(margin,maxRight-wantW);   // slide left instead of clipping
-    b.box[0]=+x.toFixed(2);b.box[2]=+wantW.toFixed(2);
+  const wantW=Math.min(widest+1.4, cap-2*margin);
+  if(!wrapPin && (b.box[wi]||0)<wantW-0.05){                 // wrap axis not pinned by hand
+    if(!side){                                               // horizontal: keep right anchor, slide within width
+      let x=b.box[0];const maxRight=state.size.w-margin;
+      if(x+wantW>maxRight)x=Math.max(margin,maxRight-wantW);
+      b.box[0]=+x.toFixed(2);
+    }
+    b.box[wi]=+wantW.toFixed(2);
   }
-  // grow height for the SET size first (so the height check never caps a size the width allows),
-  // then fitTitleSize only bites when the label edge genuinely limits the width.
-  if(!b._mh){                                                // height not pinned by hand
+  // grow the stack axis for the SET size first (so the height check never caps a size the width
+  // allows), then fitTitleSize only bites when the label edge genuinely limits the wrap axis.
+  if(!stackPin){                                             // stack axis not pinned by hand
     const needH0=lines.length*s*1.15+1.2;
-    if((b.box[3]||0)<needH0-0.05)b.box[3]=+needH0.toFixed(2);
+    if((b.box[si]||0)<needH0-0.05)b.box[si]=+needH0.toFixed(2);
     const fs=fitTitleSize(b);
     const needH=lines.length*fs*1.15+1.2;
-    if((b.box[3]||0)<needH-0.05)b.box[3]=+needH.toFixed(2);
+    if((b.box[si]||0)<needH-0.05)b.box[si]=+needH.toFixed(2);
   }}
 function titlePreview(b){const fp=mm(fitTitleSize(b));const al=b.align||'left';return `<div class="txtblk" style="display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden;text-align:${al};align-items:${al==='right'?'flex-end':al==='center'?'center':'flex-start'}">${(b.lines||[]).map(l=>`<div style="font-weight:700;font-size:${fp}px;font-family:'Noto Sans CJK SC','Noto Sans SC',Arial,sans-serif;line-height:1.15;white-space:nowrap">${esc(l)}</div>`).join("")}</div>`;}
 // Parse a body line into {bullet, segments:[{t,bold}]}. Bullet = "• "/"- "/"* " prefix.
@@ -949,7 +966,7 @@ function engLineCount(text,sizeMM,boxWmm){
 // trailing lines) fits the box HEIGHT. Auto-grown boxes return the size unchanged; a fixed/too-
 // small box shrinks — exactly like the engine, so the preview matches the printed PDF.
 function fitTextSize(b){
-  const lg=b.lineGap||1.25, w=Math.max(1,b.box[2]), h=Math.max(0.1,b.box[3]);
+  const lg=b.lineGap||1.25, w=Math.max(1,b.box[_wrapIdx(b)]), h=Math.max(0.1,b.box[_stackIdx(b)]);
   let s=b.size||1.5;
   for(let k=0;k<400 && s>0.5;k++){
     const n=(b.title?1:0)+engLineCount(b.body||"",s,w);
@@ -961,7 +978,7 @@ function fitTextSize(b){
 function textPreview(b){const fs=fitTextSize(b);const fp=mm(fs);const lg=b.lineGap||1.25;const al=b.align||'left';
   // Wrap at the FULL box width (like the engine) \u2014 the render font now matches the measuring font,
   // so these computed line breaks render 1:1 (each line is nowrap, so the browser can't re-break it).
-  const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[2]));
+  const rich=wrapRich(b.body||"",fs,Math.max(1,b.box[_wrapIdx(b)]));
   const bulletIndent=mm(measW("\u2022 ",fs,false));
   const body=rich.map(ln=>{
     const inner=ln.segs.map(s=>s.bold?`<b>${esc(s.t)}</b>`:esc(s.t)).join("");
@@ -1387,7 +1404,7 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v18.5 (2026-07-23)";
+const BUILD_TAG="v18.6 (2026-09-03)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
