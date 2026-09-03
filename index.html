@@ -6356,9 +6356,12 @@ function buildContactCheck(){
         behind.push({name:cl.name,crm:cl.lastContact,pipe:p.date,pipeKey:p.key,crmKey:crmKey,gap:_gap});
       }
     }
-    // Pasting services: pipeline summary mentions pasting but CRM hasn't marked its Pasting=Y column.
-    // (CRM's "Pasting 贴标签" column is the source of truth; this surfaces ones that may need marking.)
-    if(p&&p.paste&&String(cl.pasting||'').toUpperCase()!=='Y'){pasting.push({name:cl.name,stage:p.stage||''});}
+    // Pasting services: pipeline summary mentions pasting but CRM hasn't decided its Pasting column.
+    // (CRM's "Pasting 贴标签" column is the source of truth.) Cleared two ways: 'Y' = is a pasting
+    // client, and an explicit 'N' = confirmed NOT a pasting client (a deliberate dismissal). Anything
+    // else — blank, '—', etc. — still surfaces, so an undecided company keeps prompting a decision.
+    var _pv=String(cl.pasting||'').trim().toUpperCase();
+    if(p&&p.paste&&_pv!=='Y'&&_pv!=='N'){pasting.push({name:cl.name,stage:p.stage||''});}
     // Stage mismatch: the pipeline (email-derived) stage differs from the CRM stage. Both sides now
     // use the same standardized vocabulary, so a genuine difference is a real signal that the CRM
     // likely needs updating to match what the emails show. Only flag when the pipeline stage is a
