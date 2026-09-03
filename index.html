@@ -6405,11 +6405,18 @@ function buildContactCheck(){
   }
   var invMismatch=[];
   if(INVOICES&&INVOICES.length&&CLIENTS&&CLIENTS.length){
+    // Alias-aware: fold each normalized key through the company_map.xlsx alias map
+    // (CO_ALIAS_MAP) so Xero/CRM spelling variants explicitly linked there resolve
+    // to one company — e.g. "N & N" == "N&N", "Forever Living Products Singapore
+    // Pte Ltd" == "Forever Living" — instead of misfiring as "not in CRM". Purely
+    // explicit: if the map is absent or a name isn't listed, the key is unchanged,
+    // so matching behaves exactly as before.
+    var _invAlias=function(k){return (k&&CO_ALIAS_MAP&&CO_ALIAS_MAP[k])||k;};
     var crmIdx={};
-    CLIENTS.forEach(function(cl){_invKeys(cl.name).forEach(function(k){if(!crmIdx[k])crmIdx[k]=cl;});});
+    CLIENTS.forEach(function(cl){_invKeys(cl.name).forEach(function(k){var ak=_invAlias(k);if(!crmIdx[ak])crmIdx[ak]=cl;});});
     var invSeen={};
     xeroUnpaid().forEach(function(v){
-      var k=_normInv(v.company);if(invSeen[k])return;invSeen[k]=1;
+      var k=_invAlias(_normInv(v.company));if(invSeen[k])return;invSeen[k]=1;
       var cl=crmIdx[k];
       if(!cl){invMismatch.push({company:v.company,invoice:v.invoice,due:v.due,overdue:v._overdue,reason:'noCrm'});}
       else if(cl.stage==='Lost / Stalled'){invMismatch.push({company:v.company,invoice:v.invoice,due:v.due,overdue:v._overdue,reason:'lost'});}
