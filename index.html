@@ -765,6 +765,7 @@ tr.wl-row-caution td:first-child{box-shadow:inset 3px 0 0 var(--amb)}
             <button class="cf-sort" id="track-copyall-btn" style="cursor:pointer;border-color:var(--tel);color:var(--tel)" onclick="copyAllTracking(event)" data-tx="copyAllTracking">📋 Copy All Tracking Numbers</button>
             <a class="cf-sort" href="https://t.17track.net/en" target="_blank" rel="noopener" style="cursor:pointer;text-decoration:none;display:inline-flex;align-items:center">17T ↗</a>
             <a class="cf-sort" href="https://parcelsapp.com/en/tracking" target="_blank" rel="noopener" style="cursor:pointer;text-decoration:none;display:inline-flex;align-items:center">PA ↗</a>
+            <a class="cf-sort" href="http://120.79.172.107:555/" target="_blank" rel="noopener" title="AYG internal tracker (120.79.172.107:555)" style="cursor:pointer;text-decoration:none;display:inline-flex;align-items:center">AYG ↗</a>
           </div>
         </div>
         <div id="ord-tracking-list"></div>
@@ -4101,7 +4102,9 @@ function buildTrackLinks(raw){
       // Kuaidi100 domestic-China search page (front door \u2014 paste the number). This is the best
       // odds for a purely-domestic SF/ZTO waybill.
       var kd='https://www.kuaidi100.com/?nu='+encodeURIComponent(num);
-      out.push({num:num,carrier:primName,url:primUrl,url17:s17,urlPa:pa,urlKd:kd,hasCarrier:hasCarrier,isChina:isChina});
+      // AYG internal / self-hosted tracker on 120.79.172.107:555. Takes the number as ?express_no=.
+      var ayg='http://120.79.172.107:555/?express_no='+encodeURIComponent(num);
+      out.push({num:num,carrier:primName,url:primUrl,url17:s17,urlPa:pa,urlKd:kd,urlAyg:ayg,hasCarrier:hasCarrier,isChina:isChina});
     }
   });
   return out;
@@ -4135,7 +4138,7 @@ function trackBtnsHtml(raw,size){
     // Kuaidi100 first for China-domestic (best odds) — highlighted like a carrier button since
     // it's the recommended tracker for these parcels; 17T/PA stay as muted fallback chips.
     if(l.isChina)html+=a(l.urlKd,'\ud83d\udce6 \u5feb\u9012100','var(--tel)');
-    html+=chip(l.url17,'17T')+chip(l.urlPa,'PA');
+    html+=chip(l.url17,'17T')+chip(l.urlPa,'PA')+chip(l.urlAyg,'AYG');
     return '<span style="display:inline-flex;flex-wrap:wrap;align-items:center">'+html+'</span>';
   }).join(' ');
 }
