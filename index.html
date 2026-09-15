@@ -2083,6 +2083,7 @@ async function syncClientsUpdate(){
     if(!token){await spLogin();return;}
     if(btn){btn.disabled=true;btn.classList.add('syncing');}
     if(stat){stat.textContent=TX.loadingData;stat.className='sync-note loading';}
+    _pipeFile=null; // always re-resolve so a newer dated AYG_Pipeline_*.xlsx export is picked up (mirrors the Xero sync fix)
     var pf=await resolvePipeFileId(token);
     var dr=await graphFetch('/drives/'+pf.driveId+'/items/'+pf.id+'/content',token);
     if(!dr.ok)throw new Error('Pipeline download failed ('+dr.status+')');
