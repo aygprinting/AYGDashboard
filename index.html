@@ -2898,6 +2898,8 @@ function parseAndRender(buf1,buf2){
         owb.slice(ohi+1).forEach(function(row,i){
           if(!row||!row[5]||!_cv2(row[5]))return;var co=_cv2(row[5]);if(!co)return;
           var st=_cv2(row[9])||'Pending';
+          var _stU=String(st).trim().toUpperCase();
+          if(_stU==='X'||_stU==='CANCELLED')return; // 'X' or 'Cancelled' status = cancelled order -> drop from dashboard entirely
           // AYG Ops Orders columns: 0 Size,1 Area,2 SKU,3 Colour,4 Total Order,5 Company,
           // 6 Location,8 Selling Price,9 Status,10 Received,11 Est Delivery,13 Tracking,
           // 14 Delivery Addr,15 Name,16 Contact,19 Invoice/Ref,20 Payment,21 Comment,22 Days,23 QTY/SKU
@@ -5561,6 +5563,9 @@ function renderOverdueOrders(){
   var q=(document.getElementById('overdue-search').value||'').toLowerCase();
   var overdue=ORDERS.filter(function(o){
     if(o.status==='Delivered'||o.status==='Paid')return false;
+    var _osU=String(o.status||'').trim().toUpperCase();
+    if(_osU==='X'||_osU==='CANCELLED')return false; // cancelled
+
     var dd=parseFlexDate(o.delivery);
     if(!dd||isNaN(dd.getTime()))return false;
     var today=new Date();today.setHours(0,0,0,0);
