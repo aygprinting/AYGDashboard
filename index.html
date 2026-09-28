@@ -1710,7 +1710,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON1'; // single source of truth for the build/version stamp (adds Checks: Paid status Xero vs CRM, and AYG Operations vs Management Orders reconciliation)
+var BUILD='20260928-RECON2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3070,8 +3070,12 @@ function parseAndRender(buf1,buf2){
   // and Ops-vs-Management). Kept separate from ORDERS, which is the display list.
   safely('Orders recon',function(){
     OPS_ORD_RAW=rcReadOrders(wbOps);
+    // Management file rows only when the BCRS file was downloaded (management). Staff mode — a
+    // real 403 or a management user previewing staff view — hard-clears them so nothing from the
+    // Management file stays in memory.
     MGMT_ORD_RAW=wbBcrs?rcReadOrders(wbBcrs):[];
     RC_MGMT_LOADED=!!wbBcrs&&MGMT_ORD_RAW.length>0;
+    if(!wbBcrs){RC_FIELD_FILTER='';}
   });
 
   safely('Standard Pricing',function(){
@@ -7598,8 +7602,13 @@ function rcSetField(k){RC_FIELD_FILTER=(RC_FIELD_FILTER===k?'':k);try{renderChec
 // Checks tab group: "Orders — Payment & Workbook Reconciliation". chkSection is renderChecks'
 // own collapsible-card builder, passed in so these cards look and collapse like the rest.
 function rcChecksHtml(zh,chkSection,invLoaded){
-  var html='<div class="cc-title-row" style="margin-top:16px"><div class="cc-title">'+(zh?'订单 — 付款与工作簿对账':'Orders — Payment & Workbook Reconciliation')+'</div>'
-    +'<span style="font-size:9px;color:var(--dim)">'+(zh?'AYG Operations · 管理表 · Xero':'AYG Operations · Management · Xero')+'</span></div>';
+  // MANAGEMENT ONLY: the Ops-vs-Management comparison reads the BCRS Scheme Management file, so
+  // it is shown only when this session is management AND that file actually loaded. Staff (real
+  // 403 or management previewing staff view) never see the section, its heading or any hint of it.
+  var isMgmt=(ACCESS_LEVEL==='management')&&RC_MGMT_LOADED;
+  if(!isMgmt){MGMT_ORD_RAW=[];RC_FIELD_FILTER='';}
+  var html='<div class="cc-title-row" style="margin-top:16px"><div class="cc-title">'+(isMgmt?(zh?'订单 — 付款与工作簿对账':'Orders — Payment & Workbook Reconciliation'):(zh?'订单 — 付款对账':'Orders — Payment Reconciliation'))+'</div>'
+    +'<span style="font-size:9px;color:var(--dim)">'+(isMgmt?(zh?'AYG Operations · 管理表 · Xero':'AYG Operations · Management · Xero'):'AYG Operations · Xero')+'</span></div>';
   // ── 1. Paid status: Xero vs CRM ──
   var X=[];try{X=buildXeroPaidCheck(zh);}catch(e){console.error('xero paid check',e);}
   var RS={
@@ -7632,10 +7641,7 @@ function rcChecksHtml(zh,chkSection,invLoaded){
     (zh?'来源：AYG Operations → 订单表 U 列「付款」对比 Xero 发票导出的「Status」。每个订单用 T 列的发票／参考编号（可含多个，用 | 分隔）匹配 Xero 的发票号或参考号（忽略大小写、分隔符和前导零）；若编号对不上，则按「公司名 + 金额（含或不含 9% GST）」唯一匹配。标记情况：CRM 已付但 Xero 未付／部分付款；CRM 已付但 Xero 仍为草稿；Xero 已付但 CRM 为空；CRM 已付但找不到 Xero 发票；引用的发票已作废；付款列内容无法识别。已取消（X）和 NA（免费样品）的订单会略过。点击一行跳到该 Xero 发票。'
         :'How it’s derived: compares AYG Operations → Orders col U “Payment” with the Status in the Xero invoice pull. Each order’s Reference / Invoice No. (col T — several refs separated by “|” are all used) is matched to the Xero invoice number or reference, ignoring case, separators and zero-padding; if no reference hits, a unique same-company invoice whose total equals the selling price (with or without 9% GST) is used. Flagged when: CRM Paid but Xero unpaid / part-paid; CRM Paid but the Xero invoice is still Draft; Xero Paid but CRM blank; CRM Paid but no Xero invoice found; the referenced invoice is Voided; or the Payment cell holds an unrecognised value. Cancelled (X) and NA (free sample) orders are skipped. Click a row to open that invoice in the Xero tab.'));
   // ── 2. AYG Operations vs Management — Orders tab ──
-  if(!RC_MGMT_LOADED){
-    html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(zh?'AYG Operations 与管理表订单对账需要管理层权限（BCRS Scheme Management 文件）。':'AYG Operations vs Management Orders reconciliation needs management access (the BCRS Scheme Management file).')+'</div>';
-    return html;
-  }
+  if(!isMgmt)return html; // staff: section omitted entirely
   var RR=buildOrdersRecon(zh);
   var fl=function(f){return zh?f.zh:f.en;};
   var summ='<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 2px 8px;font-size:10px;color:var(--m)">'
