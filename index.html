@@ -1710,7 +1710,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON4'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260928-RECON5'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7681,6 +7681,15 @@ function buildXeroRefCheck(zh){
       return;
     }
     if(how==='num'){
+      // Xero's Reference holds a DIFFERENT ref of the same order family (e.g. CRM -001, Xero ref
+      // -002 on invoice INV-001): that is a reference mismatch, not just an empty Xero field.
+      var _xs=_rcRefKey(xRef).split('-'),_cs=lk.split('-');
+      if(xRef&&_xs.length>2&&_xs.slice(0,-1).join('-')===_cs.slice(0,-1).join('-')){
+        res.flags.push(Object.assign(base,{reason:'mismatch',
+          why:zh?'同一张 Xero 发票（'+live[0].invoice+'）上编号不一致：CRM「'+g.raw+'」，Xero 发票号是 '+live[0].invoice+'，但 Xero 的 Reference 栏写的是「'+xRef+'」。请确认正确的序号，把 CRM 或 Xero 改成一致。'
+                :'Same Xero invoice ('+live[0].invoice+'), different reference: the CRM says “'+g.raw+'” and the invoice number agrees, but Xero’s Reference field says “'+xRef+'”. Confirm which sequence number is right and correct the other side.'}));
+        return;
+      }
       res.flags.push(Object.assign(base,{reason:'numOnly',
         why:(zh?'CRM 的编号对应到 Xero 的发票号 '+live[0].invoice+'，但该发票的「Reference」栏'+(xRef?'是「'+xRef+'」':'为空')+'。请在 Xero 的 Reference 栏填入同一编号，方便对账。':'The CRM ref matches Xero invoice number '+live[0].invoice+', but that invoice’s Reference field is '+(xRef?'“'+xRef+'”':'blank')+'. Put the same reference in Xero’s Reference field so the two stay in step.')}));
       return;
