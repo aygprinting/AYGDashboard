@@ -1710,7 +1710,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON5'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260928-RECON6'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7627,137 +7627,132 @@ function _rcCoSame1(a,b){var x=_rcCoKey(a),y=_rcCoKey(b);if(!x||!y)return false;
   if(typeof CO_ALIAS_MAP!=='undefined'&&CO_ALIAS_MAP){var ax=CO_ALIAS_MAP[x]||x,ay=CO_ALIAS_MAP[y]||y;if(ax===ay)return true;}
   var n=Math.min(10,x.length,y.length);return n>=4&&x.slice(0,n)===y.slice(0,n);}
 function buildXeroRefCheck(zh){
+  // SUM-BASED reconciliation. References and invoice numbers don't map 1:1 — one reference can be
+  // billed on several Xero invoices, one invoice can carry several references, and one CRM row can
+  // list several refs. So we link CRM refs and Xero invoices wherever an identifier matches (Xero
+  // Reference OR invoice number, formatting ignored), gather everything connected into one group,
+  // and only flag a group whose CRM total ≠ Xero total. A group whose sums agree is never shown.
   var res={flags:[],checked:0,exact:0};
   if(!INVOICES||!INVOICES.length||!OPS_ORD_RAW.length)return res;
   var money=function(n){return (TX.xeroCur||'S$')+' '+fmtMoney(n);};
-  var refEx={},refLo={},numEx={},numLo={};
-  function add(m,k,v){if(k)(m[k]=m[k]||[]).push(v);}
+  var near=function(c,x){return Math.abs(x-c)<1||Math.abs(x-c*1.09)<1;};   // Xero total may include 9% GST
+  var stem=function(k){var p=String(k||'').split('-');return p.length>2?p.slice(0,-1).join('-'):k;};
+  var cust=function(k){return String(k||'').split('-')[0];};
+  // ── union-find over nodes "c:<refkey>" (CRM ref) and "x:<invoice>" (Xero invoice) ──
+  var par={};
+  function f(a){while(par[a]!==a){par[a]=par[par[a]];a=par[a];}return a;}
+  function mk(a){if(!(a in par))par[a]=a;}
+  function un(a,b){mk(a);mk(b);a=f(a);b=f(b);if(a!==b)par[a]=b;}
+  // Xero side (voided / deleted invoices can't settle anything).
+  var XI={},xByKey={},dead={};
   INVOICES.forEach(function(v){
-    _rcRefRaw(v.reference).forEach(function(t){add(refEx,_rcRefExact(t),v);add(refLo,_rcRefKey(t),v);});
-    add(numEx,_rcRefExact(v.invoice),v);add(numLo,_rcRefKey(v.invoice),v);
+    if(_rcXeroDead(v)){_rcRefList(v.reference).concat([_rcRefKey(v.invoice)]).forEach(function(k){if(k)(dead[k]=dead[k]||[]).push(v);});return;}
+    var id='x:'+v.invoice;XI[id]=v;mk(id);
+    var keys=_rcRefList(v.reference);var nk=_rcRefKey(v.invoice);if(nk)keys.push(nk);
+    v._keys=keys;keys.forEach(function(k){(xByKey[k]=xByKey[k]||[]).push(id);});
   });
-  // CRM side: every live order's refs, grouped by loose key so rows sharing one ref (a multi-size
-  // order billed on one invoice) are checked together for company and amount.
-  var groups={},order=[],crmKeys={},minDate=0;
+  // CRM side.
+  var CR={},rowsSeen=[],minDate=0;
   OPS_ORD_RAW.forEach(function(o){
     var st=_rcS(o.status).toUpperCase();if(st==='X'||st==='CANCELLED')return;
     var dk=_rcDateKeys(o.received)[0];if(dk&&(!minDate||dk<minDate))minDate=dk;
     var toks=_rcRefRaw(o.invoice);
+    if(!toks.length){
+      if(!_rcIsNA(o.invoice)&&!_rcIsNA(o.payment)&&((_rcS(o.payment)&&/paid/i.test(_rcS(o.payment)))||_rcDateKeys(o.invDate).length)&&(_rcNum(o.price)||0)>0)
+        res.flags.push({reason:'crmNoRef',company:_rcS(o.company),rows:[o._row],crmRef:'',xeroRef:'',invs:[],
+          why:zh?'订单已开票（已付款或有发票日期），但 T 列没有填写参考编号 — 无法与 Xero 对账。请从 Xero 复制参考编号填入。':'The order has been invoiced (marked Paid or has an invoice date) but col T has no reference — it can’t be tied to a Xero invoice. Copy the reference in from Xero.'});
+      return;
+    }
+    rowsSeen.push(o);var first=null;
     toks.forEach(function(t){
-      var lk=_rcRefKey(t);crmKeys[lk]=1;
-      if(!groups[lk]){groups[lk]={raw:t,rows:[],multi:false,price:0};order.push(lk);}
-      var g=groups[lk];g.rows.push(o);if(toks.length>1)g.multi=true;g.price+=(_rcNum(o.price)||0);
+      var lk=_rcRefKey(t),id='c:'+lk;
+      if(!CR[id]){CR[id]={raw:t,lk:lk,rows:[]};mk(id);res.checked++;}
+      if(CR[id].rows.indexOf(o)<0)CR[id].rows.push(o);
+      if(first)un(first,id);else first=id;      // several refs on one row belong together
+      (xByKey[lk]||[]).forEach(function(x){un(id,x);});
     });
-    // Clearly invoiced (Paid, or an invoice date filled in) but no reference typed at all.
-    if(!toks.length&&!_rcIsNA(o.invoice)&&!_rcIsNA(o.payment)&&((_rcS(o.payment)&&/paid/i.test(_rcS(o.payment)))||_rcDateKeys(o.invDate).length)&&(_rcNum(o.price)||0)>0){
-      res.flags.push({reason:'crmNoRef',company:_rcS(o.company),rows:[o._row],crmRef:'',xeroRef:'',invs:[],
-        why:zh?'订单已开票（已付款或有发票日期），但 T 列没有填写参考编号 — 无法与 Xero 对账。请从 Xero 复制参考编号填入。':'The order has been invoiced (marked Paid or has an invoice date) but col T has no reference — it can’t be tied to a Xero invoice. Copy the reference in from Xero.'});
-    }
   });
-  order.forEach(function(lk){
-    var g=groups[lk],ex=_rcRefExact(g.raw);res.checked++;
-    var co=_rcS(g.rows[0].company),rows=g.rows.map(function(o){return o._row;});
-    var base={company:co,rows:rows,crmRef:g.raw};
-    var hit=(refEx[ex]||[]),how='exact';
-    if(!hit.length){hit=refLo[lk]||[];how='loose';}
-    if(!hit.length){hit=(numEx[ex]||[]).concat((numLo[lk]||[]).filter(function(v){return (numEx[ex]||[]).indexOf(v)<0;}));how='num';}
-    if(!hit.length){
-      res.flags.push(Object.assign(base,{reason:'missing',xeroRef:'',invs:[],_lk:lk,_price:g.multi?0:g.price,
-        why:zh?'Xero 中没有任何发票的参考编号或发票号是「'+g.raw+'」（包括忽略格式后）。可能是 CRM 输错、Xero 用了别的编号，或发票还没在 Xero 开出。':'No Xero invoice has “'+g.raw+'” as its Reference or invoice number, even ignoring formatting. Either the CRM ref is mistyped, Xero used a different number, or the invoice hasn’t been raised in Xero yet.'}));
+  // ── gather groups ──
+  function groups(){
+    var G={};
+    Object.keys(par).forEach(function(n){var r=f(n);(G[r]=G[r]||{c:[],x:[]})[n[0]==='c'?'c':'x'].push(n);});
+    Object.keys(G).forEach(function(r){var g=G[r];
+      var rows=[];g.c.forEach(function(id){CR[id].rows.forEach(function(o){if(rows.indexOf(o)<0)rows.push(o);});});
+      g.rows=rows;g.crm=rows.reduce(function(s,o){return s+(_rcNum(o.price)||0);},0);
+      g.xero=g.x.reduce(function(s,id){return s+(XI[id].total||0);},0);
+      g.stems={};g.c.forEach(function(id){g.stems[stem(CR[id].lk)]=1;});g.x.forEach(function(id){XI[id]._keys.forEach(function(k){g.stems[stem(k)]=1;});});
+      g.co=rows.length?_rcS(rows[0].company):(g.x.length?XI[g.x[0]].company:'');
+      g.ok=g.c.length&&g.x.length&&near(g.crm,g.xero);
+    });
+    return G;
+  }
+  // ── second pass: same order family (same customer code + date, different sequence no., same
+  // client). If joining two unbalanced groups that share a stem makes the sums agree, treat them
+  // as one — e.g. CRM -001 covering Xero -001 + -002, or CRM -002 billed as Xero -001.
+  var G=groups(),open=Object.keys(G).filter(function(r){return !G[r].ok&&(G[r].c.length||G[r].x.length);});
+  open.forEach(function(r){
+    if(!G[r]||G[r].ok||G[r]._merged)return;
+    var g=G[r],mates=open.filter(function(q){var h=G[q];return q!==r&&!h._merged&&!h.ok&&_rcCoSame(h.co,g.co)&&Object.keys(h.stems).some(function(s){return g.stems[s];});});
+    if(!mates.length)return;
+    var crm=g.crm,xero=g.xero;mates.forEach(function(q){crm+=G[q].crm;xero+=G[q].xero;});
+    var hasC=g.c.length||mates.some(function(q){return G[q].c.length;}),hasX=g.x.length||mates.some(function(q){return G[q].x.length;});
+    if(hasC&&hasX&&near(crm,xero)){mates.forEach(function(q){un(r,q);G[q]._merged=1;});g._merged=1;}
+  });
+  G=groups();
+  Object.keys(G).forEach(function(r){if(G[r].ok)res.exact+=G[r].c.length;});
+  // ── flag what's left ──
+  var used={};
+  Object.keys(G).forEach(function(r){
+    var g=G[r];
+    var crmRefs=g.c.map(function(id){return CR[id].raw;}),invs=g.x.map(function(id){return XI[id];});
+    var rowsN=g.rows.map(function(o){return o._row;}).sort(function(a,b){return a-b;});
+    // Company check applies even when the sums agree.
+    if(g.c.length&&g.x.length&&!invs.some(function(v){return _rcCoSame(v.company,g.co);})){
+      res.flags.push({reason:'company',company:g.co,rows:rowsN,crmRef:crmRefs.join(' | '),xeroRef:invs.map(function(v){return v.reference;}).join(' | '),invs:invs,
+        why:zh?'该参考编号在 Xero 中属于「'+invs[0].company+'」，而 CRM 订单是「'+g.co+'」— 编号可能填到了错误的订单上，或 Xero 发票开给了错误的客户。':'In Xero this reference belongs to “'+invs[0].company+'”, but the CRM order is for “'+g.co+'” — the ref is on the wrong order, or the Xero invoice was raised to the wrong contact.'});
       return;
     }
-    var live=hit.filter(function(v){return !_rcXeroDead(v);});
-    var xRef=hit.map(function(v){return v.reference||'';}).filter(Boolean)[0]||'';
-    base.invs=live.length?live:hit;base.xeroRef=xRef;
-    if(!live.length){
-      res.flags.push(Object.assign(base,{reason:'void',
-        why:zh?'该参考编号只对应到已作废／删除的 Xero 发票（'+hit.map(function(v){return v.invoice;}).join(', ')+'）。如已重开发票，请把新编号更新到 CRM。':'This reference only matches Voided / Deleted Xero invoices ('+hit.map(function(v){return v.invoice;}).join(', ')+'). If the invoice was re-issued, update the CRM with the new reference.'}));
+    if(g.ok)return;
+    if(g.c.length&&g.x.length){
+      var list=invs.map(function(v){return v.invoice+' '+money(v.total);}).join(', ');
+      res.flags.push({reason:'amount',company:g.co,rows:rowsN,crmRef:crmRefs.join(' | '),xeroRef:invs.map(function(v){return v.reference;}).filter(Boolean).join(' | '),invs:invs,
+        why:zh?'CRM 合计 '+money(g.crm)+'（第 '+rowsN.join('、')+' 行）≠ Xero 合计 '+money(g.xero)+'（'+list+'）— 相差 '+money(Math.abs(g.crm-g.xero))+'。检查价格是否改过、是否有运费／附加费，或发票是否开错／漏开。'
+              :'CRM total '+money(g.crm)+' (row'+(rowsN.length>1?'s ':' ')+rowsN.join(', ')+') ≠ Xero total '+money(g.xero)+' ('+list+') — a gap of '+money(Math.abs(g.crm-g.xero))+'. Check for a price change, extra charges (shipping / pasting), or an invoice raised wrongly or not at all.'});
       return;
     }
-    // Company: the reference must sit on an invoice for the same client.
-    if(!live.some(function(v){return _rcCoSame(v.company,co);})){
-      res.flags.push(Object.assign(base,{reason:'company',
-        why:(zh?'该参考编号在 Xero 中属于「'+live[0].company+'」，而 CRM 订单是「'+co+'」— 编号可能填到了错误的订单上，或 Xero 发票开给了错误的客户。':'In Xero this reference belongs to “'+live[0].company+'”, but the CRM order is for “'+co+'” — the ref is on the wrong order, or the Xero invoice was raised to the wrong contact.')}));
+    if(g.c.length){
+      // CRM only. A voided invoice with this ref?
+      var dv=[];g.c.forEach(function(id){(dead[CR[id].lk]||[]).forEach(function(v){if(dv.indexOf(v)<0)dv.push(v);});});
+      res.flags.push({reason:dv.length?'void':'missing',company:g.co,rows:rowsN,crmRef:crmRefs.join(' | '),xeroRef:'',invs:dv,_g:g,
+        why:dv.length?(zh?'该参考编号只对应到已作废／删除的 Xero 发票（'+dv.map(function(v){return v.invoice;}).join(', ')+'）。如已重开发票，请把新编号更新到 CRM。':'This reference only matches Voided / Deleted Xero invoices ('+dv.map(function(v){return v.invoice;}).join(', ')+'). If the invoice was re-issued, update the CRM with the new reference.')
+          :(zh?'Xero 中没有任何发票的参考编号或发票号是「'+crmRefs.join(' | ')+'」（包括忽略格式后）。可能是 CRM 输错、Xero 用了别的编号，或发票还没在 Xero 开出。':'No Xero invoice has “'+crmRefs.join(' | ')+'” as its Reference or invoice number, even ignoring formatting. Either the CRM ref is mistyped, Xero used a different number, or the invoice hasn’t been raised in Xero yet.')});
       return;
     }
-    if(how==='num'){
-      // Xero's Reference holds a DIFFERENT ref of the same order family (e.g. CRM -001, Xero ref
-      // -002 on invoice INV-001): that is a reference mismatch, not just an empty Xero field.
-      var _xs=_rcRefKey(xRef).split('-'),_cs=lk.split('-');
-      if(xRef&&_xs.length>2&&_xs.slice(0,-1).join('-')===_cs.slice(0,-1).join('-')){
-        res.flags.push(Object.assign(base,{reason:'mismatch',
-          why:zh?'同一张 Xero 发票（'+live[0].invoice+'）上编号不一致：CRM「'+g.raw+'」，Xero 发票号是 '+live[0].invoice+'，但 Xero 的 Reference 栏写的是「'+xRef+'」。请确认正确的序号，把 CRM 或 Xero 改成一致。'
-                :'Same Xero invoice ('+live[0].invoice+'), different reference: the CRM says “'+g.raw+'” and the invoice number agrees, but Xero’s Reference field says “'+xRef+'”. Confirm which sequence number is right and correct the other side.'}));
-        return;
-      }
-      res.flags.push(Object.assign(base,{reason:'numOnly',
-        why:(zh?'CRM 的编号对应到 Xero 的发票号 '+live[0].invoice+'，但该发票的「Reference」栏'+(xRef?'是「'+xRef+'」':'为空')+'。请在 Xero 的 Reference 栏填入同一编号，方便对账。':'The CRM ref matches Xero invoice number '+live[0].invoice+', but that invoice’s Reference field is '+(xRef?'“'+xRef+'”':'blank')+'. Put the same reference in Xero’s Reference field so the two stay in step.')}));
-      return;
-    }
-    if(how==='loose'){
-      res.flags.push(Object.assign(base,{reason:'format',minor:1,
-        why:zh?'编号相同但写法不同（分隔符或补零）：CRM「'+g.raw+'」vs Xero「'+xRef+'」。建议统一为 Xero 的写法，以免搜索或自动匹配失败。':'Same reference, written differently (separators or zero-padding): CRM “'+g.raw+'” vs Xero “'+xRef+'”. Align the CRM to Xero’s spelling so searches and automatic matching don’t miss it.'}));
-    }else res.exact++;
-    // Amount: only when every CRM row on this ref carries just this one ref (a row listing several
-    // refs can’t be split across invoices). Selling price is pre-GST; Xero Total may include 9% GST.
-    if(!g.multi&&g.price>0){
-      var tot=0;live.forEach(function(v){tot+=v.total||0;});
-      var ok=Math.abs(tot-g.price)<1||Math.abs(tot-g.price*1.09)<1;
-      if(!ok&&tot>0){
-        res.flags.push(Object.assign({},base,{reason:'amount',minor:0,_lk:lk,_price:g.price,_tot:tot,
-          why:(zh?'CRM 售价合计 '+money(g.price)+(rows.length>1?'（'+rows.length+' 行）':'')+'，Xero 发票合计 '+money(tot)+'（含 GST 应为 '+money(g.price*1.09)+'）— 金额对不上。检查价格是否改过、是否有运费／附加费，或是否开错发票。':'CRM selling price totals '+money(g.price)+(rows.length>1?' ('+rows.length+' rows)':'')+' but the Xero invoice totals '+money(tot)+' (expected '+money(g.price)+' or '+money(g.price*1.09)+' with GST) — check for a price change, extra charges (shipping / pasting), or the wrong invoice.')}));
-      }
-    }
+    // Xero only — recent invoices only, so older pre-CRM history doesn't flood the list.
+    invs.forEach(function(v){
+      var d=xeroDueKey(v.invDate);if(minDate&&d&&d<minDate)return;
+      var noRef=!_rcS(v.reference);
+      res.flags.push({reason:noRef?'xeroNoRef':'notInCrm',company:v.company,rows:[],crmRef:'',xeroRef:v.reference||'',invs:[v],_v:v,
+        why:noRef?(zh?'Xero 发票 '+v.invoice+'（'+v.invDate+'，'+money(v.total)+'）没有填写 Reference，且发票号也不在 CRM 中 — 无法对应到任何订单。':'Xero invoice '+v.invoice+' ('+v.invDate+', '+money(v.total)+') has no Reference, and its number isn’t in the CRM either — it can’t be tied to any order.')
+                 :(zh?'Xero 发票 '+v.invoice+'（'+v.invDate+'，'+money(v.total)+'）的参考编号「'+v.reference+'」不在 CRM 订单表中 — CRM 可能漏录了这张订单，或填了别的编号。':'Xero invoice '+v.invoice+' ('+v.invDate+', '+money(v.total)+') has reference “'+v.reference+'”, which isn’t on any CRM order — the order may be missing from the CRM, or entered under a different reference.')});
+    });
   });
-  // Reverse: recent Xero invoices the CRM has never heard of. "Recent" = dated on/after the
-  // earliest order in the Orders tab, so older pre-CRM history doesn't flood the list.
-  INVOICES.forEach(function(v){
-    if(_rcXeroDead(v))return;
-    var d=xeroDueKey(v.invDate);if(minDate&&d&&d<minDate)return;
-    var keys=_rcRefRaw(v.reference).map(_rcRefKey);keys.push(_rcRefKey(v.invoice));
-    if(keys.some(function(k){return k&&crmKeys[k];}))return;
-    var noRef=!_rcS(v.reference);
-    res.flags.push({reason:noRef?'xeroNoRef':'notInCrm',company:v.company,rows:[],crmRef:'',xeroRef:v.reference||'',invs:[v],_keys:keys,
-      why:noRef?(zh?'Xero 发票 '+v.invoice+'（'+v.invDate+'，'+money(v.total)+'）没有填写 Reference，且发票号也不在 CRM 中 — 无法对应到任何订单。':'Xero invoice '+v.invoice+' ('+v.invDate+', '+money(v.total)+') has no Reference, and its number isn’t in the CRM either — it can’t be tied to any order.')
-               :(zh?'Xero 发票 '+v.invoice+'（'+v.invDate+'，'+money(v.total)+'）的参考编号「'+v.reference+'」不在 CRM 订单表中 — CRM 可能漏录了这张订单，或填了别的编号。':'Xero invoice '+v.invoice+' ('+v.invDate+', '+money(v.total)+') has reference “'+v.reference+'”, which isn’t on any CRM order — the order may be missing from the CRM, or entered under a different reference.')});
-  });
-  // Pair up the two halves of one problem. A CRM ref missing from Xero and a Xero ref missing from
-  // the CRM, for the same client and the same customer code (P000358), are almost always one order
-  // with the ref typed differently on each side -> one "mismatch" flag. And when a CRM ref's amount
-  // is short and a Xero-only invoice with the same stem (P000032-260826-BCRS) makes up the gap
-  // exactly, Xero has split one CRM ref into several invoices -> one "split" flag.
-  var near=function(x,y){return Math.abs(x-y)<1||Math.abs(x-y*1.09)<1;};
-  var stem=function(k){var p=String(k||'').split('-');return p.length>2?p.slice(0,-1).join('-'):k;};
-  var cust=function(k){return String(k||'').split('-')[0];};
-  var cand=res.flags.filter(function(f){return f.reason==='notInCrm';});
-  var used=function(c){c._used=1;};
-  res.flags.forEach(function(f){
-    if(f.reason!=='amount')return;
-    var st=stem(f._lk),extra=cand.filter(function(c){return !c._used&&_rcCoSame(c.company,f.company)&&c._keys.some(function(k){return stem(k)===st;});});
-    if(!extra.length)return;
-    var sum=f._tot;extra.forEach(function(c){sum+=c.invs[0].total||0;});
-    if(!near(sum,f._price))return;
-    extra.forEach(used);
-    var all=f.invs.concat(extra.map(function(c){return c.invs[0];}));
-    f.reason='split';f.invs=all;f.xeroRef=all.map(function(v){return v.reference;}).join(' + ');
-    f.why=zh?'CRM 用一个编号 '+f.crmRef+'（'+(f.rows.length>1?f.rows.length+' 行，':'')+'合计 '+money(f._price)+'），而 Xero 拆成了 '+all.length+' 张发票（'+all.map(function(v){return v.reference+' '+money(v.total);}).join('、')+'），金额合计相符。请把 CRM 每一行改成对应的 Xero 编号。'
-                  :'The CRM uses one reference '+f.crmRef+' ('+(f.rows.length>1?f.rows.length+' rows, ':'')+'total '+money(f._price)+'), but Xero split it into '+all.length+' invoices ('+all.map(function(v){return v.reference+' '+money(v.total);}).join(', ')+') that add up to the same amount. Give each CRM row its own Xero reference.';
-  });
-  res.flags.forEach(function(f){
-    if(f.reason!=='missing')return;
-    var cs=cand.filter(function(c){return !c._used&&_rcCoSame(c.company,f.company)&&c._keys.some(function(k){return cust(k)===cust(f._lk);});});
-    if(!cs.length)return;
-    var st=stem(f._lk),best=cs.filter(function(c){return c._keys.some(function(k){return stem(k)===st;});})[0]
-      ||(f._price?cs.filter(function(c){return near(c.invs[0].total||0,f._price);})[0]:null);
-    if(!best&&cs.length===1)best=cs[0];
+  // ── pair a CRM-only ref with a Xero-only invoice of the same client & customer code: almost
+  // always one order typed differently on each side (e.g. a different date in the ref) ──
+  var xo=res.flags.filter(function(x){return x.reason==='notInCrm'||x.reason==='xeroNoRef';});
+  res.flags.forEach(function(m){
+    if(m.reason!=='missing')return;
+    var ck=cust(m._g&&CR[m._g.c[0]].lk);
+    var cs=xo.filter(function(x){return !x._used&&_rcCoSame(x.company,m.company)&&(x._v._keys||[]).concat([_rcRefKey(x._v.invoice)]).some(function(k){return cust(k)===ck;});});
+    var best=cs.filter(function(x){return near(m._g.crm,x._v.total||0);})[0]||(cs.length===1?cs[0]:null);
     if(!best)return;
-    used(best);var v=best.invs[0],amtOk=f._price&&near(v.total||0,f._price);
-    f.reason='mismatch';f.invs=[v];f.xeroRef=v.reference;
-    f.why=(zh?'看起来是同一张订单，但两边编号不同：CRM「'+f.crmRef+'」vs Xero「'+v.reference+'」（'+v.invoice+'，'+v.invDate+'，'+money(v.total)+'）'+(amtOk?'，金额也相符':'')+'。请核对哪边是正确的，把另一边改成一致。'
-             :'Looks like the same order with the reference typed differently: CRM “'+f.crmRef+'” vs Xero “'+v.reference+'” ('+v.invoice+', '+v.invDate+', '+money(v.total)+')'+(amtOk?' — and the amount matches':'')+'. Check which one is right and correct the other.');
+    best._used=1;var v=best._v,amtOk=near(m._g.crm,v.total||0);
+    m.reason='mismatch';m.invs=[v];m.xeroRef=v.reference;
+    m.why=zh?'看起来是同一张订单，但两边编号不同：CRM「'+m.crmRef+'」vs Xero「'+v.reference+'」（'+v.invoice+'，'+v.invDate+'，'+money(v.total)+'）'+(amtOk?'，金额相符':'，金额也不同（CRM '+money(m._g.crm)+'）')+'。请核对哪边是正确的，把另一边改成一致。'
+            :'Looks like the same order with the reference typed differently: CRM “'+m.crmRef+'” vs Xero “'+v.reference+'” ('+v.invoice+', '+v.invDate+', '+money(v.total)+')'+(amtOk?' — the amount matches':' — and the amount differs too (CRM '+money(m._g.crm)+')')+'. Check which one is right and correct the other.';
   });
-  res.flags=res.flags.filter(function(f){return !f._used;});
-  var ORD={company:0,mismatch:1,missing:2,split:3,amount:4,notInCrm:5,crmNoRef:6,numOnly:7,xeroNoRef:8,void:9,format:10};
+  res.flags=res.flags.filter(function(x){return !x._used;});
+  var ORD={company:0,mismatch:1,missing:2,amount:3,notInCrm:4,crmNoRef:5,xeroNoRef:6,void:7};
   res.flags.sort(function(a,b){return (ORD[a.reason]-ORD[b.reason])||((a.rows[0]||1e9)-(b.rows[0]||1e9));});
   return res;
 }
@@ -7777,7 +7772,7 @@ function rcRefSectionHtml(zh,chkSection,invLoaded){
     format:{en:'Same reference, different spelling',zh:'编号相同，写法不同',col:'var(--dim)'}
   };
   var rows='',last='';
-  if(R.checked)rows+='<div style="font-size:10px;color:var(--m);padding:6px 2px 2px">'+(zh?'已检查 CRM 编号 ':'CRM references checked: ')+'<b style="color:var(--t)">'+R.checked+'</b>'+(zh?' · 完全一致 ':' · exact match in Xero: ')+'<b style="color:var(--grn)">'+R.exact+'</b></div>';
+  if(R.checked)rows+='<div style="font-size:10px;color:var(--m);padding:6px 2px 2px">'+(zh?'已检查 CRM 编号 ':'CRM references checked: ')+'<b style="color:var(--t)">'+R.checked+'</b>'+(zh?' · 金额对上（已对账）':' · reconciled (sums agree): ')+'<b style="color:var(--grn)">'+R.exact+'</b></div>';
   R.flags.forEach(function(x){
     var S=RS[x.reason]||{en:x.reason,zh:x.reason,col:'var(--m)'};
     if(x.reason!==last){last=x.reason;var n=R.flags.filter(function(y){return y.reason===x.reason;}).length;
@@ -7796,8 +7791,8 @@ function rcRefSectionHtml(zh,chkSection,invLoaded){
   });
   return chkSection('xero_ref',(zh?'参考编号 — CRM vs Xero':'Reference no. — CRM vs Xero'),'#f59e0b',R.flags.length,rows,
     (zh?'所有 CRM 参考编号都与 Xero 一致':'Every CRM reference matches Xero'),invLoaded&&OPS_ORD_RAW.length>0,
-    (zh?'来源：AYG Operations → 订单表 T 列「Reference / Invoice No.」对比 Xero 发票导出的「Reference」栏（也会查发票号）。一个单元格可含多个编号（用 | 分隔），分别检查；共用同一编号的多行（一张发票多个尺寸）合并检查。标记：编号在 Xero 属于其他公司；在 Xero 找不到；编号对上但金额不符（CRM 售价 vs Xero 合计，允许含 9% GST）；Xero 有但 CRM 没有的编号（只看 Orders 表最早订单日期之后的发票）；已开票但 CRM 未填编号；只对上 Xero 发票号而 Reference 栏未填；只对应到作废发票；写法不同（分隔符、补零）。已取消（X）的订单和 NA 会略过。点击一行跳到该 Xero 发票。'
-        :'How it’s derived: compares AYG Operations → Orders col T “Reference / Invoice No.” with the Reference field in the Xero invoice pull (the invoice number is checked too). A cell holding several refs (separated by “|”) is checked ref by ref; rows sharing one ref (one invoice covering several sizes) are checked together. Flagged when: the ref belongs to another company in Xero; it isn’t in Xero at all; it matches but the amount differs (CRM selling price vs Xero total, 9% GST allowed); a Xero reference isn’t on any CRM order (only invoices dated on/after the earliest order in the Orders tab); an order is invoiced but has no ref; the ref only matches a Xero invoice number because Xero’s Reference field is blank; it only matches a voided invoice; or it’s the same ref spelled differently (separators, zero-padding). Cancelled (X) orders and NA are skipped. Click a row to open the invoice in the Xero tab.'));
+    (zh?'来源：AYG Operations → 订单表 T 列「Reference / Invoice No.」对比 Xero 发票导出。按「金额合计」对账：编号与发票号不必一一对应 — 一个编号可以开多张发票，一张发票可以带多个编号，一行 CRM 也可以写多个编号（用 | 分隔）。凡是 Xero 的 Reference 或发票号与 CRM 编号相同（忽略格式）就连在一起成为一组；同一客户、同一日期、只是序号不同（-001／-002）的编号，若合并后金额对上也算同一组。只要一组的 CRM 售价合计 = Xero 合计（允许含 9% GST），就不会显示。标记：编号在 Xero 属于其他公司；同一订单两边编号不同；CRM 编号在 Xero 找不到；合计金额不符；Xero 有但 CRM 没有的发票（只看 Orders 表最早订单日期之后）；已开票但 CRM 未填编号；只对应到作废发票。已取消（X）的订单和 NA 会略过。点击一行跳到该 Xero 发票。'
+        :'How it’s derived: compares AYG Operations → Orders col T “Reference / Invoice No.” with the Xero invoice pull, reconciling by SUMS. References and invoice numbers don’t have to map one-to-one — one reference can be billed on several invoices, one invoice can carry several references, and one CRM row can list several refs (separated by “|”). Anything linked by an identifier (Xero Reference or invoice number, formatting ignored) is grouped together; refs of the same client and date that differ only in sequence number (-001 / -002) are also grouped when that makes the sums agree. A group whose CRM selling-price total equals its Xero total (9% GST allowed) is never shown. Flagged when: the ref belongs to another company in Xero; the same order has different refs on each side; a CRM ref isn’t in Xero; the totals don’t agree; a Xero invoice isn’t on any CRM order (only invoices dated on/after the earliest order in the Orders tab); an order is invoiced but has no ref; or the ref only matches a voided invoice. Cancelled (X) orders and NA are skipped. Click a row to open the invoice in the Xero tab.'));
 }
 function rcChecksHtml(zh,chkSection,invLoaded){
   // MANAGEMENT ONLY: the Ops-vs-Management comparison reads the BCRS Scheme Management file, so
