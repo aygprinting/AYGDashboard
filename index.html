@@ -96,6 +96,10 @@ button{cursor:pointer}
 .ord-sec-mv{width:22px;height:22px;display:flex;align-items:center;justify-content:center;background:var(--s3);border:1px solid var(--b2);border-radius:5px;color:var(--m);font-size:12px;line-height:1;cursor:pointer;padding:0;transition:background .12s,color .12s}
 .ord-sec-mv:hover{background:var(--tel);color:#0c0c0e;border-color:var(--tel)}
 .ord-section.collapsed .ord-sec-grid{display:none}
+.chk-grp-body{padding:0 0 2px 12px;margin-left:7px;border-left:2px solid var(--b2)}
+.chk-grp:not(.collapsed) .ord-section:not(.collapsed) .ord-sec-chev{transform:none}
+.chk-grp:not(.collapsed) .ord-section.collapsed .ord-sec-chev{transform:rotate(-90deg)}
+.chk-grp:not(.collapsed)>.ord-sec-head .ord-sec-chev{transform:none}
 .q-band{display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:var(--rl);margin:0 0 11px;border:1px solid var(--b2)}
 .q-band-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .q-band-title{font-size:11px;font-weight:700;color:var(--t);text-transform:uppercase;letter-spacing:.05em}
@@ -1710,7 +1714,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON9'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260928-RECON10'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7987,6 +7991,15 @@ function renderChecks(){
       +'<div class="ord-sec-grid" style="padding:2px 2px 0">'+descHtml+body+'</div>'
     +'</div>';
   }
+  // Every section is also recorded by id so the page can be assembled in GROUPS afterwards
+  // (the order the checks are computed in is not the order they're shown in).
+  var _SEC={},_CNT={},_LD={},_MSG={},_EXTRA={};
+  var _chkSection0=chkSection;
+  chkSection=function(id,title,flagColor,count,rows,clearMsg,loaded,desc){
+    if(loaded===undefined)loaded=true;
+    var out=_chkSection0(id,title,flagColor,count,rows,clearMsg,loaded,desc);
+    _SEC[id]=out;_CNT[id]=loaded?(count||0):0;_LD[id]=!!loaded;return out;
+  };
   var pipeLoaded=(CLIENTS_PIPE&&CLIENTS_PIPE.length>0);   // email pipeline (Clients sync) — behind / stage / pasting
   var invLoaded=(INVOICES&&INVOICES.length>0);            // Xero invoices — unpaid-invoice / not-yet-invoiced
   var html='';
@@ -7998,8 +8011,7 @@ function renderChecks(){
   var aliasChip=_aliasN
     ? '<span title="company_map.xlsx loaded — CRM/email name variants are being reconciled" style="font-size:9px;color:var(--tel);background:rgba(20,184,166,.12);padding:2px 7px;border-radius:9px;white-space:nowrap">'+(zh?'公司名映射：':'name map: ')+_aliasN+(zh?' 条':'')+'</span>'
     : '<span title="company_map.xlsx not loaded from SharePoint — name variants like &quot;Interchamp Trading&quot; vs &quot;Interchamp&quot; will NOT be matched. Add company_map.xlsx to the SharePoint folder and press Sync Data." style="font-size:9px;color:var(--amb);background:rgba(245,158,11,.14);padding:2px 7px;border-radius:9px;white-space:nowrap">⚠ '+(zh?'公司名映射未加载':'name map not loaded')+'</span>';
-  html+='<div class="cc-title-row"><div class="cc-title">'+(TX.ccCrmGrpHd||'CRM, Email & Invoices')+'</div>'
-      +'<span style="display:flex;align-items:center;gap:8px">'+aliasChip+'<span style="font-size:9px;color:var(--dim)">'+(TX.ccNote||'')+'</span></span></div>';
+  _EXTRA.crm=aliasChip+(TX.ccNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccNote+'</span>':'');
   if(CLIENTS&&CLIENTS.length){
     function stageLbl(id){var s=CRM_STAGES.find(function(s){return s.id===id;});return s?(zh?s.zh:s.id):id;}
     var behindRows=CC.behind.length?CC.behind.map(function(x){
@@ -8052,11 +8064,10 @@ function renderChecks(){
       +chkSection('notinv',(TX.ccNotInvHd||'In production / delivered — not yet invoiced'),'#f59e0b',(CC.notInvoiced?CC.notInvoiced.length:0),notInvRows,(TX.ccNotInvClear||'Every active order has an invoice'),invLoaded,(zh?"来源：取 CRM 订单中状态为「生产中／配送中／已交货」的订单，核对 Xero 是否有对应发票。订单有参考编号（T 列）时，必须是「这个编号」出现在 Xero（Reference 或发票号，忽略格式）；若编号没对上，但 Xero 有同一客户、同一客户编号＋日期（只差序号）或同一金额、且未被其他订单使用的发票，视为已开票（编号写法不同，会在「参考编号」检查中标出）。只有没填编号的订单才按公司名匹配。共用同一编号的多行合并为一行并显示金额明细。免费样品（标记 NA 或价格为 0）会略过。":"How it's derived: takes CRM Orders that are In Production / Out for Delivery / Delivered and checks Xero for a matching invoice. When the order has a reference (col T), THAT reference must be in Xero (as Reference or invoice number, formatting ignored) — having invoiced the same client before doesn't count. If the ref isn't found but Xero has an unclaimed invoice for the same client with the same customer code + date (only the sequence differs) or the same amount, it's treated as invoiced under a differently-typed ref (the Reference no. check flags that). Only orders with no reference fall back to a company-name match. Rows sharing one reference are shown once with the amounts broken down. Free samples (marked NA or priced 0) are skipped."))
       +chkSection('bad',(TX.ccBadHd||'Date looks wrong'),'#ef4444',CC.bad.length,badRows,(TX.ccBadClear||'All CRM contact dates look valid'),true,(zh?"来源：标记 CRM 联系人表中「最后联系」日期位于未来的行 — CRM 的日期录入错误。":"How it's derived: flags CRM Contacts rows whose Last Date of Contact falls in the future — a date-entry error in the CRM."));
   }else{
-    html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccNeedsCrm||'Log in / main sync required to compare CRM contact dates.')+'</div>';
+    _MSG.crm=('<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccNeedsCrm||'Log in / main sync required to compare CRM contact dates.')+'</div>');
   }
   // ── Group 2: AYG Portal — Reference Check ──
-  html+='<div class="cc-title-row" style="margin-top:16px"><div class="cc-title">'+(TX.ccAygHd||'AYG Portal — Reference Check')+'</div>'
-      +'<span style="font-size:9px;color:var(--dim)">'+(TX.ccAygNote||'')+'</span></div>';
+  _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
   if(PORTAL_STATUS&&PORTAL_STATUS.length){
     // Portal status vs CRM: only surface rows where the CRM says Delivered (the actionable ones).
     var _mismatch=PORTAL_STATUS.filter(function(r){return /MISMATCH/i.test(r.match)&&/deliver/i.test(r.crm||'');});
@@ -8106,7 +8117,7 @@ function renderChecks(){
       +chkSection('ayg_noref',(TX.ccAygNoRefHd||'No AYG reference number'),'#ef4444',_noRef.length,noRefRows,(TX.ccAygNoRefClear||'Every portal order has an AYG reference'),true,(zh?"来源：检查每个 BCRS 门户订单是否有关联的 AYG 参考编号（来自 Auto Main）。当门户订单完全没有 AYG 参考时标记。":"How it's derived: checks each BCRS portal order for a linked AYG reference (from Auto Main). Flagged when the portal order has no AYG reference at all."))
       +chkSection('ayg_reject',(TX.ccAygRejectHd||'Rejected'),'#9ca3af',_reject.length,rejectRows,(TX.ccAygRejectClear||'No rejected orders'),true,(zh?"来源：列出被拒绝（或在 AYG 参考中手动标记为「X」）的 BCRS 门户订单，与真正的对账缺口区分开。":"How it's derived: lists BCRS portal orders that were rejected (or manually marked 'X' in the AYG reference), keeping them separate from genuine reconciliation gaps."));
   }else{
-    html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccAygNeedsSync||'Log in / main sync required to load the AYG portal status.')+'</div>';
+    _MSG.portal='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccAygNeedsSync||'Log in / main sync required to load the AYG portal status.')+'</div>';
   }
   // ── Group 3: Orders — Paid status (Xero vs CRM) + AYG Operations vs Management Orders ──
   try{html+=rcChecksHtml(zh,chkSection,invLoaded);}catch(e){console.error('orders recon render',e);}
@@ -8114,8 +8125,7 @@ function renderChecks(){
   // Two sections only: what is actually at stake with a flagged company, and the Xero-derived
   // shortlist of companies nobody has flagged yet. There is no review/expiry section — Active
   // = N in the sheet is the only lifecycle control.
-  html+='<div class="cc-title-row" style="margin-top:16px"><div class="cc-title">'+wlTx('wlGrpHd','Watchlist — flagged companies')+'</div>'
-      +'<span style="font-size:9px;color:var(--dim)">'+(WATCHLIST.length?(WATCHLIST.filter(function(f){return f.active;}).length+' '+wlTx('wlActiveLbl','active')):'')+'</span></div>';
+  _EXTRA.watch=WATCHLIST.length?'<span style="font-size:9px;color:var(--dim)">'+WATCHLIST.filter(function(f){return f.active;}).length+' '+wlTx('wlActiveLbl','active')+'</span>':'';
   if(WATCHLIST.length){
     var _wlAct=WATCHLIST.filter(function(f){return f.active;});
     var _wlExp=_wlAct.map(function(f){return {f:f,e:wlExposure(f)};})
@@ -8150,9 +8160,42 @@ function renderChecks(){
     html+=chkSection('wl_exposure',wlTx('wlExposureHd','Watchlist exposure'),'#ef4444',_wlExp.length,wlExpRows,wlTx('wlExposureClear','No flagged company has money or production at stake'),true,wlTx('wlExposureDesc',''))
         +chkSection('wl_suggest',wlTx('wlSuggestHd','Suggested for the watchlist'),'var(--tel)',_sug.length,wlSugRows,wlTx('wlSuggestClear','No badly overdue company is missing from the watchlist'),invLoaded,wlTx('wlSuggestDesc',''));
   }else{
-    html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+wlTx('wlNotLoaded','Watchlist sheet not found in the AYG Operations workbook.')+'</div>';
+    _MSG.watch='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+wlTx('wlNotLoaded','Watchlist sheet not found in the AYG Operations workbook.')+'</div>';
   }
-  el.innerHTML=html;
+  // ── Assemble: four collapsible groups (same open/close header as the Orders tab), each holding
+  // its own collapsible checks. Group open/closed state is remembered like the checks' own. ──
+  var _mgmtRecon=(ACCESS_LEVEL==='management')&&RC_MGMT_LOADED;
+  var GROUPS=[
+    {id:'orders',title:_mgmtRecon?(zh?'订单 — 付款与工作簿对账':'Orders — Payment & Workbook Reconciliation'):(zh?'订单 — 付款对账':'Orders — Payment Reconciliation'),
+      secs:['notinv','inv','xero_ref','xero_paid','ops_mgmt']},
+    {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_mismatch','ayg_nottally','ayg_noref','ayg_reject']},
+    {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
+    {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']}
+  ];
+  var out='';
+  GROUPS.forEach(function(g){
+    var have=g.secs.filter(function(k){return _SEC[k];});
+    var body=have.map(function(k){return _SEC[k];}).join('')||_MSG[g.id]||'';
+    if(!body)return;
+    var n=have.reduce(function(t,k){return t+(_CNT[k]||0);},0);
+    var nUn=have.filter(function(k){return !_LD[k];}).length;
+    var pill=function(txt,col,bg){return '<span style="font-size:10px;font-weight:700;color:'+col+';background:'+bg+';padding:1px 8px;border-radius:9px;font-family:\'JetBrains Mono\',monospace;white-space:nowrap">'+txt+'</span>';};
+    // Red count when anything is flagged; green ✓ only when every check has data and found nothing;
+    // amber "not synced" when some checks have no data yet (so a blank can't pass for all-clear).
+    var cnt=(n?pill(n+(zh?' 项':(n===1?' flag':' flags')),'#ef4444','rgba(239,68,68,.12)'):'')
+      +(nUn?pill(nUn+(zh?' 项未同步':' not synced'),'var(--amb)','rgba(245,158,11,.12)'):'')
+      +(!n&&!nUn&&have.length?pill('✓','var(--grn)','rgba(110,231,183,.12)'):'');
+    var gid='grp_'+g.id,col=chkState[gid]?' collapsed':'';
+    out+='<div class="ord-section chk-grp'+col+'" id="chk-sec-'+gid+'" style="margin-bottom:14px">'
+      +'<div class="ord-sec-head" onclick="toggleChkSec(\''+gid+'\')">'
+        +'<svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
+        +'<span class="ord-sec-title">'+g.title+'</span>'+cnt
+        +'<span style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+(_EXTRA[g.id]||'')+'</span>'
+      +'</div>'
+      +'<div class="ord-sec-grid chk-grp-body">'+body+'</div>'
+    +'</div>';
+  });
+  el.innerHTML=out;
 }
 function selectClient(name){clientsSel=name||null;clientsSugOpen=false;renderClientsUpdate();}
 function selectSupplier(name){supplierSel=name||null;supplierSugOpen=false;renderClientsUpdate();}
