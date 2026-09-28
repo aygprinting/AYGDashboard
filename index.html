@@ -1484,6 +1484,14 @@ tr.wl-row-caution td:first-child{box-shadow:inset 3px 0 0 var(--amb)}
   </div>
   <div id="clients-empty"></div>
   <div id="clients-sections">
+    <div class="ord-section" data-section="company" id="cl-sec-company">
+      <div class="ord-sec-head" onclick="toggleClSection('company')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="companyReaderHd">Company Summary & History</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('company',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('company',1)">↓</button></span></div>
+      <div class="ord-sec-grid" id="cl-company-body"></div>
+    </div>
+    <div class="ord-section" data-section="tasks" id="cl-sec-tasks">
+      <div class="ord-sec-head" onclick="toggleClSection('tasks')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="tasksHd">Suggested Tasks</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('tasks',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('tasks',1)">↓</button></span></div>
+      <div class="ord-sec-grid" id="cl-tasks-body"></div>
+    </div>
     <div class="ord-section" data-section="days7" id="cl-sec-days7">
       <div class="ord-sec-head" onclick="toggleClSection('days7')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="recent7Hd">Last 7 Days</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('days7',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('days7',1)">↓</button></span></div>
       <div class="ord-sec-grid" id="cl-days7-body"></div>
@@ -1491,14 +1499,6 @@ tr.wl-row-caution td:first-child{box-shadow:inset 3px 0 0 var(--amb)}
     <div class="ord-section" data-section="days14" id="cl-sec-days14">
       <div class="ord-sec-head" onclick="toggleClSection('days14')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="recent14Hd">Days 8–14</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('days14',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('days14',1)">↓</button></span></div>
       <div class="ord-sec-grid" id="cl-days14-body"></div>
-    </div>
-    <div class="ord-section" data-section="tasks" id="cl-sec-tasks">
-      <div class="ord-sec-head" onclick="toggleClSection('tasks')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="tasksHd">Suggested Tasks</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('tasks',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('tasks',1)">↓</button></span></div>
-      <div class="ord-sec-grid" id="cl-tasks-body"></div>
-    </div>
-    <div class="ord-section" data-section="company" id="cl-sec-company">
-      <div class="ord-sec-head" onclick="toggleClSection('company')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="companyReaderHd">Company Summary & History</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('company',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('company',1)">↓</button></span></div>
-      <div class="ord-sec-grid" id="cl-company-body"></div>
     </div>
     <div class="ord-section" data-section="suppliers" id="cl-sec-suppliers">
       <div class="ord-sec-head" onclick="toggleClSection('suppliers')"><svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg><span class="ord-sec-title" data-tx="supplierReaderHd">Suppliers & Others</span><span class="ord-sec-moves"><button class="ord-sec-mv" title="Move up" onclick="event.stopPropagation();moveClSection('suppliers',-1)">↑</button><button class="ord-sec-mv" title="Move down" onclick="event.stopPropagation();moveClSection('suppliers',1)">↓</button></span></div>
@@ -1714,7 +1714,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON10'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260928-RECON13'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3517,8 +3517,8 @@ function moveOrdSection(sid,dir){
 }
 // ── Clients Update sections (mirror of the Orders section machinery) ──
 var CL_SEC_KEY='aygops-cl-sections';
-var CL_SEC_ORDER_KEY='aygops-cl-sec-order';
-var CL_SEC_DEFAULT=['days7','days14','tasks','company','suppliers'];
+var CL_SEC_ORDER_KEY='aygops-cl-sec-order-v2'; // v2 (RECON11): new default order below applies to everyone once; the ↑↓ buttons still re-order and save as before
+var CL_SEC_DEFAULT=['company','tasks','days7','days14','suppliers'];
 function getClSecState(){try{return JSON.parse(localStorage.getItem(CL_SEC_KEY))||{};}catch(e){return {};}}
 function toggleClSection(sid){
   var sec=document.getElementById('cl-sec-'+sid);if(!sec)return;
@@ -6954,6 +6954,43 @@ function renderClientsUpdate(){
 }
 var CHK_SEC_KEY='aygops-chk-sections';
 function getChkSecState(){try{return JSON.parse(localStorage.getItem(CHK_SEC_KEY))||{};}catch(e){return {};}}
+// Checks & Reconciliation group order (↑↓ on each group header), remembered like Orders / Clients.
+var CHK_GRP_ORDER_KEY='aygops-chk-grp-order';
+var CHK_GRP_DEFAULT=['orders','portal','crm','watch'];
+function getChkGrpOrder(){
+  var o=null;try{o=JSON.parse(localStorage.getItem(CHK_GRP_ORDER_KEY));}catch(e){}
+  o=(o&&o.length)?o.filter(function(g){return CHK_GRP_DEFAULT.indexOf(g)>-1;}):[];
+  CHK_GRP_DEFAULT.forEach(function(g){if(o.indexOf(g)<0)o.push(g);});
+  return o;
+}
+// Order of the checks INSIDE each group: {groupId:[checkId,...]}. Checks only move within their group.
+var CHK_SEC_ORDER_KEY='aygops-chk-sec-order';
+function getChkSecOrder(gid,defs){
+  var all={};try{all=JSON.parse(localStorage.getItem(CHK_SEC_ORDER_KEY))||{};}catch(e){}
+  var o=(all[gid]||[]).filter(function(k){return defs.indexOf(k)>-1;});
+  defs.forEach(function(k){if(o.indexOf(k)<0)o.push(k);});
+  return o;
+}
+function moveChkSec(gid,sid,dir){
+  var all={};try{all=JSON.parse(localStorage.getItem(CHK_SEC_ORDER_KEY))||{};}catch(e){}
+  var defs=(window.CHK_GRP_SECS&&CHK_GRP_SECS[gid])||[];
+  var o=getChkSecOrder(gid,defs);
+  // step over checks that aren't shown right now (e.g. Ops vs Management for staff)
+  var vis=o.filter(function(k){return document.getElementById('chk-sec-'+k);});
+  var i=vis.indexOf(sid),j=i+dir;if(i<0||j<0||j>=vis.length)return;
+  var a=o.indexOf(sid),b=o.indexOf(vis[j]);o[a]=vis[j];o[b]=sid;
+  all[gid]=o;try{localStorage.setItem(CHK_SEC_ORDER_KEY,JSON.stringify(all));}catch(e){}
+  renderChecks();
+  var el=document.getElementById('chk-sec-'+sid);if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest'});
+}
+function moveChkGroup(gid,dir){
+  var o=getChkGrpOrder(),i=o.indexOf(gid),j=i+dir;
+  if(i<0||j<0||j>=o.length)return;
+  o[i]=o[j];o[j]=gid;
+  try{localStorage.setItem(CHK_GRP_ORDER_KEY,JSON.stringify(o));}catch(e){}
+  renderChecks();
+  var el=document.getElementById('chk-sec-grp_'+gid);if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest'});
+}
 function toggleChkSec(id){
   var sec=document.getElementById('chk-sec-'+id);if(!sec)return;
   var collapsed=sec.classList.toggle('collapsed');
@@ -7987,6 +8024,7 @@ function renderChecks(){
       +'<div class="ord-sec-head" onclick="toggleChkSec(\''+id+'\')" style="margin-bottom:0">'
         +'<svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
         +'<span class="ord-sec-title" style="color:'+hdColor+'">'+title+countTxt+'</span>'
+        +'<!--MV:'+id+'-->'
       +'</div>'
       +'<div class="ord-sec-grid" style="padding:2px 2px 0">'+descHtml+body+'</div>'
     +'</div>';
@@ -8172,10 +8210,18 @@ function renderChecks(){
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']}
   ];
+  window.CHK_GRP_SECS={};GROUPS.forEach(function(g){CHK_GRP_SECS[g.id]=g.secs.slice();});
+  var _ord=getChkGrpOrder();
+  GROUPS.sort(function(a,b){return _ord.indexOf(a.id)-_ord.indexOf(b.id);});
   var out='';
   GROUPS.forEach(function(g){
-    var have=g.secs.filter(function(k){return _SEC[k];});
-    var body=have.map(function(k){return _SEC[k];}).join('')||_MSG[g.id]||'';
+    var have=getChkSecOrder(g.id,g.secs).filter(function(k){return _SEC[k];});
+    var body=have.map(function(k,i){
+      var mv='<span class="ord-sec-moves" style="margin-left:auto">'
+        +'<button class="ord-sec-mv" title="'+(zh?'上移':'Move up')+'"'+(i===0?' disabled style="opacity:.35;cursor:default"':'')+' onclick="event.stopPropagation();moveChkSec(\''+g.id+'\',\''+k+'\',-1)">↑</button>'
+        +'<button class="ord-sec-mv" title="'+(zh?'下移':'Move down')+'"'+(i===have.length-1?' disabled style="opacity:.35;cursor:default"':'')+' onclick="event.stopPropagation();moveChkSec(\''+g.id+'\',\''+k+'\',1)">↓</button></span>';
+      return _SEC[k].replace('<!--MV:'+k+'-->',mv);
+    }).join('')||_MSG[g.id]||'';
     if(!body)return;
     var n=have.reduce(function(t,k){return t+(_CNT[k]||0);},0);
     var nUn=have.filter(function(k){return !_LD[k];}).length;
@@ -8191,6 +8237,8 @@ function renderChecks(){
         +'<svg class="ord-sec-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
         +'<span class="ord-sec-title">'+g.title+'</span>'+cnt
         +'<span style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end">'+(_EXTRA[g.id]||'')+'</span>'
+        +'<span class="ord-sec-moves"><button class="ord-sec-mv" title="'+(zh?'上移':'Move up')+'" onclick="event.stopPropagation();moveChkGroup(\''+g.id+'\',-1)">↑</button>'
+        +'<button class="ord-sec-mv" title="'+(zh?'下移':'Move down')+'" onclick="event.stopPropagation();moveChkGroup(\''+g.id+'\',1)">↓</button></span>'
       +'</div>'
       +'<div class="ord-sec-grid chk-grp-body">'+body+'</div>'
     +'</div>';
