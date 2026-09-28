@@ -1710,7 +1710,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON6'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260928-RECON7'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7517,7 +7517,7 @@ function buildOrdersRecon(zh){
     RC_FIELDS.forEach(function(f){
       if(a[f.k]===undefined||b[f.k]===undefined)return; // column missing in one file
       var r=_rcCmp(f,a[f.k],b[f.k],zh);
-      if(r)diffs.push({f:f,a:_rcDisp(f,a[f.k]),b:_rcDisp(f,b[f.k]),why:r.why,minor:!!r.minor});
+      if(r)diffs.push({f:f,a:_rcDisp(f,a[f.k]),b:_rcDisp(f,b[f.k]),ra:(typeof a[f.k]==='number'?String(Math.round(a[f.k])):_rcS(a[f.k])),rb:(typeof b[f.k]==='number'?String(Math.round(b[f.k])):_rcS(b[f.k])),why:r.why,minor:!!r.minor});
     });
     if(!diffs.length)return;
     diffs.forEach(function(d){fieldCount[d.f.k]=(fieldCount[d.f.k]||0)+1;});
@@ -7607,6 +7607,36 @@ function buildXeroPaidCheck(zh){
   out.sort(function(a,b){return (ORD[a.reason]-ORD[b.reason])||a.row-b.row;});
   return out;
 }
+// ── copy helpers: every reference / invoice number in the reconciliation cards is a click-to-copy
+// chip, and each card has a "Copy list" button that copies all its flags as tab-separated rows
+// (paste straight into Excel). Works on http too (execCommand fallback) and ticks to confirm.
+var RC_COPY_LISTS={};
+function rcCopyText(t,done){
+  function fb(){var ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.top='-1000px';document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}document.body.removeChild(ta);done(ok);}
+  if(navigator.clipboard&&navigator.clipboard.writeText&&window.isSecureContext)navigator.clipboard.writeText(t).then(function(){done(true);},fb);else fb();
+}
+function rcCopy(el){
+  var t=el.getAttribute('data-c')||'';if(!t)return;
+  rcCopyText(t,function(ok){if(!ok)return;el.classList.add('rc-copied');setTimeout(function(){el.classList.remove('rc-copied');},1100);});
+}
+function rcCopyList(el,id){
+  var t=RC_COPY_LISTS[id]||'';if(!t)return;var lbl=el.innerHTML;
+  rcCopyText(t,function(ok){el.innerHTML=ok?'✓ '+(lang==='zh'?'已复制':'Copied'):lbl;setTimeout(function(){el.innerHTML=lbl;},1400);});
+}
+(function(){try{var st=document.createElement('style');st.textContent=
+  '.rc-cp{font-family:"JetBrains Mono",monospace;cursor:copy;border:1px solid var(--b2);background:var(--s2);border-radius:4px;padding:0 5px;margin:1px 2px 1px 0;display:inline-block;line-height:16px;white-space:nowrap;color:var(--t)}'
+  +'.rc-cp:hover{border-color:var(--tel);background:rgba(20,184,166,.10)}'
+  +'.rc-cp::after{content:" ⧉";color:var(--dim);font-size:9px}'
+  +'.rc-cp.rc-copied{border-color:var(--grn);background:rgba(110,231,183,.16)}'
+  +'.rc-cp.rc-copied::after{content:" ✓";color:var(--grn)}'
+  +'.rc-cplist{font-size:10px;padding:3px 10px;border-radius:10px;cursor:pointer;border:1px solid var(--b2);background:var(--s2);color:var(--t)}'
+  +'.rc-cplist:hover{border-color:var(--tel)}';
+  document.head.appendChild(st);}catch(e){}})();
+// One copyable chip per value; a cell holding several refs becomes several chips.
+function _rcChip(v){v=_rcS(v);if(!v)return '';return '<span class="rc-cp" title="Click to copy" data-c="'+_rcEsc(v)+'" onclick="event.stopPropagation();rcCopy(this)">'+_rcEsc(v)+'</span>';}
+function _rcChips(v){var p=_rcSplitRefs(v);return p.length?p.map(_rcChip).join(''):_rcChip(v);}
+function _rcTsv(rows){return rows.map(function(r){return r.map(function(c){return String(c==null?'':c).replace(/[\t\r\n]+/g,' ');}).join('\t');}).join('\n');}
+function _rcListBtn(id,zh){return '<div style="display:flex;justify-content:flex-end;padding:6px 2px 0"><button class="rc-cplist" onclick="event.stopPropagation();rcCopyList(this,\''+id+'\')" title="'+(zh?'复制全部标记（制表符分隔，可直接粘贴到 Excel）':'Copy every flag as tab-separated rows — paste straight into Excel')+'">⧉ '+(zh?'复制列表':'Copy list')+'</button></div>';}
 function _rcEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function rcSetField(k){RC_FIELD_FILTER=(RC_FIELD_FILTER===k?'':k);try{renderChecks();}catch(e){}}
 // Checks tab group: "Orders — Payment & Workbook Reconciliation". chkSection is renderChecks'
@@ -7783,12 +7813,15 @@ function rcRefSectionHtml(zh,chkSection,invLoaded){
     var mono=function(s){return '<span style="font-family:\'JetBrains Mono\',monospace">'+_rcEsc(s)+'</span>';};
     rows+='<div'+click+'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b)">'
       +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+_rcEsc(x.company)+'</span>'
-      +'<div style="font-size:10px;color:var(--dim)">'+where+(inv?' · Xero '+_rcEsc(x.invs.map(function(v){return v.invoice;}).join(', ')):'')+'</div>'
+      +'<div style="font-size:10px;color:var(--dim)">'+where+(inv?' · '+(zh?'Xero 发票号':'Xero inv.')+' '+x.invs.map(function(v){return _rcChip(v.invoice);}).join(''):'')+'</div>'
       +'<div style="font-size:10px;line-height:1.55;color:var(--m);background:var(--s2);border-left:2px solid '+S.col+';border-radius:0 4px 4px 0;padding:5px 7px;margin:5px 8px 2px 0;white-space:normal">'+_rcEsc(x.why)+'</div></span>'
-      +'<span style="font-size:10px;flex-shrink:0;text-align:right;max-width:46%;word-break:break-all"><div><span style="color:var(--dim)">CRM:</span> '+(x.crmRef?mono(x.crmRef):'<i style="color:var(--dim)">'+(zh?'无':'none')+'</i>')+'</div>'
-      +'<div><span style="color:var(--dim)">Xero:</span> <span style="color:'+S.col+'">'+(x.xeroRef?mono(x.xeroRef):'<i>'+(zh?'无':'none')+'</i>')+'</span></div></span>'
+      +'<span style="font-size:10px;flex-shrink:0;text-align:right;max-width:46%;word-break:break-all"><div><span style="color:var(--dim)">CRM:</span> '+(x.crmRef?_rcChips(x.crmRef):'<i style="color:var(--dim)">'+(zh?'无':'none')+'</i>')+'</div>'
+      +'<div><span style="color:var(--dim)">Xero:</span> <span style="color:'+S.col+'">'+(x.xeroRef?_rcChips(x.xeroRef):'<i>'+(zh?'无':'none')+'</i>')+'</span></div></span>'
     +'</div>';
   });
+  RC_COPY_LISTS.xero_ref=_rcTsv([['Issue','Company','Ops row(s)','CRM reference','Xero reference','Xero invoice no.','Xero total','Explanation']].concat(R.flags.map(function(x){var S=RS[x.reason]||{en:x.reason};
+    return [S.en,x.company,(x.rows||[]).join(', '),x.crmRef,x.xeroRef,(x.invs||[]).map(function(v){return v.invoice;}).join(', '),(x.invs||[]).reduce(function(a,v){return a+(v.total||0);},0)||'',x.why];})));
+  if(R.flags.length)rows=_rcListBtn('xero_ref',zh)+rows;
   return chkSection('xero_ref',(zh?'参考编号 — CRM vs Xero':'Reference no. — CRM vs Xero'),'#f59e0b',R.flags.length,rows,
     (zh?'所有 CRM 参考编号都与 Xero 一致':'Every CRM reference matches Xero'),invLoaded&&OPS_ORD_RAW.length>0,
     (zh?'来源：AYG Operations → 订单表 T 列「Reference / Invoice No.」对比 Xero 发票导出。按「金额合计」对账：编号与发票号不必一一对应 — 一个编号可以开多张发票，一张发票可以带多个编号，一行 CRM 也可以写多个编号（用 | 分隔）。凡是 Xero 的 Reference 或发票号与 CRM 编号相同（忽略格式）就连在一起成为一组；同一客户、同一日期、只是序号不同（-001／-002）的编号，若合并后金额对上也算同一组。只要一组的 CRM 售价合计 = Xero 合计（允许含 9% GST），就不会显示。标记：编号在 Xero 属于其他公司；同一订单两边编号不同；CRM 编号在 Xero 找不到；合计金额不符；Xero 有但 CRM 没有的发票（只看 Orders 表最早订单日期之后）；已开票但 CRM 未填编号；只对应到作废发票。已取消（X）的订单和 NA 会略过。点击一行跳到该 Xero 发票。'
@@ -7824,11 +7857,14 @@ function rcChecksHtml(zh,chkSection,invLoaded){
     var click=inv?' onclick="jumpToXero(\''+String(inv).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',\'all\')" style="cursor:pointer;':' style="';
     paidRows+='<div'+click+'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b)">'
       +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+_rcEsc(x.company)+'</span>'
-      +'<div style="font-size:10px;color:var(--dim)">'+(zh?'Ops 第 ':'Ops row ')+x.row+(zh?' 行':'')+(x.ref?' · <span style="font-family:\'JetBrains Mono\',monospace">'+_rcEsc(x.ref.length>60?x.ref.slice(0,58)+'…':x.ref)+'</span>':'')+(x.invs&&x.invs.length?' · Xero '+_rcEsc(x.invs.map(function(v){return v.invoice;}).join(', ')):'')+'</div>'
+      +'<div style="font-size:10px;color:var(--dim)">'+(zh?'Ops 第 ':'Ops row ')+x.row+(zh?' 行':'')+(x.ref?' · CRM '+_rcChips(x.ref):'')+(x.invs&&x.invs.length?' · '+(zh?'Xero 发票号':'Xero inv.')+' '+x.invs.map(function(v){return _rcChip(v.invoice);}).join(''):'')+'</div>'
       +'<div style="font-size:10px;line-height:1.55;color:var(--m);background:var(--s2);border-left:2px solid '+R.col+';border-radius:0 4px 4px 0;padding:5px 7px;margin:5px 8px 2px 0;white-space:normal">'+_rcEsc(x.why)+'</div></span>'
       +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right"><span style="color:var(--dim)">CRM: '+_rcEsc(x.crm||(zh?'空白':'blank'))+'</span> <span style="color:'+R.col+'">→ Xero: '+_rcEsc(x.xero)+'</span></span>'
     +'</div>';
   });
+  RC_COPY_LISTS.xero_paid=_rcTsv([['Issue','Company','Ops row','CRM reference','CRM Payment','Xero invoice no.','Xero status','Explanation']].concat(X.map(function(x){var S=RS[x.reason]||{en:x.reason};
+    return [S.en,x.company,x.row,x.ref,x.crm,(x.invs||[]).map(function(v){return v.invoice;}).join(', '),x.xero,x.why];})));
+  if(X.length)paidRows=_rcListBtn('xero_paid',zh)+paidRows;
   html+=chkSection('xero_paid',(zh?'付款状态 — Xero vs CRM':'Paid status — Xero vs CRM'),'#ef4444',X.length,paidRows,
     (zh?'所有订单的付款状态与 Xero 一致':'Every order’s Payment status agrees with Xero'),invLoaded&&OPS_ORD_RAW.length>0,
     (zh?'来源：AYG Operations → 订单表 U 列「付款」对比 Xero 发票导出的「Status」。每个订单用 T 列的发票／参考编号（可含多个，用 | 分隔）匹配 Xero 的发票号或参考号（忽略大小写、分隔符和前导零）；若编号对不上，则按「公司名 + 金额（含或不含 9% GST）」唯一匹配。标记情况：CRM 已付但 Xero 未付／部分付款；CRM 已付但 Xero 仍为草稿；Xero 已付但 CRM 为空；CRM 已付但找不到 Xero 发票；引用的发票已作废；付款列内容无法识别。已取消（X）和 NA（免费样品）的订单会略过。点击一行跳到该 Xero 发票。'
@@ -7863,10 +7899,11 @@ function rcChecksHtml(zh,chkSection,invLoaded){
   shown.forEach(function(r){
     var lines=r.diffs.filter(function(d){return !RC_FIELD_FILTER||d.f.k===RC_FIELD_FILTER;}).map(function(d){
       var c=d.minor?'var(--dim)':(d.f.key?'#a78bfa':'var(--amb)');
+      var cp=(d.f.t==='ref'||d.f.t==='tracking'||d.f.t==='phone');
       return '<div style="display:grid;grid-template-columns:minmax(90px,120px) 1fr;gap:2px 8px;padding:3px 0;border-top:1px dashed var(--b)">'
         +'<span style="font-size:10px;font-weight:700;color:'+c+'">'+fl(d.f)+'</span>'
-        +'<span style="font-size:10px;min-width:0;word-break:break-word"><span style="color:var(--dim)">Ops:</span> <span style="color:var(--t)">'+(_rcEsc(d.a)||'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</span>'
-        +' <span style="color:var(--dim)">·</span> <span style="color:var(--dim)">'+(zh?'管理表':'Mgmt')+':</span> <span style="color:var(--t)">'+(_rcEsc(d.b)||'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</span>'
+        +'<span style="font-size:10px;min-width:0;word-break:break-word"><span style="color:var(--dim)">Ops:</span> <span style="color:var(--t)">'+(d.a?(cp?_rcChips(d.ra):_rcEsc(d.a)):'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</span>'
+        +' <span style="color:var(--dim)">·</span> <span style="color:var(--dim)">'+(zh?'管理表':'Mgmt')+':</span> <span style="color:var(--t)">'+(d.b?(cp?_rcChips(d.rb):_rcEsc(d.b)):'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</span>'
         +'<div style="color:var(--m);line-height:1.5">'+_rcEsc(d.why)+'</div></span></div>';
     }).join('');
     var tag=r.keyN?'<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,.14);padding:1px 6px;border-radius:8px;margin-left:6px">'+r.keyN+(zh?' 个关键字段':(r.keyN===1?' key field':' key fields'))+'</span>':'';
