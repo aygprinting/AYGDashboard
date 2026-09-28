@@ -1710,7 +1710,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260928-RECON7'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260928-RECON9'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6507,11 +6507,37 @@ function buildContactCheck(){
     // Build lookup sets from the Xero invoices: invoice numbers, references, and company names.
     var invNumSet={},invCoSet={};
     function _normRef(x){return String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'');}
+    // Keys use the reconciliation's loose reference key (formatting, zero-padding and the "-INV-"
+    // in Xero invoice numbers ignored; several refs in one cell split). Voided invoices don't count.
+    var invKeySet={};
     INVOICES.forEach(function(v){
+      if(/void|delet/i.test(String(v.status||'')))return;
       var iv=_normRef(v.invoice);if(iv)invNumSet[iv]=1;
       var rf=_normRef(v.reference);if(rf)invNumSet[rf]=1;
+      _rcRefList(v.reference).concat([_rcRefKey(v.invoice)]).forEach(function(k){if(k)invKeySet[k]=1;});
       var co=_normInv(v.company);if(co)invCoSet[co]=1;
     });
+    var _niGroups={};
+    // Xero invoices no CRM order points at — "orphans". An order whose ref isn't in Xero but whose
+    // client has an orphan invoice with the same customer code + date (only the sequence differs),
+    // or for the same amount, IS invoiced — just under a differently-typed ref (the Reference no.
+    // check flags that typo). Without this, a typo would also show up here as "not invoiced".
+    var _crmKeys={};ORDERS.forEach(function(o){_rcRefList(o.invoiceFull||o.invoice).forEach(function(k){_crmKeys[k]=1;});});
+    var _orph=INVOICES.filter(function(v){if(/void|delet/i.test(String(v.status||'')))return false;
+      var ks=_rcRefList(v.reference).concat([_rcRefKey(v.invoice)]);v._nik=ks;return !ks.some(function(k){return _crmKeys[k];});});
+    var _stem=function(k){var p=String(k||'').split('-');return p.length>2?p.slice(0,-1).join('-'):k;};
+    var _orphUsed={};
+    function _orphanFor(o,refs){
+      var price=o.price||0,best=null;
+      _orph.forEach(function(v){
+        if(best||_orphUsed[v.invoice]||!_rcCoSame(v.company,o.name))return;
+        var sameStem=v._nik.some(function(k){return refs.some(function(r){return _stem(k)===_stem(r);});});
+        var sameAmt=price>0&&(Math.abs(v.total-price)<1||Math.abs(v.total-price*1.09)<1);
+        var sameCust=v._nik.some(function(k){return refs.some(function(r){return k.split('-')[0]===r.split('-')[0];});});
+        if(sameStem||(sameCust&&sameAmt))best=v;
+      });
+      if(best)_orphUsed[best.invoice]=1;return best;
+    }
     var STATUS_RANK={'Delivered':0,'Out for Delivery':1,'In Production':2};
     // Some orders are deliberately not invoiced — free samples (样品). The sheet marks these
     // with "NA" in the invoice-number or payment column, and/or a price of 0. Skip those so the
@@ -6522,14 +6548,24 @@ function buildContactCheck(){
       if(rank===undefined)return;                 // only the three in-flight/done statuses
       // Not meant to be invoiced: explicit NA marker, or nothing to bill (price 0). Free samples.
       if(_isNA(o.invoice)||_isNA(o.payment)||!(o.price>0))return;
-      // Already invoiced? Match on the order's invoice/ref number against Xero invoice OR reference.
-      var oref=_normRef(o.invoice);
-      if(oref&&invNumSet[oref])return;
-      // Else fall back to company-name match against any Xero invoice.
-      var oco=_normInv(o.name);
-      if(oco&&invCoSet[oco])return;
-      notInvoiced.push({name:o.name,status:o.status,rank:rank,qty:o.qty,size:o.size,
-        delivery:o.delivery||'',invoice:o.invoice||'',price:o.price||0});
+      // Already invoiced? If the order carries a reference, THAT reference must be in Xero (as a
+      // Reference or invoice number). Matching on company alone hid new orders from any client who
+      // had ever been invoiced before. Only orders with no reference fall back to the company name.
+      var refs=_rcRefList(o.invoiceFull||o.invoice);
+      if(refs.length){
+        if(refs.some(function(k){return invKeySet[k];}))return;
+        if(invNumSet[_normRef(o.invoice)])return;
+        if(_orphanFor(o,refs))return;               // invoiced under a differently-typed ref
+      }else{
+        var oco=_normInv(o.name);
+        if(oco&&invCoSet[oco])return;
+      }
+      // Rows sharing one reference (one order, several sizes) are listed once with the summed price.
+      var gk=refs.length?refs.join('|'):('row'+notInvoiced.length+'_'+o.name);
+      if(_niGroups[gk]){var gg=_niGroups[gk];gg.price+=(o.price||0);gg.rows++;gg.parts.push(o.price||0);if(rank<gg.rank){gg.rank=rank;gg.status=o.status;}return;}
+      var ent={name:o.name,status:o.status,rank:rank,qty:o.qty,size:o.size,
+        delivery:o.delivery||'',invoice:o.invoiceFull||o.invoice||'',price:o.price||0,rows:1,parts:[o.price||0]};
+      _niGroups[gk]=ent;notInvoiced.push(ent);
     });
     notInvoiced.sort(function(a,b){
       if(a.rank!==b.rank)return a.rank-b.rank;    // Delivered first
@@ -8004,15 +8040,16 @@ function renderChecks(){
       var sc=statusCol[x.status]||'var(--m)';
       var sLbl=zh?(statusZh[x.status]||x.status):x.status;
       return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="goTab(\'orders\',document.querySelector(\'[data-tab=orders]\'))">'
-        +'<span style="font-size:12px;color:var(--t);font-weight:600;min-width:0;flex:1">'+x.name+'</span>'
-        +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap">'+(x.price?'<span style="color:var(--dim)">'+(TX.xeroCur||'S$')+' '+fmtMoney(x.price)+'</span> ':'')+'<span style="color:'+sc+'">· '+sLbl+'</span></span>'
+        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+x.name+'</span>'
+          +(x.invoice?'<div style="font-size:10px;color:var(--dim);margin-top:1px">'+_rcChips(x.invoice)+'</div>':'')+'</span>'
+        +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right">'+(x.price?'<span style="color:var(--dim)">'+(TX.xeroCur||'S$')+' '+fmtMoney(x.price)+(x.rows>1?' ('+x.parts.map(fmtMoney).join(' + ')+')':'')+'</span> ':'')+'<span style="color:'+sc+'">· '+sLbl+'</span></span>'
       +'</div>';
     }).join(''):'';
     html+=chkSection('behind',(TX.ccBehindHd||'CRM may be behind'),'var(--amb)',CC.behind.length,behindRows,(TX.ccNoneBehind||'CRM dates are current with email'),pipeLoaded,(zh?"来源：对比客户最新的电邮／WhatsApp 活动日期与 CRM（联系人表）的「最后联系」日期。当电邮／WhatsApp 更晚时标记，行尾显示 CRM 落后的天数。":"How it's derived: compares each client's newest email / WhatsApp activity date against the Last Date of Contact in the CRM (Contacts tab). Flagged when the email/WhatsApp date is newer — the row shows how many days the CRM is behind."))
       +chkSection('stage',(TX.ccStageHd||'CRM stage vs pipeline'),'#a78bfa',(CC.stageMismatch?CC.stageMismatch.length:0),stageRows,(TX.ccStageClear||'CRM stages match the pipeline'),pipeLoaded,(zh?"来源：对比由电邮推断的销售阶段与 CRM（联系人表）的阶段。仅当电邮阶段在标准流程中比 CRM 更靠后时标记 — 即 CRM 可能需要更新。":"How it's derived: compares the email-derived pipeline stage against the CRM stage (Contacts tab). Flagged only when the pipeline stage is further along the standard ladder than the CRM — i.e. the CRM likely needs advancing."))
       +chkSection('paste',(TX.ccPasteHd||'Pasting services mentioned'),'#0ea5a4',CC.pasting.length,pasteRows,(TX.ccPasteClear||'No unmarked pasting mentions'),pipeLoaded,(zh?"来源：在电邮／WhatsApp 摘要中扫描「贴标签／贴纸粘贴」服务的提及，再核对 CRM 的「Pasting 贴标签」列。当有提及但该列未标记 'Y' 时标记。":"How it's derived: scans the email / WhatsApp summary for mentions of a pasting / sticker-application service, then checks the CRM's 'Pasting 贴标签' column. Flagged when pasting is mentioned but that column isn't marked 'Y'."))
       +chkSection('inv',(TX.ccInvHd||'Unpaid invoice vs CRM'),'#ef4444',(CC.invMismatch?CC.invMismatch.length:0),invRows,(TX.ccInvClear||'All unpaid invoices match an active client'),invLoaded,(zh?"来源：将每张未付的 Xero 发票（状态为待付款、应付 > 0）按公司名匹配 CRM 客户。当公司在 CRM 中无记录（「不在 CRM」）或其 CRM 阶段为「Lost / Stalled」（「CRM: Lost」）时标记。":"How it's derived: matches each unpaid Xero invoice (status Awaiting Payment, amount due > 0) to a CRM client by company name. Flagged when the company has no CRM record ('not in CRM'), or its CRM stage is 'Lost / Stalled' ('CRM: Lost')."))
-      +chkSection('notinv',(TX.ccNotInvHd||'In production / delivered — not yet invoiced'),'#f59e0b',(CC.notInvoiced?CC.notInvoiced.length:0),notInvRows,(TX.ccNotInvClear||'Every active order has an invoice'),invLoaded,(zh?"来源：取 CRM 订单中状态为「生产中／配送中／已交货」的订单，核对是否有对应的 Xero 发票 — 先按发票／参考编号，再按公司名。找不到时标记。免费样品（标记 NA 或价格为 0）会略过。":"How it's derived: takes CRM Orders that are In Production / Out for Delivery / Delivered and checks for a matching Xero invoice — first by invoice/reference number, then by company name. Flagged when none is found. Free samples (marked NA or priced 0) are skipped."))
+      +chkSection('notinv',(TX.ccNotInvHd||'In production / delivered — not yet invoiced'),'#f59e0b',(CC.notInvoiced?CC.notInvoiced.length:0),notInvRows,(TX.ccNotInvClear||'Every active order has an invoice'),invLoaded,(zh?"来源：取 CRM 订单中状态为「生产中／配送中／已交货」的订单，核对 Xero 是否有对应发票。订单有参考编号（T 列）时，必须是「这个编号」出现在 Xero（Reference 或发票号，忽略格式）；若编号没对上，但 Xero 有同一客户、同一客户编号＋日期（只差序号）或同一金额、且未被其他订单使用的发票，视为已开票（编号写法不同，会在「参考编号」检查中标出）。只有没填编号的订单才按公司名匹配。共用同一编号的多行合并为一行并显示金额明细。免费样品（标记 NA 或价格为 0）会略过。":"How it's derived: takes CRM Orders that are In Production / Out for Delivery / Delivered and checks Xero for a matching invoice. When the order has a reference (col T), THAT reference must be in Xero (as Reference or invoice number, formatting ignored) — having invoiced the same client before doesn't count. If the ref isn't found but Xero has an unclaimed invoice for the same client with the same customer code + date (only the sequence differs) or the same amount, it's treated as invoiced under a differently-typed ref (the Reference no. check flags that). Only orders with no reference fall back to a company-name match. Rows sharing one reference are shown once with the amounts broken down. Free samples (marked NA or priced 0) are skipped."))
       +chkSection('bad',(TX.ccBadHd||'Date looks wrong'),'#ef4444',CC.bad.length,badRows,(TX.ccBadClear||'All CRM contact dates look valid'),true,(zh?"来源：标记 CRM 联系人表中「最后联系」日期位于未来的行 — CRM 的日期录入错误。":"How it's derived: flags CRM Contacts rows whose Last Date of Contact falls in the future — a date-entry error in the CRM."));
   }else{
     html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccNeedsCrm||'Log in / main sync required to compare CRM contact dates.')+'</div>';
