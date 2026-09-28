@@ -1710,7 +1710,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260825-SCANNER2'; // single source of truth for the build/version stamp (adds the Global Search barcode / Data Matrix scanner - camera, image upload, paste and drag-drop - and makes BCRS search results deep-link by barcode instead of AYG Ref)
+var BUILD='20260928-RECON1'; // single source of truth for the build/version stamp (adds the Global Search barcode / Data Matrix scanner - camera, image upload, paste and drag-drop - and makes BCRS search results deep-link by barcode instead of AYG Ref)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3064,6 +3064,14 @@ function parseAndRender(buf1,buf2){
       var st=cv(row[18])||'Pending';
       ORDERS.push({id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),invoiceFull:(cv(row[28])||'').slice(0,300),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100});
     });
+  });
+
+  // Raw Orders rows from BOTH workbooks for the Checks tab reconciliations (Xero paid status
+  // and Ops-vs-Management). Kept separate from ORDERS, which is the display list.
+  safely('Orders recon',function(){
+    OPS_ORD_RAW=rcReadOrders(wbOps);
+    MGMT_ORD_RAW=wbBcrs?rcReadOrders(wbBcrs):[];
+    RC_MGMT_LOADED=!!wbBcrs&&MGMT_ORD_RAW.length>0;
   });
 
   safely('Standard Pricing',function(){
@@ -7301,6 +7309,379 @@ function wlOpenXero(company){
   var btn=document.querySelector('.tab[data-tab="xero"]');
   if(btn)goTab('xero',btn);else if(typeof renderXero==='function')renderXero();
 }
+// ── Orders reconciliation: Xero paid status vs CRM, and AYG Operations vs Management Orders ──
+// Raw, un-deduplicated Orders rows from BOTH workbooks, captured at parse time purely for the
+// Checks tab. OPS_ORD_RAW always loads (AYG Operations); MGMT_ORD_RAW only for management (the
+// BCRS Scheme Management file 403s for staff), so RC_MGMT_LOADED says whether that side exists.
+var OPS_ORD_RAW=[],MGMT_ORD_RAW=[],RC_MGMT_LOADED=false,RC_FIELD_FILTER='';
+// Columns both Orders tabs share, resolved by the English header text (row 2 of each sheet), so a
+// column inserted in either file doesn't shift the comparison. Derived columns (Area, Days,
+// QTY/SKU) are left out — they differ only as a knock-on of a field already listed here.
+var RC_FIELDS=[
+  {k:'company',h:'company name',t:'company',key:1,en:'Company',zh:'公司名'},
+  {k:'size',h:'size',t:'size',key:1,en:'Size',zh:'尺寸'},
+  {k:'sku',h:'sku',t:'num',key:1,en:'SKU',zh:'SKU'},
+  {k:'colour',h:'colour',t:'colour',en:'Colour',zh:'颜色'},
+  {k:'qty',h:'total order',t:'num',key:1,en:'Total Order',zh:'总数'},
+  {k:'loc',h:'location',t:'text',en:'Location',zh:'地点'},
+  {k:'price',h:'selling price sgd',t:'money',key:1,en:'Selling Price',zh:'售价'},
+  {k:'status',h:'status',t:'text',key:1,en:'Status',zh:'状态'},
+  {k:'received',h:'order received date',t:'date',key:1,en:'Order Date',zh:'订单日期'},
+  {k:'delivery',h:'est. delivery date',t:'date',en:'Est. Delivery',zh:'交货日期'},
+  {k:'tracking',h:'tracking number',t:'tracking',en:'Tracking',zh:'追踪号码'},
+  {k:'address',h:'delivery address',t:'text',en:'Delivery Address',zh:'配送地址'},
+  {k:'name',h:'name',t:'text',en:'Contact Name',zh:'联系人'},
+  {k:'contact',h:'contact',t:'phone',en:'Contact No.',zh:'联系方式'},
+  {k:'invDate',h:'invoice date',t:'date',en:'Invoice Date',zh:'发票日期'},
+  {k:'invoice',h:'reference / invoice no.',t:'ref',key:1,en:'Invoice / Ref No.',zh:'发票号'},
+  {k:'payment',h:'payment',t:'pay',key:1,en:'Payment',zh:'付款'},
+  {k:'comment',h:'comment',t:'text',en:'Comment',zh:'备注'}
+];
+function _rcS(v){if(v===null||v===undefined)return '';if(v instanceof Date)return v;return String(v).replace(/ /g,' ').replace(/\s+/g,' ').trim();}
+// Read one workbook's Orders tab into [{_row, company, size, ...}] keyed by RC_FIELDS.
+function rcReadOrders(wb){
+  if(!wb)return [];
+  var nm=Object.keys(wb.Sheets).find(function(k){return k.indexOf('Orders')>-1||k.indexOf('订单')>-1;});
+  var ws=nm&&wb.Sheets[nm];if(!ws||!ws['!ref'])return [];
+  var r0=XLSX.utils.decode_range(ws['!ref']).s.r;
+  var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,blankrows:true});
+  var hi=rows.findIndex(function(r){return r&&r.some(function(c){return typeof c==='string'&&c.trim()==='Status';});});
+  if(hi<0)return [];
+  var H=rows[hi].map(function(h){return h==null?'':String(h).replace(/\s+/g,' ').trim().toLowerCase();});
+  var idx={};RC_FIELDS.forEach(function(f){idx[f.k]=H.indexOf(f.h);});
+  var out=[];
+  rows.slice(hi+1).forEach(function(row,i){
+    if(!row)return;
+    var co=idx.company>=0?_rcS(row[idx.company]):'';if(!co)return;
+    var o={_row:r0+hi+2+i};
+    RC_FIELDS.forEach(function(f){o[f.k]=idx[f.k]>=0?row[idx[f.k]]:undefined;});
+    out.push(o);
+  });
+  return out;
+}
+// ── value normalisers ──
+var _RC_MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// All plausible YYYYMMDD readings of a cell. Date cells give one; "3/19/2026" (US) and
+// "28/5/2026" (SG) strings both appear in these sheets, so an ambiguous a/b/yyyy yields both
+// readings and two cells count as the same date if any reading agrees.
+function _rcDateKeys(v){
+  if(v instanceof Date&&!isNaN(v.getTime())){var p=(typeof cellDateParts==='function')?cellDateParts(v):{y:v.getFullYear(),m:v.getMonth(),d:v.getDate()};return p?[p.y*10000+(p.m+1)*100+p.d]:[];}
+  if(typeof v==='number'&&v>20000&&v<80000){var d=new Date(Math.round((v-25569)*864e5));return [d.getUTCFullYear()*10000+(d.getUTCMonth()+1)*100+d.getUTCDate()];}
+  var s=_rcS(v),m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(!m)return [];
+  var a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;var ks=[];
+  if(a<=31&&b<=12)ks.push(y*10000+b*100+a);          // d/m (SG default)
+  if(a<=12&&b<=31&&a!==b)ks.push(y*10000+a*100+b);     // m/d
+  return ks;
+}
+function _rcFmtKey(k){return String(k%100).padStart(2,'0')+' '+_RC_MON[Math.floor(k/100)%100-1]+' '+Math.floor(k/10000);}
+function _rcNum(v){if(typeof v==='number')return v;var s=_rcS(v).replace(/[,\s]|S\$|SGD|\$/gi,'');if(s==='')return null;var n=Number(s);return isNaN(n)?null:n;}
+function _rcDisp(f,v){
+  if(v===null||v===undefined||_rcS(v)==='')return '';
+  if(f.t==='date'){var ks=_rcDateKeys(v);if(ks.length===1)return _rcFmtKey(ks[0]);return _rcS(v);}
+  if(f.t==='phone'&&typeof v==='number')return String(Math.round(v));
+  if((f.t==='num'||f.t==='money')&&typeof v==='number')return (f.t==='money'?'S$ ':'')+v.toLocaleString(undefined,{maximumFractionDigits:2});
+  var s=_rcS(v);return s.length>70?s.slice(0,68)+'…':s;
+}
+function _rcCoKey(v){return _rcS(v).toLowerCase().replace(/[^a-z0-9一-鿿]/g,'');}
+// Loose invoice/reference key: case, separators and zero-padding ignored, and an 8-digit
+// ddmmyyyy date folded to ddmmyy — so P000174/030326/BCRS/0001 == P000174-030326-BCRS-001.
+function _rcRefKey(s){
+  s=_rcS(s).toUpperCase();if(!s)return '';
+  return s.split(/[^A-Z0-9]+/).filter(Boolean).map(function(t){
+    if(/^\d{8}$/.test(t)&&/^(\d{4})20\d\d$/.test(t))t=t.slice(0,4)+t.slice(6);
+    return t.replace(/\d+/g,function(d){return String(parseInt(d,10));});
+  }).join('-');
+}
+function _rcRefList(v){return _rcS(v).split(/\s*[|;,&]\s*|\s+and\s+|\s{2,}/i).map(_rcRefKey).filter(Boolean);}
+function _rcIsNA(v){var s=_rcS(v).toLowerCase();return s==='na'||s==='n/a'||s==='n.a.'||s==='-';}
+// Excel stores long digit strings (phone / tracking numbers typed as numbers) as 15-significant-
+// digit floats, so one file can end up with 8613233213125 and the other 8613230000000. Returns
+// which side ('a'/'b') holds the rounded copy, or '' when that isn't what happened.
+function _rcRounded(pa,pb){
+  if(pa.length!==pb.length||pa.length<10)return '';
+  var z=/0{4,}$/;
+  if(z.test(pb)&&!z.test(pa)&&pa.indexOf(pb.replace(/0+$/,''))===0)return 'b';
+  if(z.test(pa)&&!z.test(pb)&&pb.indexOf(pa.replace(/0+$/,''))===0)return 'a';
+  return '';
+}
+function _rcRoundedWhy(side,zh){return (side==='b'?(zh?'管理表':'Management'):'AYG Operations')+(zh?' 中的号码被 Excel 四舍五入，丢失了末尾数字 — 将该单元格改为文本格式后重新输入':' holds an Excel-rounded copy — trailing digits lost; format the cell as Text and re-enter it');}
+// Compare one field between the two workbooks. Returns null when they agree (after the
+// formatting noise below is ignored), else {why} explaining the difference.
+function _rcCmp(f,a,b,zh){
+  var sa=(a instanceof Date)?'d':_rcS(a),sb=(b instanceof Date)?'d':_rcS(b);
+  if(!sa&&!sb)return null;
+  if(!sa||!sb){
+    var side=!sa?(zh?'AYG Operations 中为空，管理表中有值':'Blank in AYG Operations, filled in Management'):(zh?'管理表中为空，AYG Operations 中有值':'Filled in AYG Operations, blank in Management');
+    return {why:side};
+  }
+  switch(f.t){
+    case 'company':
+      if(_rcCoKey(a)===_rcCoKey(b))return null;
+      if(/样品/.test(sa)!==/样品/.test(sb))return {why:zh?'只有一边标记为「样品」— 确认这是样品还是正式订单':'Only one file marks this as a sample (样品) — confirm whether it is a sample or a paid order'};
+      return {why:zh?'公司名写法不同':'Company name is written differently'};
+    case 'size':{
+      var na=(sa.match(/\d+(?:\.\d+)?/g)||[]).map(Number),nb=(sb.match(/\d+(?:\.\d+)?/g)||[]).map(Number);
+      if(na.join('x')===nb.join('x')&&na.length)return null;
+      if(na.length===2&&nb.length===2&&na[0]===nb[1]&&na[1]===nb[0])return {why:zh?'尺寸相同但宽高顺序相反 — 确认正确方向':'Same dimensions written in reverse order (W×H vs H×W) — confirm the correct orientation',minor:1};
+      return {why:zh?'尺寸不同':'Different label size'};}
+    case 'colour':{
+      var c=function(s){s=s.toLowerCase().replace(/\s/g,'');return /black|黑|^1c/.test(s)?'black':/colou?r|彩|cmyk|4c/.test(s)?'colour':s;};
+      if(c(sa)===c(sb))return null;
+      return {why:zh?'颜色不同（单色黑 vs 彩色）':'Colour differs (1C Black vs Colour)'};}
+    case 'num':case 'money':{
+      var x=_rcNum(a),y=_rcNum(b);
+      if(x!==null&&y!==null){
+        if(Math.abs(x-y)<0.005)return null;
+        var dd=Math.round((x-y)*100)/100;
+        if(f.t==='money')return {why:(zh?'售价相差 S$ ':'Selling price differs by S$ ')+Math.abs(dd).toLocaleString()+(zh?' — 管理表的利润／利润率与 Ops 的开票金额不一致':" — Management's profit / margin is based on a different figure than Ops")};
+        if(f.k==='qty')return {why:(zh?'订购数量相差 ':'Order quantity differs by ')+Math.abs(dd).toLocaleString()+(zh?' 张':' pcs')};
+        return {why:zh?'数值不同':'Numbers differ'};
+      }
+      if(sa.toLowerCase()===sb.toLowerCase())return null;
+      return {why:zh?'一边是数字，另一边是文字（例如「X」）':'One side is a number, the other is text (e.g. “X”)'};}
+    case 'date':{
+      var ka=_rcDateKeys(a),kb=_rcDateKeys(b);
+      if(ka.length&&kb.length){
+        if(ka.some(function(k){return kb.indexOf(k)>-1;}))return null;
+        var t=function(k){return Date.UTC(Math.floor(k/10000),Math.floor(k/100)%100-1,k%100);};
+        var days=Math.round(Math.abs(t(ka[0])-t(kb[0]))/864e5);
+        return {why:(zh?'日期相差 ':'Dates differ by ')+days+(zh?' 天':(days===1?' day':' days'))};
+      }
+      if(sa.toLowerCase()===sb.toLowerCase())return null;
+      return {why:zh?'一边不是有效日期':'One side is not a valid date'};}
+    case 'tracking':{
+      var ta=sa.toUpperCase().replace(/[^A-Z0-9]/g,''),tb=sb.toUpperCase().replace(/[^A-Z0-9]/g,'');
+      if(ta===tb)return null;
+      var lo=ta.length<tb.length?ta:tb,hi2=ta.length<tb.length?tb:ta;
+      if(lo.length>=8&&hi2.slice(-lo.length)===lo)return null; // carrier prefix only (UPS:, FedEx…)
+      var rt=_rcRounded(ta,tb);if(rt)return {why:_rcRoundedWhy(rt,zh),minor:1};
+      return {why:zh?'追踪号码不同':'Different tracking number'};}
+    case 'phone':{
+      var pa=sa.replace(/\D/g,''),pb=sb.replace(/\D/g,'');
+      if(pa===pb)return null;
+      var rp=_rcRounded(pa,pb);if(rp)return {why:_rcRoundedWhy(rp,zh),minor:1};
+      return {why:zh?'联系电话不同':'Different contact number'};}
+    case 'ref':{
+      var ra=_rcRefList(a).sort().join('|'),rb=_rcRefList(b).sort().join('|');
+      if(ra===rb)return null;
+      return {why:zh?'发票／参考编号不同 — 对账时会对应到不同的 Xero 发票':'Different invoice / reference number — they point at different Xero invoices'};}
+    case 'pay':{
+      var p=function(s){s=s.toLowerCase();return /paid|已付/.test(s)&&!/unpaid|未付/.test(s)?'paid':s;};
+      if(p(sa)===p(sb))return null;
+      return {why:zh?'付款状态不同 — 一个文件标记已付，另一个没有':'Payment differs — one file marks it Paid, the other does not'};}
+    default:
+      if(sa.toLowerCase()===sb.toLowerCase())return null;
+      if(f.k==='status')return {why:zh?'两个文件的订单状态不一致':'The two files disagree on where this order is'};
+      return {why:zh?'内容不同':'Text differs'};
+  }
+}
+// Pair Ops rows with Management rows. The two tabs are meant to mirror each other row for row,
+// but a row inserted/deleted in one file would shift everything below it, so we align with an
+// LCS on a short company key (sample marker stripped) and then pair leftovers inside each gap
+// positionally. Anything still unpaired is "only in Ops" / "only in Management".
+function _rcAlignKey(o){return _rcCoKey(String(o.company||'').replace(/样品/g,'')).slice(0,10);}
+function rcAlign(A,B){
+  var n=A.length,m=B.length,ka=A.map(_rcAlignKey),kb=B.map(_rcAlignKey);
+  var L=[];for(var i=0;i<=n;i++){L.push(new Uint16Array(m+1));}
+  for(i=n-1;i>=0;i--)for(var j=m-1;j>=0;j--)L[i][j]=ka[i]===kb[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  var pairs=[],onlyA=[],onlyB=[],ga=[],gb=[];
+  function flush(){var k=Math.min(ga.length,gb.length);for(var q=0;q<k;q++)pairs.push([ga[q],gb[q]]);for(q=k;q<ga.length;q++)onlyA.push(ga[q]);for(q=k;q<gb.length;q++)onlyB.push(gb[q]);ga=[];gb=[];}
+  i=0;j=0;
+  while(i<n&&j<m){
+    if(ka[i]===kb[j]){flush();pairs.push([A[i],B[j]]);i++;j++;}
+    else if(L[i+1][j]>=L[i][j+1]){ga.push(A[i]);i++;}
+    else{gb.push(B[j]);j++;}
+  }
+  while(i<n)ga.push(A[i++]);while(j<m)gb.push(B[j++]);flush();
+  return {pairs:pairs,onlyA:onlyA,onlyB:onlyB};
+}
+function buildOrdersRecon(zh){
+  var al=rcAlign(OPS_ORD_RAW,MGMT_ORD_RAW),rows=[],fieldCount={};
+  al.pairs.forEach(function(p){
+    var a=p[0],b=p[1],diffs=[];
+    RC_FIELDS.forEach(function(f){
+      if(a[f.k]===undefined||b[f.k]===undefined)return; // column missing in one file
+      var r=_rcCmp(f,a[f.k],b[f.k],zh);
+      if(r)diffs.push({f:f,a:_rcDisp(f,a[f.k]),b:_rcDisp(f,b[f.k]),why:r.why,minor:!!r.minor});
+    });
+    if(!diffs.length)return;
+    diffs.forEach(function(d){fieldCount[d.f.k]=(fieldCount[d.f.k]||0)+1;});
+    var keyN=diffs.filter(function(d){return d.f.key&&!d.minor;}).length;
+    var dk={};diffs.forEach(function(d){dk[d.f.k]=1;});
+    var note='';
+    if(dk.invoice&&dk.received)note=zh?'发票编号和订单日期都不同 — 这一行在两个文件中可能是不同的订单（行顺序可能错位）':'Reference AND order date both differ — this row may hold a different order in each file (rows may be out of sequence)';
+    rows.push({a:a,b:b,diffs:diffs,keyN:keyN,note:note});
+  });
+  rows.sort(function(x,y){return (y.keyN>0)-(x.keyN>0)||y.keyN-x.keyN||y.diffs.length-x.diffs.length||x.a._row-y.a._row;});
+  return {rows:rows,onlyOps:al.onlyA,onlyMgmt:al.onlyB,compared:al.pairs.length,fieldCount:fieldCount};
+}
+// ── Xero paid status vs CRM (AYG Operations → Orders → col U "Payment") ──
+// Each order's Reference / Invoice No. (col T, may hold several refs separated by "|") is matched
+// to the Xero pull by invoice number OR reference (loose key). If no ref hits, fall back to a
+// unique same-company invoice whose total equals the selling price (with or without 9% GST).
+function buildXeroPaidCheck(zh){
+  var out=[];if(!INVOICES||!INVOICES.length||!OPS_ORD_RAW.length)return out;
+  var byKey={},byCo={};
+  INVOICES.forEach(function(v){
+    [v.invoice,v.reference].forEach(function(x){_rcRefList(x).forEach(function(k){(byKey[k]=byKey[k]||[]).push(v);});});
+    var ck=_rcCoKey(v.company).slice(0,10);if(ck)(byCo[ck]=byCo[ck]||[]).push(v);
+  });
+  function xs(v){var s=String(v.status||'').toLowerCase();
+    if(/void|delet/.test(s))return 'void';
+    if(/draft|approval|submitted/.test(s))return 'draft';
+    if(s==='paid'||(v.total>0&&v.due<=0.005&&/author|awaiting payment/.test(s)))return 'paid';
+    return 'unpaid';}
+  var money=function(n){return (TX.xeroCur||'S$')+' '+fmtMoney(n);};
+  OPS_ORD_RAW.forEach(function(o){
+    var st=_rcS(o.status).toUpperCase();
+    if(st==='X'||st==='CANCELLED')return;                      // cancelled order
+    var payRaw=_rcS(o.payment),payL=payRaw.toLowerCase();
+    if(_rcIsNA(payRaw)||_rcIsNA(o.invoice))return;             // deliberately not invoiced (free sample)
+    var crmPaid=/paid|已付/.test(payL)&&!/unpaid|未付/.test(payL);
+    var crmOdd=!!payL&&!crmPaid;
+    var refs=_rcRefList(o.invoice),seen={},invs=[],how='ref';
+    refs.forEach(function(k){(byKey[k]||[]).forEach(function(v){if(!seen[v.invoice]){seen[v.invoice]=1;invs.push(v);}});});
+    var price=_rcNum(o.price)||0;
+    if(!invs.length&&price>0){
+      var c=(byCo[_rcCoKey(o.company).slice(0,10)]||[]).filter(function(v){return Math.abs(v.total-price)<0.02||Math.abs(v.total-price*1.09)<0.02;});
+      if(c.length===1){invs=c;how='amount';}
+    }
+    var base={company:_rcS(o.company),row:o._row,ref:_rcS(o.invoice),crm:payRaw||'',invs:invs,how:how,price:price};
+    if(!invs.length){
+      if(crmPaid)out.push(Object.assign(base,{reason:'noXero',sev:2,xero:zh?'找不到发票':'no invoice found',
+        why:refs.length?(zh?'CRM 标记已付，但在 Xero 中找不到参考编号 '+base.ref+' 的发票 — 可能是编号输错，或发票用了别的编号，所以无法核实付款。':'CRM says Paid, but no invoice matching “'+base.ref+'” is in the Xero pull — a typo in the reference, or the invoice was raised under a different number, so the payment can’t be verified.')
+                        :(zh?'CRM 标记已付，但该订单没有填写发票／参考编号（T 列），无法在 Xero 中核实付款。':'CRM says Paid, but the order has no invoice / reference number in col T, so the payment can’t be checked against Xero.')}));
+      return;
+    }
+    var live=invs.filter(function(v){return xs(v)!=='void';});
+    var total=0,paid=0,due=0;live.forEach(function(v){total+=v.total||0;paid+=v.paid||0;due+=(xs(v)==='unpaid'?(v.due||0):0);});
+    var names=invs.map(function(v){return v.invoice;}).join(', ');
+    var viaAmt=how==='amount'?(zh?'（按公司名 + 金额匹配，编号未对上）':' (matched by company + amount — the reference didn’t match)'):'';
+    var xLbl;
+    if(!live.length){
+      xLbl=zh?'已作废':'Voided';
+      out.push(Object.assign(base,{reason:'void',sev:2,xero:xLbl,
+        why:(zh?'CRM 引用的 Xero 发票 '+names+' 已作废／删除，而订单并未取消 — 需要重开发票，或更新 CRM 的编号。':'The Xero invoice this order points to ('+names+') is Voided / Deleted, but the order isn’t cancelled — re-issue the invoice or update the reference in the CRM.')+viaAmt}));
+      return;
+    }
+    var anyDraft=live.some(function(v){return xs(v)==='draft';}),allPaid=live.every(function(v){return xs(v)==='paid';});
+    if(crmOdd){
+      out.push(Object.assign(base,{reason:'odd',sev:3,xero:allPaid?(zh?'已付':'Paid'):(zh?'未付':'Unpaid'),
+        why:(zh?'付款列（U 列）内容为「'+payRaw+'」，不是可识别的值（应为 Paid、空白或 NA），无法判断是否已付。Xero 显示：':'Payment (col U) holds “'+payRaw+'”, which isn’t a recognised value (expected Paid, blank or NA), so it can’t be compared. Xero shows: ')+(allPaid?(zh?'已全额付款。':'fully paid.'):(zh?'未付 ':'unpaid ')+money(due)+'.')+viaAmt}));
+      return;
+    }
+    if(crmPaid&&anyDraft&&!allPaid){
+      out.push(Object.assign(base,{reason:'draft',sev:0,xero:zh?'草稿':'Draft',
+        why:(zh?'CRM 标记已付，但 Xero 发票 '+names+' 仍是草稿／待批准 — 发票尚未正式开出，Xero 中不可能记录收款。请批准发票并记录付款。':'CRM says Paid, but Xero invoice '+names+' is still Draft / Awaiting Approval — it was never approved, so no payment can be recorded against it. Approve it and record the payment in Xero.')+viaAmt}));
+      return;
+    }
+    if(crmPaid&&!allPaid){
+      var part=paid>0.005;
+      out.push(Object.assign(base,{reason:'crmPaidXeroUnpaid',sev:0,xero:(part?(zh?'部分付款':'Part paid'):(zh?'待付款':'Awaiting Payment'))+' · '+money(due),
+        why:(part?(zh?'CRM 标记已付，但 Xero 只收到 '+money(paid)+'（共 '+money(total)+'），仍欠 '+money(due)+'。可能是部分付款、银行手续费扣减，或 CRM 过早标记已付。':'CRM says Paid, but Xero has only received '+money(paid)+' of '+money(total)+' — '+money(due)+' is still outstanding. A part payment, a short-pay (bank charges), or the CRM was marked Paid too early.')
+                :(zh?'CRM 标记已付，但 Xero 发票 '+names+' 仍显示待付款 '+money(due)+'。要么收款尚未在 Xero 中对账，要么 CRM 过早标记了已付。':'CRM says Paid, but Xero invoice '+names+' still shows '+money(due)+' Awaiting Payment. Either the receipt hasn’t been reconciled in Xero yet, or the CRM was marked Paid too early.'))+viaAmt}));
+      return;
+    }
+    if(!crmPaid&&allPaid){
+      out.push(Object.assign(base,{reason:'xeroPaidCrmBlank',sev:1,xero:zh?'已付':'Paid',
+        why:(zh?'Xero 显示发票 '+names+' 已全额付款（'+money(paid||total)+'），但 CRM 付款列（U 列）仍为空 — 请在 CRM 中标记为 Paid。':'Xero shows invoice '+names+' fully paid ('+money(paid||total)+'), but the CRM Payment column (col U) is still blank — mark it Paid in AYG Operations.')+viaAmt}));
+      return;
+    }
+  });
+  var ORD={crmPaidXeroUnpaid:0,draft:1,xeroPaidCrmBlank:2,noXero:3,void:4,odd:5};
+  out.sort(function(a,b){return (ORD[a.reason]-ORD[b.reason])||a.row-b.row;});
+  return out;
+}
+function _rcEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function rcSetField(k){RC_FIELD_FILTER=(RC_FIELD_FILTER===k?'':k);try{renderChecks();}catch(e){}}
+// Checks tab group: "Orders — Payment & Workbook Reconciliation". chkSection is renderChecks'
+// own collapsible-card builder, passed in so these cards look and collapse like the rest.
+function rcChecksHtml(zh,chkSection,invLoaded){
+  var html='<div class="cc-title-row" style="margin-top:16px"><div class="cc-title">'+(zh?'订单 — 付款与工作簿对账':'Orders — Payment & Workbook Reconciliation')+'</div>'
+    +'<span style="font-size:9px;color:var(--dim)">'+(zh?'AYG Operations · 管理表 · Xero':'AYG Operations · Management · Xero')+'</span></div>';
+  // ── 1. Paid status: Xero vs CRM ──
+  var X=[];try{X=buildXeroPaidCheck(zh);}catch(e){console.error('xero paid check',e);}
+  var RS={
+    crmPaidXeroUnpaid:{en:'CRM Paid · Xero unpaid',zh:'CRM 已付 · Xero 未付',col:'#ef4444'},
+    draft:{en:'CRM Paid · Xero invoice still Draft',zh:'CRM 已付 · Xero 发票仍为草稿',col:'#ef4444'},
+    xeroPaidCrmBlank:{en:'Xero Paid · CRM not updated',zh:'Xero 已付 · CRM 未更新',col:'var(--amb)'},
+    noXero:{en:'CRM Paid · no Xero invoice found',zh:'CRM 已付 · 找不到 Xero 发票',col:'#f59e0b'},
+    void:{en:'Xero invoice voided',zh:'Xero 发票已作废',col:'#9ca3af'},
+    odd:{en:'Unrecognised Payment value',zh:'付款值无法识别',col:'var(--m)'}
+  };
+  var paidRows='',lastR='';
+  X.forEach(function(x){
+    var R=RS[x.reason]||{en:x.reason,zh:x.reason,col:'var(--m)'};
+    if(x.reason!==lastR){
+      lastR=x.reason;
+      var n=X.filter(function(y){return y.reason===x.reason;}).length;
+      paidRows+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:'+R.col+';padding:9px 2px 3px">'+(zh?R.zh:R.en)+' ('+n+')</div>';
+    }
+    var inv=x.invs&&x.invs.length?x.invs[0].invoice:'';
+    var click=inv?' onclick="jumpToXero(\''+String(inv).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',\'all\')" style="cursor:pointer;':' style="';
+    paidRows+='<div'+click+'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b)">'
+      +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+_rcEsc(x.company)+'</span>'
+      +'<div style="font-size:10px;color:var(--dim)">'+(zh?'Ops 第 ':'Ops row ')+x.row+(zh?' 行':'')+(x.ref?' · <span style="font-family:\'JetBrains Mono\',monospace">'+_rcEsc(x.ref.length>60?x.ref.slice(0,58)+'…':x.ref)+'</span>':'')+(x.invs&&x.invs.length?' · Xero '+_rcEsc(x.invs.map(function(v){return v.invoice;}).join(', ')):'')+'</div>'
+      +'<div style="font-size:10px;line-height:1.55;color:var(--m);background:var(--s2);border-left:2px solid '+R.col+';border-radius:0 4px 4px 0;padding:5px 7px;margin:5px 8px 2px 0;white-space:normal">'+_rcEsc(x.why)+'</div></span>'
+      +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right"><span style="color:var(--dim)">CRM: '+_rcEsc(x.crm||(zh?'空白':'blank'))+'</span> <span style="color:'+R.col+'">→ Xero: '+_rcEsc(x.xero)+'</span></span>'
+    +'</div>';
+  });
+  html+=chkSection('xero_paid',(zh?'付款状态 — Xero vs CRM':'Paid status — Xero vs CRM'),'#ef4444',X.length,paidRows,
+    (zh?'所有订单的付款状态与 Xero 一致':'Every order’s Payment status agrees with Xero'),invLoaded&&OPS_ORD_RAW.length>0,
+    (zh?'来源：AYG Operations → 订单表 U 列「付款」对比 Xero 发票导出的「Status」。每个订单用 T 列的发票／参考编号（可含多个，用 | 分隔）匹配 Xero 的发票号或参考号（忽略大小写、分隔符和前导零）；若编号对不上，则按「公司名 + 金额（含或不含 9% GST）」唯一匹配。标记情况：CRM 已付但 Xero 未付／部分付款；CRM 已付但 Xero 仍为草稿；Xero 已付但 CRM 为空；CRM 已付但找不到 Xero 发票；引用的发票已作废；付款列内容无法识别。已取消（X）和 NA（免费样品）的订单会略过。点击一行跳到该 Xero 发票。'
+        :'How it’s derived: compares AYG Operations → Orders col U “Payment” with the Status in the Xero invoice pull. Each order’s Reference / Invoice No. (col T — several refs separated by “|” are all used) is matched to the Xero invoice number or reference, ignoring case, separators and zero-padding; if no reference hits, a unique same-company invoice whose total equals the selling price (with or without 9% GST) is used. Flagged when: CRM Paid but Xero unpaid / part-paid; CRM Paid but the Xero invoice is still Draft; Xero Paid but CRM blank; CRM Paid but no Xero invoice found; the referenced invoice is Voided; or the Payment cell holds an unrecognised value. Cancelled (X) and NA (free sample) orders are skipped. Click a row to open that invoice in the Xero tab.'));
+  // ── 2. AYG Operations vs Management — Orders tab ──
+  if(!RC_MGMT_LOADED){
+    html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(zh?'AYG Operations 与管理表订单对账需要管理层权限（BCRS Scheme Management 文件）。':'AYG Operations vs Management Orders reconciliation needs management access (the BCRS Scheme Management file).')+'</div>';
+    return html;
+  }
+  var RR=buildOrdersRecon(zh);
+  var fl=function(f){return zh?f.zh:f.en;};
+  var summ='<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 2px 8px;font-size:10px;color:var(--m)">'
+    +'<span>'+(zh?'已对比 ':'Compared ')+'<b style="color:var(--t)">'+RR.compared+'</b>'+(zh?' 行 · 有差异 ':' rows · ')+'<b style="color:#a78bfa">'+RR.rows.length+'</b>'+(zh?' 行':' differ')
+    +(RR.onlyOps.length?' · <b style="color:#ef4444">'+RR.onlyOps.length+'</b> '+(zh?'仅在 Ops':'only in Ops'):'')
+    +(RR.onlyMgmt.length?' · <b style="color:#ef4444">'+RR.onlyMgmt.length+'</b> '+(zh?'仅在管理表':'only in Management'):'')+'</span></div>';
+  var chips='<div style="display:flex;flex-wrap:wrap;gap:5px;padding:0 2px 8px">'
+    +'<button onclick="rcSetField(\'\')" style="font-size:10px;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--b2);background:'+(RC_FIELD_FILTER?'var(--s2)':'rgba(167,139,250,.18)')+';color:var(--t)">'+(zh?'全部':'All')+'</button>';
+  RC_FIELDS.forEach(function(f){var n=RR.fieldCount[f.k];if(!n)return;var on=RC_FIELD_FILTER===f.k;
+    chips+='<button onclick="rcSetField(\''+f.k+'\')" style="font-size:10px;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid '+(f.key?'rgba(167,139,250,.55)':'var(--b2)')+';background:'+(on?'rgba(167,139,250,.18)':'var(--s2)')+';color:'+(f.key?'var(--t)':'var(--m)')+'">'+fl(f)+' '+n+'</button>';});
+  chips+='</div>';
+  var body=summ+chips;
+  function onlyRow(o,side){
+    return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b)">'
+      +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+_rcEsc(o.company)+'</span>'
+      +'<div style="font-size:10px;color:var(--dim)">'+_rcEsc([_rcDisp(RC_FIELDS[1],o.size),_rcDisp(RC_FIELDS[4],o.qty),_rcDisp(RC_FIELDS[8],o.received),_rcS(o.invoice)].filter(Boolean).join(' · '))+'</div>'
+      +'<div style="font-size:10px;line-height:1.55;color:var(--m);background:var(--s2);border-left:2px solid #ef4444;border-radius:0 4px 4px 0;padding:5px 7px;margin:5px 8px 2px 0">'
+      +(side==='ops'?(zh?'这一行只存在于 AYG Operations，管理表中没有对应行 — 管理表可能漏录了这张订单。':'This row exists in AYG Operations but has no matching row in Management — the order may be missing from the Management file.')
+                    :(zh?'这一行只存在于管理表，AYG Operations 中没有对应行 — Ops 可能漏录或已删除这张订单。':'This row exists in Management but has no matching row in AYG Operations — the order may be missing from (or deleted in) Ops.'))+'</div></span>'
+      +'<span style="font-size:10px;color:#ef4444;white-space:nowrap">'+(side==='ops'?(zh?'Ops 第 ':'Ops row ')+o._row:(zh?'管理表第 ':'Mgmt row ')+o._row)+(zh?' 行':'')+'</span></div>';
+  }
+  if(!RC_FIELD_FILTER){RR.onlyOps.forEach(function(o){body+=onlyRow(o,'ops');});RR.onlyMgmt.forEach(function(o){body+=onlyRow(o,'mgmt');});}
+  var shown=RR.rows.filter(function(r){return !RC_FIELD_FILTER||r.diffs.some(function(d){return d.f.k===RC_FIELD_FILTER;});});
+  shown.forEach(function(r){
+    var lines=r.diffs.filter(function(d){return !RC_FIELD_FILTER||d.f.k===RC_FIELD_FILTER;}).map(function(d){
+      var c=d.minor?'var(--dim)':(d.f.key?'#a78bfa':'var(--amb)');
+      return '<div style="display:grid;grid-template-columns:minmax(90px,120px) 1fr;gap:2px 8px;padding:3px 0;border-top:1px dashed var(--b)">'
+        +'<span style="font-size:10px;font-weight:700;color:'+c+'">'+fl(d.f)+'</span>'
+        +'<span style="font-size:10px;min-width:0;word-break:break-word"><span style="color:var(--dim)">Ops:</span> <span style="color:var(--t)">'+(_rcEsc(d.a)||'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</span>'
+        +' <span style="color:var(--dim)">·</span> <span style="color:var(--dim)">'+(zh?'管理表':'Mgmt')+':</span> <span style="color:var(--t)">'+(_rcEsc(d.b)||'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</span>'
+        +'<div style="color:var(--m);line-height:1.5">'+_rcEsc(d.why)+'</div></span></div>';
+    }).join('');
+    var tag=r.keyN?'<span style="font-size:9px;color:#a78bfa;background:rgba(167,139,250,.14);padding:1px 6px;border-radius:8px;margin-left:6px">'+r.keyN+(zh?' 个关键字段':(r.keyN===1?' key field':' key fields'))+'</span>':'';
+    body+='<div style="padding:6px 2px;border-top:1px solid var(--b)">'
+      +'<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span style="font-size:12px;color:var(--t);font-weight:600;min-width:0">'+_rcEsc(r.a.company)+tag+'</span>'
+      +'<span style="font-size:10px;color:var(--dim);white-space:nowrap">'+(r.a._row===r.b._row?(zh?'两个文件第 ':'Row ')+r.a._row+(zh?' 行':' in both'):('Ops '+r.a._row+' · '+(zh?'管理表 ':'Mgmt ')+r.b._row))+'</span></div>'
+      +(r.note?'<div style="font-size:10px;line-height:1.5;color:#ef4444;padding:3px 0">⚠ '+_rcEsc(r.note)+'</div>':'')
+      +lines+'</div>';
+  });
+  var cnt=RR.rows.length+RR.onlyOps.length+RR.onlyMgmt.length;
+  html+=chkSection('ops_mgmt',(zh?'AYG Operations vs 管理表 — 订单':'AYG Operations vs Management — Orders'),'#a78bfa',cnt,body,
+    (zh?'两个订单表的共同列完全一致':'Every shared column matches between the two Orders tabs'),true,
+    (zh?'来源：逐行对比 AYG Operations 与 BCRS Scheme Management 的「订单」表的共同列（按英文表头定位：尺寸、SKU、颜色、总数、公司名、地点、售价、状态、订单／交货／发票日期、追踪号、地址、联系人、电话、发票号、付款、备注）。两边的行按公司名对齐，插入或删除的行会显示为「仅在一边」。格式差异不算差异：大小写、空格、日期写法（日期格式 vs 文字 d/m/yyyy）、75x30 vs 75*30、1C Black vs 1CBlack、快递前缀（UPS:）等。紫色 = 关键字段（影响金额、数量或对账），琥珀色 = 明细字段，灰色 = 次要（宽高顺序相反、Excel 四舍五入的号码）。点击字段标签可筛选。'
+        :'How it’s derived: compares the shared columns of the AYG Operations and BCRS Scheme Management Orders tabs row by row (columns found by their English header: Size, SKU, Colour, Total Order, Company, Location, Selling Price, Status, Order / Delivery / Invoice dates, Tracking, Address, Name, Contact, Invoice / Ref No., Payment, Comment). Rows are aligned by company name, so an inserted or deleted row shows as “only in” one file instead of shifting everything below it. Formatting-only differences are ignored: case, spacing, date typed as text vs a real date, 75x30 vs 75*30, 1C Black vs 1CBlack, carrier prefixes (UPS:) and so on. Purple = key field (money, quantity or reconciliation), amber = detail field, grey = minor (W×H written in reverse, Excel-rounded numbers). Tap a field chip to filter.'));
+  return html;
+}
 function renderChecks(){
   var el=document.getElementById('chk-body');if(!el)return;
   var zh=lang==='zh';
@@ -7452,7 +7833,9 @@ function renderChecks(){
   }else{
     html+='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccAygNeedsSync||'Log in / main sync required to load the AYG portal status.')+'</div>';
   }
-  // ── Group 3: Watchlist — flagged companies ──
+  // ── Group 3: Orders — Paid status (Xero vs CRM) + AYG Operations vs Management Orders ──
+  try{html+=rcChecksHtml(zh,chkSection,invLoaded);}catch(e){console.error('orders recon render',e);}
+  // ── Group 4: Watchlist — flagged companies ──
   // Two sections only: what is actually at stake with a flagged company, and the Xero-derived
   // shortlist of companies nobody has flagged yet. There is no review/expiry section — Active
   // = N in the sheet is the only lifecycle control.
