@@ -1721,7 +1721,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260930-COLS1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20260930-COLS2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7602,6 +7602,7 @@ function _rcCmp(f,a,b,zh){
     case 'size':{
       var na=(sa.match(/\d+(?:\.\d+)?/g)||[]).map(Number),nb=(sb.match(/\d+(?:\.\d+)?/g)||[]).map(Number);
       if(na.join('x')===nb.join('x')&&na.length)return null;
+      if(!na.length&&!nb.length&&sa.toLowerCase().replace(/\s+/g,'')===sb.toLowerCase().replace(/\s+/g,''))return null; // no numbers (e.g. "X" = cancelled): compare as text
       if(na.length===2&&nb.length===2&&na[0]===nb[1]&&na[1]===nb[0])return {why:zh?'尺寸相同但宽高顺序相反 — 确认正确方向':'Same dimensions written in reverse order (W×H vs H×W) — confirm the correct orientation',minor:1};
       return {why:zh?'尺寸不同':'Different label size'};}
     case 'colour':{
