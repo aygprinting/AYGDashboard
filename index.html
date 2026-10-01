@@ -1721,7 +1721,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261001-REFNO1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261001-INVNO3'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7967,6 +7967,124 @@ function buildXeroRefCheck(zh){
   res.flags.sort(function(a,b){return (ORD[a.reason]-ORD[b.reason])||((a.rows[0]||1e9)-(b.rows[0]||1e9));});
   return res;
 }
+// ── Invoice No. — CRM vs Xero ─────────────────────────────────────────────────
+// Checks the Orders sheet's two number columns against each other in Xero:
+//   Reference No. (col "Reference No. / 参考编号")  ↔  Xero Reference
+//   Invoice No.   (col "Invoice No. / 发票编号")    ↔  Xero invoice number
+// Three flags:
+//   notInXero  — an Invoice No. typed in the CRM doesn't exist in Xero (typo, or voided/deleted)
+//   refDiff    — that Xero invoice carries a different Reference than the row's Reference No.
+//   fill       — Xero has invoice(s) for the row's reference, but the row's Invoice No. is blank
+//                or lists something else. Shows the number(s) to paste → doubles as a backfill list.
+function _rcInvKey(s){return _rcS(s).toUpperCase().replace(/[^A-Z0-9]/g,'');}
+// Same rule F6 uses for the EXPECTED invoice number: …-BCRS-001 → …-BCRS-INV-001.
+function _rcExpectedInv(ref){ref=_rcS(ref);if(!ref||/-INV-?\d+$/i.test(ref))return ref;var m=ref.match(/^(.*-BCRS)-(\d+)$/i);return m?m[1]+'-INV-'+m[2]:ref;}
+function buildXeroInvNoCheck(zh){
+  var res={flags:[],hasCol:false,checked:0,ok:0,pending:0};
+  if(!INVOICES||!INVOICES.length||!OPS_ORD_RAW.length)return res;
+  res.hasCol=OPS_ORD_RAW.some(function(o){return o.invoiceNo!==undefined;});
+  if(!res.hasCol)return res;
+  var byNum={},deadNum={},byRef={};
+  INVOICES.forEach(function(v){
+    var k=_rcInvKey(v.invoice);if(!k)return;
+    if(_rcXeroDead(v)){deadNum[k]=v;return;}
+    byNum[k]=v;
+    _rcRefList(v.reference).forEach(function(r){(byRef[r]=byRef[r]||[]).push(v);});
+  });
+  OPS_ORD_RAW.forEach(function(o){
+    var st=_rcS(o.status).toUpperCase();if(st==='X'||st==='CANCELLED')return;
+    if(_rcIsNA(o.invoice)&&_rcIsNA(o.invoiceNo))return;
+    var refs=_rcRefRaw(o.invoice),refKeys=refs.map(_rcRefKey);
+    var nums=_rcRefRaw(o.invoiceNo),numKeys=nums.map(_rcInvKey);
+    if(!refs.length&&!nums.length)return;
+    res.checked++;
+    var base={company:_rcS(o.company),row:o._row,crmRef:refs.join(' | '),crmInv:nums.join(' | ')};
+    var rowOk=true,badNums=[],pending=0;
+    // 1 + 2: every Invoice No. typed must exist in Xero, and carry this row's reference.
+    nums.forEach(function(n,i){
+      var k=numKeys[i],v=byNum[k];
+      if(!v){
+        rowOk=false;
+        var dv=deadNum[k];
+        var guess=[];refKeys.forEach(function(rk){(byRef[rk]||[]).forEach(function(x){if(guess.indexOf(x)<0)guess.push(x);});});
+        if(guess.length&&!dv){badNums.push(n);return;}   // Xero has the right invoice → reported once, as an update (flag 3)
+        // F6's placeholder for an order not invoiced yet (F7 not run) — not an error; the
+        // "not yet invoiced" check covers it.
+        if(!dv&&refs.some(function(r){return _rcInvKey(_rcExpectedInv(r))===k;})){pending++;return;}
+        res.flags.push(Object.assign({},base,{reason:'notInXero',bad:n,invs:dv?[dv]:guess,suggest:guess.map(function(x){return x.invoice;}).join(' | '),
+          why:dv?(zh?'CRM 的发票编号 '+n+' 在 Xero 中已作废／删除。如已重开发票，请把新的发票编号填入 CRM。':'CRM Invoice No. '+n+' is Voided / Deleted in Xero. If it was re-issued, put the new invoice number in the CRM.')
+                :(zh?'CRM 的发票编号 '+n+' 在 Xero 中不存在 — 可能是输错，或发票还没开出。':'CRM Invoice No. '+n+' doesn’t exist in Xero — a typo, or the invoice hasn’t been raised yet.')
+                 +(guess.length?(zh?' Xero 中这个参考编号对应的发票是 '+guess.map(function(x){return x.invoice;}).join('、')+'。':' Xero’s invoice for this reference is '+guess.map(function(x){return x.invoice;}).join(', ')+'.'):'')}));
+        return;
+      }
+      var xr=_rcRefList(v.reference);
+      if(refKeys.length&&xr.length&&!xr.some(function(r){return refKeys.indexOf(r)>-1;})){
+        rowOk=false;
+        res.flags.push(Object.assign({},base,{reason:'refDiff',bad:n,invs:[v],xeroRef:v.reference,
+          why:zh?'Xero 发票 '+v.invoice+' 的参考编号是「'+v.reference+'」，但 CRM 这一行的参考编号是「'+base.crmRef+'」— 发票编号或参考编号有一边填错了。'
+                :'Xero invoice '+v.invoice+' carries reference “'+v.reference+'”, but this CRM row’s Reference No. is “'+base.crmRef+'” — one of the two numbers is wrong.'}));
+      }
+    });
+    // 3: Xero has invoice(s) for this reference that the row's Invoice No. doesn't list.
+    var want=[];
+    refKeys.forEach(function(rk){(byRef[rk]||[]).forEach(function(x){if(want.indexOf(x)<0)want.push(x);});});
+    var missing=want.filter(function(x){return numKeys.indexOf(_rcInvKey(x.invoice))<0;});
+    if(missing.length){
+      rowOk=false;
+      var all=want.map(function(x){return x.invoice;}).sort();
+      res.flags.push(Object.assign({},base,{reason:'fill',invs:missing,suggest:all.join(' | '),
+        why:badNums.length
+          ?(zh?'CRM 的发票编号 '+badNums.join('、')+' 在 Xero 中不存在；Xero 中这个参考编号的发票是：'+all.join(' | ')+' — 请更新。':'CRM Invoice No. '+badNums.join(', ')+' doesn’t exist in Xero; Xero’s invoice(s) for this reference: '+all.join(' | ')+' — update it.')
+          :!nums.length
+          ?(zh?'Xero 已有这个参考编号的发票，但 CRM 的发票编号为空 — 请填入：'+all.join(' | '):'Xero has an invoice for this reference but the CRM Invoice No. is blank — fill in: '+all.join(' | '))
+          :(zh?'CRM 的发票编号是「'+base.crmInv+'」，但 Xero 中这个参考编号的发票是：'+all.join(' | ')+' — 请更新。':'CRM Invoice No. is “'+base.crmInv+'”, but Xero’s invoice(s) for this reference: '+all.join(' | ')+' — update it.')}));
+    }
+    if(rowOk&&nums.length&&!pending)res.ok++;
+    if(pending)res.pending++;
+  });
+  var ORD={refDiff:0,notInXero:1,fill:2};
+  res.flags.sort(function(a,b){return (ORD[a.reason]-ORD[b.reason])||(a.row-b.row);});
+  return res;
+}
+function rcInvNoSectionHtml(zh,chkSection,invLoaded){
+  var R={flags:[],hasCol:false,checked:0,ok:0};try{R=buildXeroInvNoCheck(zh);}catch(e){console.error('invno check',e);}
+  var RS={
+    refDiff:{en:'Invoice No. and Reference No. point to different orders',zh:'发票编号与参考编号对不上',col:'#ef4444'},
+    notInXero:{en:'CRM Invoice No. not in Xero',zh:'CRM 发票编号在 Xero 中不存在',col:'#ef4444'},
+    fill:{en:'Invoice No. to fill in / update',zh:'需要填写／更新的发票编号',col:'var(--amb)'}
+  };
+  var desc=zh?'来源：AYG Operations → 订单表「参考编号」与「发票编号」两列，对比 Xero 发票导出的「Reference」与发票号。标记：(1) 发票编号与参考编号在 Xero 中对应到不同订单；(2) CRM 的发票编号在 Xero 中不存在（输错或已作废）；(3) Xero 已有这个参考编号的发票，但 CRM 的发票编号为空或不一致 — 直接显示应填的编号，可用「复制列表」批量补填旧订单。已取消（X）的订单略过。F7／F11 开票后会自动写入发票编号。'
+    :'How it’s derived: compares AYG Operations → Orders “Reference No.” and “Invoice No.” with the Reference and invoice number in the Xero pull. Flagged when: (1) an Invoice No. and the row’s Reference No. point to different orders in Xero; (2) a CRM Invoice No. doesn’t exist in Xero (typo, or voided); (3) Xero has an invoice for the row’s reference but the CRM Invoice No. is blank or different — the number to paste is shown, and “Copy list” gives you every row at once to backfill older orders. Cancelled (X) orders are skipped. F7 / F11 fill Invoice No. automatically for new invoices.';
+  if(invLoaded&&OPS_ORD_RAW.length&&!R.hasCol){
+    return chkSection('xero_invno',(zh?'发票编号 — CRM vs Xero':'Invoice No. — CRM vs Xero'),'#f59e0b',0,'',
+      (zh?'订单表还没有「发票编号 / Invoice No.」列 — 添加后这里会开始检查。':'The Orders sheet has no “Invoice No. / 发票编号” column yet — this check starts once it’s added.'),true,desc);
+  }
+  var rows='',last='';
+  if(R.checked)rows+='<div style="font-size:10px;color:var(--m);padding:6px 2px 2px">'+(zh?'已检查订单行 ':'Order rows checked: ')+'<b style="color:var(--t)">'+R.checked+'</b>'+(zh?' · 发票编号完全正确 ':' · Invoice No. fully correct: ')+'<b style="color:var(--grn)">'+R.ok+'</b>'
+    +(R.pending?(zh?' · 等待 F7 开票 ':' · awaiting F7 invoice: ')+'<b style="color:var(--m)">'+R.pending+'</b>':'')+'</div>';
+  R.flags.forEach(function(x){
+    var S=RS[x.reason];
+    if(x.reason!==last){last=x.reason;var n=R.flags.filter(function(y){return y.reason===x.reason;}).length;
+      rows+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:'+S.col+';padding:9px 2px 3px">'+(zh?S.zh:S.en)+' ('+n+')</div>';}
+    var inv=x.invs&&x.invs.length?x.invs[0].invoice:'';
+    var click=inv?' onclick="jumpToXero(\''+String(inv).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\',\'all\')" style="cursor:pointer;':' style="';
+    var right='<div><span style="color:var(--dim)">'+(zh?'参考编号':'Ref')+':</span> '+(x.crmRef?_rcChips(x.crmRef):'<i style="color:var(--dim)">'+(zh?'无':'none')+'</i>')+'</div>'
+      +'<div><span style="color:var(--dim)">CRM '+(zh?'发票':'Inv')+':</span> '+(x.crmInv?_rcChips(x.crmInv):'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+'</div>'
+      +(x.suggest?'<div><span style="color:var(--dim)">Xero '+(zh?'发票':'Inv')+':</span> <span style="color:'+S.col+'">'+_rcChips(x.suggest)+'</span></div>':'')
+      +(x.xeroRef?'<div><span style="color:var(--dim)">Xero '+(zh?'参考':'Ref')+':</span> <span style="color:'+S.col+'">'+_rcChips(x.xeroRef)+'</span></div>':'');
+    rows+='<div'+click+'display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b)">'
+      +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+_rcEsc(x.company)+'</span>'
+      +'<div style="font-size:10px;color:var(--dim)">'+(zh?'Ops 第 ':'Ops row ')+x.row+(zh?' 行':'')+'</div>'
+      +'<div style="font-size:10px;line-height:1.55;color:var(--m);background:var(--s2);border-left:2px solid '+S.col+';border-radius:0 4px 4px 0;padding:5px 7px;margin:5px 8px 2px 0;white-space:normal">'+_rcEsc(x.why)+'</div></span>'
+      +'<span style="font-size:10px;flex-shrink:0;text-align:right;max-width:50%;word-break:break-all">'+right+'</span>'
+    +'</div>';
+  });
+  RC_COPY_LISTS.xero_invno=_rcTsv([['Issue','Company','Ops row','Reference No.','CRM Invoice No.','Xero Invoice No. (to fill in)','Xero Reference','Explanation']].concat(R.flags.map(function(x){
+    return [(RS[x.reason]||{}).en||x.reason,x.company,x.row,x.crmRef,x.crmInv,x.suggest||'',x.xeroRef||'',x.why];})));
+  if(R.flags.length)rows=_rcListBtn('xero_invno',zh)+rows;
+  return chkSection('xero_invno',(zh?'发票编号 — CRM vs Xero':'Invoice No. — CRM vs Xero'),'#f59e0b',R.flags.length,rows,
+    (zh?'所有发票编号都与 Xero 一致':'Every Invoice No. matches Xero'),invLoaded&&OPS_ORD_RAW.length>0,desc);
+}
 function rcRefSectionHtml(zh,chkSection,invLoaded){
   var R={flags:[],checked:0,exact:0};try{R=buildXeroRefCheck(zh);}catch(e){console.error('xero ref check',e);}
   var RS={
@@ -8056,6 +8174,7 @@ function rcChecksHtml(zh,chkSection,invLoaded){
         :'How it’s derived: compares AYG Operations → Orders col U “Payment” with the Status in the Xero invoice pull. Each order’s Reference / Invoice No. (col T — several refs separated by “|” are all used) is matched to the Xero invoice number or reference, ignoring case, separators and zero-padding; if no reference hits, a unique same-company invoice whose total equals the selling price (with or without 9% GST) is used. Flagged when: CRM Paid but Xero unpaid / part-paid; CRM Paid but the Xero invoice is still Draft; Xero Paid but CRM blank; CRM Paid but no Xero invoice found; the referenced invoice is Voided; or the Payment cell holds an unrecognised value. Cancelled (X) and NA (free sample) orders are skipped. Click a row to open that invoice in the Xero tab.'));
   // ── 2. Reference no.: CRM vs Xero ──
   html+=rcRefSectionHtml(zh,chkSection,invLoaded);
+  html+=rcInvNoSectionHtml(zh,chkSection,invLoaded);
   // ── 3. AYG Operations vs Management — Orders tab ──
   if(!isMgmt)return html; // staff: section omitted entirely
   var RR=buildOrdersRecon(zh);
@@ -8313,7 +8432,7 @@ function renderChecks(){
   var _mgmtRecon=(ACCESS_LEVEL==='management')&&RC_MGMT_LOADED;
   var GROUPS=[
     {id:'orders',title:_mgmtRecon?(zh?'订单 — 付款与工作簿对账':'Orders — Payment & Workbook Reconciliation'):(zh?'订单 — 付款对账':'Orders — Payment Reconciliation'),
-      secs:['notinv','inv','xero_ref','xero_paid','ops_mgmt']},
+      secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
     {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_mismatch','ayg_nottally','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']}
