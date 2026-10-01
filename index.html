@@ -1721,7 +1721,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20260930-COLS2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261001-REFNO1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -2912,8 +2912,12 @@ function showSyncStatus(msg,state){
 // Adhesives / 胶水类型, are delivered at fixed slots 100 and 101 wherever they sit in the sheet.
 var SHEET_LAYOUT={"mgmtOrders": ["size", "area", "sku", "colour", "totalorder", "companyname", "location", "priceperpiecermb", "totalpricermb", "", "totalpricesgd", "shippingsgd", "9gst", "totalcostsgd", "", "sellingpricesgd", "profitsgd", "profitmarginnormal", "status", "orderreceiveddate", "estdeliverydate", "", "trackingnumber", "deliveryaddress", "name", "contact", "", "invoicedate", "referenceinvoiceno", "payment", "comment", "days", "qtysku", "", "printer", "shipper", "weight", "shippingsgdkg"], "mgmtQuotes": ["size", "area", "sku", "colour", "totalorder", "companyname", "location", "datamatrix", "priceperpiecermb", "totalpricermb", "", "totalpricesgd", "shippingsgd", "documentationcost", "totalprice9gstsgd", "totalcost15sgd", "", "sellingpricesgd", "profitsgd", "profitsgdw15x", "profitmarginnormal", "profitmarginw15x", "", "priceperpiece", "", "quoteddate", "validityofquote", "printer", "printerquote"], "opsOrders": ["size", "area", "sku", "colour", "totalorder", "companyname", "location", "", "sellingpricesgd", "status", "orderreceiveddate", "estdeliverydate", "", "trackingnumber", "deliveryaddress", "name", "contact", "", "invoicedate", "referenceinvoiceno", "payment", "comment", "days", "qtysku"], "opsQuotes": ["size", "area", "sku", "colour", "totalorder", "companyname", "location", "datamatrix", "", "sellingpricesgd", "quoteddate", "validityofquote", "formatsheetsrolls"]};
 var SHEET_COL_LABEL={"size": "Size", "area": "Area / 面积", "sku": "SKU / SKU", "colour": "Colour / 颜色", "totalorder": "Total Order / 总数几张", "companyname": "Company Name / 公司名", "location": "Location / 地点", "priceperpiecermb": "Price per piece RMB / 每件价格 RMB", "totalpricermb": "Total Price RMB / 总数价格 RMB", "totalpricesgd": "Total Price SGD / 总数价格 SGD", "shippingsgd": "Shipping SGD / 空运价格", "9gst": "9% GST / 9% GST 税", "totalcostsgd": "Total Cost SGD / 总成本", "sellingpricesgd": "Selling Price SGD / 售价 SGD", "profitsgd": "Profit SGD / 利润 SGD", "profitmarginnormal": "Profit Margin normal % / 利润率 %", "status": "Status / 状态", "orderreceiveddate": "Order Received Date / 订单日期", "estdeliverydate": "Est. Delivery Date / 交货日期", "trackingnumber": "Tracking Number / 追踪号码", "deliveryaddress": "Delivery Address / 配送地址", "name": "Name / 联系人", "contact": "Contact / 联系方式", "invoicedate": "Invoice Date / 发票日期", "referenceinvoiceno": "Reference / Invoice No. / 发票号", "payment": "Payment / 付款", "comment": "Comment / 备注", "days": "Days / 几天", "qtysku": "QTY/SKU / QTY/SKU", "printer": "Printer / 打印公司", "shipper": "Shipper / 空运公司", "weight": "Weight / 重量", "shippingsgdkg": "Shipping SGD/KG / 空运价/重量 SGD", "datamatrix": "Data Matrix / 二维码", "documentationcost": "Documentation Cost / 报税手续费", "totalprice9gstsgd": "Total Price + 9% GST SGD / 总成本 含税", "totalcost15sgd": "Total Cost 1.5 SGD / 总成本 X 1.5", "profitsgdw15x": "Profit SGD w 1.5x / 利润 SGD (1.5 成本）", "profitmarginw15x": "Profit Margin w 1.5x / 利润 (1.5 成本）", "priceperpiece": "Price per Piece / 每张价格 SGD", "quoteddate": "Quoted Date / 报价日期", "validityofquote": "Validity of Quote / 报价有效期", "printerquote": "Printer Quote / 报价公司", "formatsheetsrolls": "Format (sheets/rolls) / 打印方式 （片/卷）"};
-var SHEET_NEW_COLS=[['packingform','包装形式'],['adhesives','胶水类型']];
-var COL_PACK=100,COL_ADH=101;
+var SHEET_NEW_COLS=[['packingform','包装形式'],['adhesives','胶水类型'],['invoiceno','发票编号']];
+var COL_PACK=100,COL_ADH=101,COL_INVNO=102;
+// Renamed headings: the old name is still accepted, so the dashboard works before AND after a rename.
+// "Reference / Invoice No. / 发票号" became "Reference No. / 参考编号" (and a separate "Invoice No. / 发票编号"
+// column was added for the Xero invoice number).
+var SHEET_ALIASES={referenceinvoiceno:['referenceno','参考编号','发票号']};
 var SHEET_COL_WARN=[];
 function _lnk(s){return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]/g,'');}
 function legacyRows(ws,key,label){
@@ -2925,17 +2929,19 @@ function legacyRows(ws,key,label){
   var pos={},zpos={};
   (rows[hi]||[]).forEach(function(h,j){var k=_lnk(h);if(k&&!(k in pos))pos[k]=j;});
   (hi>0?rows[hi-1]||[]:[]).forEach(function(h,j){var k=_lnk(h);if(k&&!(k in zpos))zpos[k]=j;});
-  var map=layout.map(function(k){return k?(k in pos?pos[k]:-1):-2;});
-  layout.forEach(function(k,j){if(k&&!(k in pos))SHEET_COL_WARN.push(label+' → “'+(SHEET_COL_LABEL[k]||k)+'”');});
+  function _find(k){if(k in pos)return pos[k];var al=SHEET_ALIASES[k]||[];for(var a=0;a<al.length;a++){var ak=_lnk(al[a]);if(ak in pos)return pos[ak];}for(a=0;a<al.length;a++){ak=_lnk(al[a]);if(ak in zpos)return zpos[ak];}return -1;}
+  var map=layout.map(function(k){return k?_find(k):-2;});
+  layout.forEach(function(k,j){if(k&&map[j]<0)SHEET_COL_WARN.push(label+' → “'+(SHEET_COL_LABEL[k]||k)+'”');});
   var nc=SHEET_NEW_COLS.map(function(p){var e=_lnk(p[0]),z=_lnk(p[1]);return (e in pos)?pos[e]:((z in zpos)?zpos[z]:-1);});
   if(SHEET_COL_WARN.length)_colWarnSoon();
   return rows.map(function(row){
     if(!row)return row;
-    var out=new Array(COL_ADH+1);
+    var out=new Array(COL_INVNO+1);
     for(var j=0;j<out.length;j++)out[j]=null;
     for(j=0;j<map.length;j++){var m=map[j];if(m>=0){var v=row[m];out[j]=(v===undefined?null:v);}}
     if(nc[0]>=0){var v0=row[nc[0]];out[COL_PACK]=(v0===undefined?null:v0);}
     if(nc[1]>=0){var v1=row[nc[1]];out[COL_ADH]=(v1===undefined?null:v1);}
+    if(nc[2]>=0){var v2=row[nc[2]];out[COL_INVNO]=(v2===undefined?null:v2);}
     return out;
   });
 }
@@ -2998,7 +3004,7 @@ function parseAndRender(buf1,buf2){
             invoice:(_cv2(row[19])||'').slice(0,35),invoiceFull:(_cv2(row[19])||'').slice(0,300),payment:_cv2(row[20])||'',printer:'',shipper:'',
             days:_cv2(row[22])||'',comment:(_cv2(row[21])||'').slice(0,80),
             totalRmb:0,totalSgd:Math.round(_fn2(row[8])*100)/100,gst:0,totalCost:0,marginPct:0,
-            qtyPerSku:Math.round(_fn2(row[23])*100)/100,pricePerPcRmb:0,packing:_cv2(row[COL_PACK]),adhesive:_cv2(row[COL_ADH])});
+            qtyPerSku:Math.round(_fn2(row[23])*100)/100,pricePerPcRmb:0,packing:_cv2(row[COL_PACK]),adhesive:_cv2(row[COL_ADH]),invoiceNo:_cv2(row[COL_INVNO])});
         });
       }
     }catch(e){console.error('staff Orders parse error:',e);}
@@ -3150,7 +3156,7 @@ function parseAndRender(buf1,buf2){
     or.slice(hi+1).forEach(function(row,i){
       if(!row[5]||!cv(row[5]))return;var co=cv(row[5]);if(!co)return;
       var st=cv(row[18])||'Pending';
-      ORDERS.push({id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),invoiceFull:(cv(row[28])||'').slice(0,300),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100,packing:cv(row[COL_PACK]),adhesive:cv(row[COL_ADH])});
+      ORDERS.push({id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),invoiceFull:(cv(row[28])||'').slice(0,300),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100,packing:cv(row[COL_PACK]),adhesive:cv(row[COL_ADH]),invoiceNo:cv(row[COL_INVNO])});
     });
   });
 
@@ -5845,7 +5851,7 @@ function clearDrag(){document.querySelectorAll('.col').forEach(function(c){c.cla
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
 function openListModal(title,sub,rows){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}document.getElementById('m-name').textContent=title;document.getElementById('m-sub').textContent=sub;document.getElementById('m-rows').innerHTML=rows.map(function(r,i){return'<div class="mrow" style="cursor:pointer" id="mrow'+i+'"><span class="ml" style="color:var(--t);font-weight:500">'+r.left+'</span><span class="mv" style="color:var(--m)">'+r.right+'</span></div>';}).join('');rows.forEach(function(r,i){var el=document.getElementById('mrow'+i);if(el&&r.cb)el.addEventListener('click',function(){closeModal();setTimeout(r.cb,80);});});document.getElementById('m-sel').style.display='none';document.getElementById('m-save').style.display='none';document.getElementById('modal-bg').classList.add('on');}
-function openModal(id,type){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}editId=id;editType=type;var selEl=document.getElementById('m-sel'),saveEl=document.getElementById('m-save');selEl.innerHTML='';selEl.style.display='';saveEl.style.display='';if(type==='crm'){var c=CLIENTS.find(function(c){return c.id===id;});document.getElementById('m-name').innerHTML=wlEsc(c.name)+wlChipFor(c.name);document.getElementById('m-sub').textContent='Client \u2014 '+c.stage+(c.ctype?' \u00b7 '+c.ctype:'');var fields=[['Last contact',c.lastContact],['PIC 1',c.contact],['PIC 2',c.pic2],['Position',c.position],['Mobile',c.mobile],['Office',c.office],['Email',c.email],['Website',c.website],['Address',c.address],['Pasting',c.pasting],['Language',c.language],['Comment',c.comment]];document.getElementById('m-rows').innerHTML=wlModalBlock(c.name)+fields.map(function(r){var val=r[1]||'\u2014';if(r[1]&&r[0]==='Email')val='<a href="mailto:'+r[1]+'" style="color:var(--blu)">'+r[1]+'</a>';if(r[1]&&r[0]==='Website')val='<a href="http://'+r[1].replace(/^https?:\/\//,'')+'" target="_blank" style="color:var(--blu)">'+r[1]+'</a>';return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+val+'</span></div>';}).join('');CRM_STAGES.forEach(function(s){var o=document.createElement('option');o.value=s.id;o.textContent=s.id;if(s.id===c.stage)o.selected=true;selEl.appendChild(o);});}else{var o=ORDERS.find(function(o){return o.id===id;});document.getElementById('m-name').innerHTML=wlEsc(o.name)+wlChipFor(o.name);document.getElementById('m-sub').textContent=(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.loc+' \u00b7 '+o.size+' \u00b7 '+o.qty.toLocaleString()+' pcs';var ofields=[['Invoice',o.invoice],['Payment',o.payment||TX.unpaidTxt],['Price','S$'+(o.price||0).toLocaleString()],['Shipping',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.shipping||0).toLocaleString()],['Profit',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.profit||0).toLocaleString()],['Received',o.received],['Est. delivery',o.delivery],['Tracking',o.tracking],['Delivery address',o.address],['Contact',o.contact],['Mobile',o.mobile],['Printer',ACCESS_LEVEL==='staff'?'\u2014\u2014':o.printer],['Shipper',o.shipper],['Lead time',o.days?o.days+' days':'\u2014'],[lang==='zh'?'包装形式':'Packing Form',o.packing],[lang==='zh'?'胶水类型':'Adhesives',o.adhesive],['Comment',o.comment]];document.getElementById('m-rows').innerHTML=wlModalBlock(o.name)+ofields.filter(function(r){return r[1]&&r[1]!=='NA';}).map(function(r){var isInv=r[0]==='Invoice';var isTrk=r[0]==='Tracking';var valHtml=isInv?'<span style="display:flex;align-items:center;gap:6px">'+r[1]+'<button onclick="event.stopPropagation();copyCellText(event,\''+String(r[1]).replace(/'/g,"\\'")+'\')" title="'+TX.copyInvoiceLbl+'" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--m);cursor:pointer">\u29c9</button></span>':r[1];if(isTrk){var tb=trackBtnsHtml(r[1],'sm');valHtml='<span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px">'+r[1]+'</span>'+(tb?'<span>'+tb+'</span>':'')+'</span>';}return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+valHtml+'</span></div>';}).join('');ORD_STAGES.forEach(function(s){var op=document.createElement('option');op.value=s.id;op.textContent=s.id;if(s.id===o.status)op.selected=true;selEl.appendChild(op);});}document.getElementById('modal-bg').classList.add('on');}
+function openModal(id,type){var ls=document.getElementById('login-screen');if(ls&&ls.style.display!=='none'&&getAccessToken()){hideLoginScreen();}editId=id;editType=type;var selEl=document.getElementById('m-sel'),saveEl=document.getElementById('m-save');selEl.innerHTML='';selEl.style.display='';saveEl.style.display='';if(type==='crm'){var c=CLIENTS.find(function(c){return c.id===id;});document.getElementById('m-name').innerHTML=wlEsc(c.name)+wlChipFor(c.name);document.getElementById('m-sub').textContent='Client \u2014 '+c.stage+(c.ctype?' \u00b7 '+c.ctype:'');var fields=[['Last contact',c.lastContact],['PIC 1',c.contact],['PIC 2',c.pic2],['Position',c.position],['Mobile',c.mobile],['Office',c.office],['Email',c.email],['Website',c.website],['Address',c.address],['Pasting',c.pasting],['Language',c.language],['Comment',c.comment]];document.getElementById('m-rows').innerHTML=wlModalBlock(c.name)+fields.map(function(r){var val=r[1]||'\u2014';if(r[1]&&r[0]==='Email')val='<a href="mailto:'+r[1]+'" style="color:var(--blu)">'+r[1]+'</a>';if(r[1]&&r[0]==='Website')val='<a href="http://'+r[1].replace(/^https?:\/\//,'')+'" target="_blank" style="color:var(--blu)">'+r[1]+'</a>';return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+val+'</span></div>';}).join('');CRM_STAGES.forEach(function(s){var o=document.createElement('option');o.value=s.id;o.textContent=s.id;if(s.id===c.stage)o.selected=true;selEl.appendChild(o);});}else{var o=ORDERS.find(function(o){return o.id===id;});document.getElementById('m-name').innerHTML=wlEsc(o.name)+wlChipFor(o.name);document.getElementById('m-sub').textContent=(FLAGS[o.loc]||'\ud83c\udf10')+' '+o.loc+' \u00b7 '+o.size+' \u00b7 '+o.qty.toLocaleString()+' pcs';var ofields=[[lang==='zh'?'参考编号':'Reference No.',o.invoice],[lang==='zh'?'发票编号':'Invoice No.',o.invoiceNo],['Payment',o.payment||TX.unpaidTxt],['Price','S$'+(o.price||0).toLocaleString()],['Shipping',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.shipping||0).toLocaleString()],['Profit',ACCESS_LEVEL==='staff'?'\u2014\u2014':'S$'+(o.profit||0).toLocaleString()],['Received',o.received],['Est. delivery',o.delivery],['Tracking',o.tracking],['Delivery address',o.address],['Contact',o.contact],['Mobile',o.mobile],['Printer',ACCESS_LEVEL==='staff'?'\u2014\u2014':o.printer],['Shipper',o.shipper],['Lead time',o.days?o.days+' days':'\u2014'],[lang==='zh'?'包装形式':'Packing Form',o.packing],[lang==='zh'?'胶水类型':'Adhesives',o.adhesive],['Comment',o.comment]];document.getElementById('m-rows').innerHTML=wlModalBlock(o.name)+ofields.filter(function(r){return r[1]&&r[1]!=='NA';}).map(function(r){var isInv=(r[0]==='Reference No.'||r[0]==='参考编号'||r[0]==='Invoice No.'||r[0]==='发票编号');var isTrk=r[0]==='Tracking';var valHtml=isInv?'<span style="display:flex;align-items:center;gap:6px">'+r[1]+'<button onclick="event.stopPropagation();copyCellText(event,\''+String(r[1]).replace(/'/g,"\\'")+'\')" title="'+TX.copyInvoiceLbl+'" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--m);cursor:pointer">\u29c9</button></span>':r[1];if(isTrk){var tb=trackBtnsHtml(r[1],'sm');valHtml='<span style="display:flex;flex-direction:column;gap:4px;align-items:flex-end"><span style="font-family:\'JetBrains Mono\',monospace;font-size:11px">'+r[1]+'</span>'+(tb?'<span>'+tb+'</span>':'')+'</span>';}return'<div class="mrow"><span class="ml">'+r[0]+'</span><span class="mv">'+valHtml+'</span></div>';}).join('');ORD_STAGES.forEach(function(s){var op=document.createElement('option');op.value=s.id;op.textContent=s.id;if(s.id===o.status)op.selected=true;selEl.appendChild(op);});}document.getElementById('modal-bg').classList.add('on');}
 function closeModal(){document.getElementById('modal-bg').classList.remove('on');editId=null;editType=null;}
 function saveModal(){var val=document.getElementById('m-sel').value;if(editType==='crm'){var c=CLIENTS.find(function(c){return c.id===editId;});if(c)c.stage=val;closeModal();renderCRM();}else{var o=ORDERS.find(function(o){return o.id===editId;});if(o)o.status=val;closeModal();renderOrders();}}
 document.getElementById('modal-bg').addEventListener('click',function(e){if(e.target===this)closeModal();});
@@ -6612,7 +6618,7 @@ function buildContactCheck(){
     // client has an orphan invoice with the same customer code + date (only the sequence differs),
     // or for the same amount, IS invoiced — just under a differently-typed ref (the Reference no.
     // check flags that typo). Without this, a typo would also show up here as "not invoiced".
-    var _crmKeys={};ORDERS.forEach(function(o){_rcRefList(o.invoiceFull||o.invoice).forEach(function(k){_crmKeys[k]=1;});});
+    var _crmKeys={};ORDERS.forEach(function(o){_rcRefList(o.invoiceFull||o.invoice).concat(_rcRefList(o.invoiceNo||'')).forEach(function(k){_crmKeys[k]=1;});});
     var _orph=INVOICES.filter(function(v){if(/void|delet/i.test(String(v.status||'')))return false;
       var ks=_rcRefList(v.reference).concat([_rcRefKey(v.invoice)]);v._nik=ks;return !ks.some(function(k){return _crmKeys[k];});});
     var _stem=function(k){var p=String(k||'').split('-');return p.length>2?p.slice(0,-1).join('-'):k;};
@@ -6641,7 +6647,7 @@ function buildContactCheck(){
       // Already invoiced? If the order carries a reference, THAT reference must be in Xero (as a
       // Reference or invoice number). Matching on company alone hid new orders from any client who
       // had ever been invoiced before. Only orders with no reference fall back to the company name.
-      var refs=_rcRefList(o.invoiceFull||o.invoice);
+      var refs=_rcRefList(o.invoiceFull||o.invoice).concat(_rcRefList(o.invoiceNo||''));
       if(refs.length){
         if(refs.some(function(k){return invKeySet[k];}))return;
         if(invNumSet[_normRef(o.invoice)])return;
@@ -7500,7 +7506,8 @@ var RC_FIELDS=[
   {k:'name',h:'name',t:'text',en:'Contact Name',zh:'联系人'},
   {k:'contact',h:'contact',t:'phone',en:'Contact No.',zh:'联系方式'},
   {k:'invDate',h:'invoice date',t:'date',en:'Invoice Date',zh:'发票日期'},
-  {k:'invoice',h:'reference / invoice no.',t:'ref',key:1,en:'Invoice / Ref No.',zh:'发票号'},
+  {k:'invoice',h:['reference no.','参考编号','reference / invoice no.','发票号'],t:'ref',key:1,en:'Reference No.',zh:'参考编号'},
+  {k:'invoiceNo',h:['invoice no.','发票编号'],t:'ref',key:1,en:'Invoice No.',zh:'发票编号'},
   {k:'payment',h:'payment',t:'pay',key:1,en:'Payment',zh:'付款'},
   {k:'comment',h:'comment',t:'text',en:'Comment',zh:'备注'},
   {k:'packing',h:'packing form',t:'text',key:1,en:'Packing Form',zh:'包装形式'},
@@ -7516,8 +7523,13 @@ function rcReadOrders(wb){
   var rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,blankrows:true});
   var hi=rows.findIndex(function(r){return r&&r.some(function(c){return typeof c==='string'&&c.trim()==='Status';});});
   if(hi<0)return [];
-  var H=rows[hi].map(function(h){return h==null?'':String(h).replace(/\s+/g,' ').trim().toLowerCase();});
-  var idx={};RC_FIELDS.forEach(function(f){idx[f.k]=H.indexOf(f.h);});
+  // Columns found by heading (formatting ignored); a field may list several names — e.g. the new
+  // "Reference No." and its old name "Reference / Invoice No." — and the Chinese row above is a fallback.
+  var H=rows[hi].map(_lnk),Hz=hi>0?(rows[hi-1]||[]).map(_lnk):[];
+  var idx={};RC_FIELDS.forEach(function(f){var names=[].concat(f.h).map(_lnk),j=-1;
+    for(var a=0;a<names.length&&j<0;a++)j=H.indexOf(names[a]);
+    for(a=0;a<names.length&&j<0;a++)j=Hz.indexOf(names[a]);
+    idx[f.k]=j;});
   var out=[];
   rows.slice(hi+1).forEach(function(row,i){
     if(!row)return;
@@ -7720,7 +7732,7 @@ function buildXeroPaidCheck(zh){
     if(_rcIsNA(payRaw)||_rcIsNA(o.invoice))return;             // deliberately not invoiced (free sample)
     var crmPaid=/paid|已付/.test(payL)&&!/unpaid|未付/.test(payL);
     var crmOdd=!!payL&&!crmPaid;
-    var refs=_rcRefList(o.invoice),seen={},invs=[],how='ref';
+    var refs=_rcRefList(o.invoice).concat(_rcRefList(o.invoiceNo)),seen={},invs=[],how='ref';
     refs.forEach(function(k){(byKey[k]||[]).forEach(function(v){if(!seen[v.invoice]){seen[v.invoice]=1;invs.push(v);}});});
     var price=_rcNum(o.price)||0;
     if(!invs.length&&price>0){
@@ -7852,7 +7864,8 @@ function buildXeroRefCheck(zh){
   OPS_ORD_RAW.forEach(function(o){
     var st=_rcS(o.status).toUpperCase();if(st==='X'||st==='CANCELLED')return;
     var dk=_rcDateKeys(o.received)[0];if(dk&&(!minDate||dk<minDate))minDate=dk;
-    var toks=_rcRefRaw(o.invoice);
+    var toks=_rcRefRaw(o.invoice),invToks=_rcRefRaw(o.invoiceNo);
+    if(!toks.length&&invToks.length)toks=invToks;   // no reference typed, but the Xero invoice no. is
     if(!toks.length){
       if(!_rcIsNA(o.invoice)&&!_rcIsNA(o.payment)&&((_rcS(o.payment)&&/paid/i.test(_rcS(o.payment)))||_rcDateKeys(o.invDate).length)&&(_rcNum(o.price)||0)>0)
         res.flags.push({reason:'crmNoRef',company:_rcS(o.company),rows:[o._row],crmRef:'',xeroRef:'',invs:[],
@@ -7867,6 +7880,8 @@ function buildXeroRefCheck(zh){
       if(first)un(first,id);else first=id;      // several refs on one row belong together
       (xByKey[lk]||[]).forEach(function(x){un(id,x);});
     });
+    // The Invoice No. column links the row to that Xero invoice too.
+    if(first)invToks.forEach(function(t){(xByKey[_rcRefKey(t)]||[]).forEach(function(x){un(first,x);});});
   });
   // ── gather groups ──
   function groups(){
@@ -9530,7 +9545,7 @@ if('serviceWorker' in navigator){
     A(window.ORDERS).forEach(function(o){
       ix.push({type:'order',id:o.id,label:s(o.name),
         sub:function(){var wf=coFlag(o.name);return typeName('order')+(wf?' · '+wlLevelLbl(wf.level):'')+' · '+s(o.size)+' · '+pcs(o.qty)+(o.status?' · '+s(o.status):'')+(o.invoice?' · '+s(o.invoice):'');},
-        hay:low([o.name,o.size,o.invoice,o.tracking,o.contact,o.mobile,o.address,o.status,o.payment,o.comment,o.loc,o.colour,o.qty,o.packing||'',o.adhesive||''].join(' '))+wlSearchText(o.name),
+        hay:low([o.name,o.size,o.invoice,o.tracking,o.contact,o.mobile,o.address,o.status,o.payment,o.comment,o.loc,o.colour,o.qty,o.packing||'',o.adhesive||'',o.invoiceNo||''].join(' '))+wlSearchText(o.name),
         nav:{tab:'orders',modal:{id:o.id,type:'orders'}}});
     });
     // (Individual quote lines are folded into the per-company "Quote History" entries
