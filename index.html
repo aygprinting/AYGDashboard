@@ -1721,7 +1721,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261001-INVNO4'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261002-INVNO5'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -8018,7 +8018,10 @@ function buildXeroInvNoCheck(zh){
         return;
       }
       var xr=_rcRefList(v.reference);
-      if(refKeys.length&&xr.length&&!xr.some(function(r){return refKeys.indexOf(r)>-1;})){
+      // Not a conflict when the row's Reference No. IS this invoice's number (e.g. Xero's Reference
+      // holds the customer's PO such as "VPO261310", and the CRM keeps the AYG number instead).
+      var selfRef=refKeys.indexOf(_rcRefKey(v.invoice))>-1;
+      if(refKeys.length&&xr.length&&!selfRef&&!xr.some(function(r){return refKeys.indexOf(r)>-1;})){
         rowOk=false;
         res.flags.push(Object.assign({},base,{reason:'refDiff',bad:n,invs:[v],xeroRef:v.reference,
           why:zh?'Xero 发票 '+v.invoice+' 的参考编号是「'+v.reference+'」，但 CRM 这一行的参考编号是「'+base.crmRef+'」— 发票编号或参考编号有一边填错了。'
