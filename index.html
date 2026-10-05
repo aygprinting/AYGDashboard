@@ -1721,7 +1721,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261002-INVNO5'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261005-ORDID1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6323,7 +6323,7 @@ function _bcrsFind(list,type,val){
 }
 // Best available handle on one portal order within a given table, or null if it isn't there.
 function _bcrsPick(list,ref,orderRef,company){
-  var tries=[['ref',(ref&&ref!=='X')?ref:''],['orderId',orderRef],['company',company]];
+  var tries=[['orderId',orderRef],['ref',(ref&&ref!=='X')?ref:''],['company',company]];   // portal Order ID first, then AYG ref, then company
   for(var i=0;i<tries.length;i++){
     var t=tries[i][0],hit=_bcrsFind(list,t,tries[i][1]);
     // Query the matched row's OWN text, so name/punctuation variants between the portal-status
@@ -8347,8 +8347,8 @@ function renderChecks(){
     function aygRow(x,detailHtml,noteHtml){
       var co=(x.company||'—');
       var prod=x.product?'<div style="font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+x.product+'</div>':'';
-      // Jump straight to this order's line in the portal pull — AYG ref first, then the portal
-      // Order Ref, then the company, so rows with a blank or 'X' reference still land somewhere.
+      // Jump straight to this order's line in the portal pull — portal Order ID first, then the AYG
+      // ref, then the company, so rows with a blank or 'X' reference still land somewhere.
       var jump='jumpToBcrs(\''+_ja(x.aygRef)+'\',\''+_ja(x.orderRef)+'\',\''+_ja(x.company)+'\')';
       return '<div style="display:flex;align-items:'+(noteHtml?'flex-start':'center')+';justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="'+jump+'">'
         +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+co+'</span>'+prod+(noteHtml||'')+'</span>'
