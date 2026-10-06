@@ -1721,7 +1721,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261005-ORDID1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261006-POSS1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6469,6 +6469,7 @@ function _normCoBase(s){
   s=String(s||'').toLowerCase().trim();
   s=s.replace(/\([^)]*\)/g,' ');   // drop parenthetical suffixes, e.g. "(Etika Holdings)", "(SG)"
   s=s.replace(/;.*$/,' ');          // drop "; alias" suffixes so the parent name still matches
+  s=s.replace(/['\u2019]s\b/g,'');  // possessive: "Bawa's Delicacy" == "Bawa Delicacy"
   s=s.replace(/&/g,'and').replace(/\bn\b/g,'and'); // "Fresh & Natural" == "Fresh N Natural"
   s=s.replace(/\b(singapore|s'pore|spore|sg)\b/g,' ');  // drop jurisdiction words: "X Singapore" == "X"
   s=s.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
@@ -6556,6 +6557,7 @@ function buildContactCheck(){
   function _normInv(x){
     x=String(x||'').toLowerCase().trim();
     x=x.split(';')[0];                         // drop CRM alias suffix
+    x=x.replace(/['\u2019]s\b/g,'');             // possessive: "Bawa's Delicacy" == "Bawa Delicacy"
     x=x.replace(/\([^)]*\)/g,' ');             // drop parenthetical suffixes, e.g. "(Etika Holdings)"
     x=x.replace(/\u0026/g,'and').replace(/\bn\b/g,'and'); // & / standalone n -> and
     x=x.replace(/\b(singapore|s'pore|spore)\b/g,' '); // drop jurisdiction words so YHS (Singapore) reduces the same as YHS
