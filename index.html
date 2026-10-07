@@ -531,6 +531,17 @@ html,body{overscroll-behavior-y:contain}
 tr.wl-row-stop td:first-child{box-shadow:inset 3px 0 0 var(--red)}
 tr.wl-row-caution td:first-child{box-shadow:inset 3px 0 0 var(--amb)}
 .wl-mblock{border-radius:8px;padding:7px 9px;margin-bottom:7px}
+/* ── VIP clients ── gold star chips. Separate colour family from the watchlist so a company on
+   both lists (e.g. VVIP + CAUTION) shows two clearly different tags side by side. */
+.vip-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;white-space:nowrap;vertical-align:middle;cursor:help;letter-spacing:.06em;color:#b7791f;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.42)}
+.vip-chip.vip-3{color:#1c1405;background:linear-gradient(135deg,#facc15,#eab308);border-color:#ca8a04}
+.vip-chip.vip-2{color:#a16207;background:rgba(234,179,8,.22);border-color:rgba(202,138,4,.6)}
+.vip-chip b{font-weight:700;letter-spacing:.02em;font-size:9px;margin-left:2px}
+.card.vip-card-3{border-color:rgba(234,179,8,.55)}
+.card.vip-card-2{border-color:rgba(234,179,8,.38)}
+.card.vip-card-1{border-color:rgba(234,179,8,.24)}
+tr.vip-row-3 td:first-child,tr.vip-row-2 td:first-child,tr.vip-row-1 td:first-child{box-shadow:inset 3px 0 0 #eab308}
+.vip-ban{border-radius:var(--r);padding:9px 12px;display:flex;gap:10px;align-items:flex-start;margin:9px 0;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.32);border-left:3px solid #eab308}
 </style>
 </head>
 <body>
@@ -1715,13 +1726,14 @@ var NEWCUST_META={dailyDate:'',yesterdayDate:'',winStart:'',winEnd:'',dataStart:
 var AUTO_MAIN=[]; // AYG Operations → Auto Main sheet: BCRS order portal pull log
 var OLD_AUTO_MAIN=[]; // AYG Operations → Old Auto Main History sheet: older BCRS portal records. Lazy-synced (separate button), NOT loaded on login.
 var PORTAL_STATUS=[]; // AYG Operations → AYG Portal Status sheet: portal-order vs CRM reconciliation (AYG Reference check). Loaded on main sync.
+var VIPS=[],VIP_IDX={};  // AYG Operations → "VIP": star clients (VVVIP ★★★ / VVIP ★★ / VIP ★). Loaded on main sync.
 var WATCHLIST=[];  // AYG Operations → "Watchlist 观察名单": flagged companies. Loaded on main sync.
 var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows only)
 // Row 1 of that sheet ("AYG Portal Status — updated DD/MM/YYYY HH:MM · N orders · ..."). The Match?
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261006-POSS1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261007-VIP1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1771,7 +1783,11 @@ var TX=TX_EN;
     wlNotLoaded:'Watchlist sheet not found in the AYG Operations workbook.',
     wlUnpaid:'unpaid',wlLive:'live order',wlLiveN:'live orders',wlPortal:'portal rows',
     wlOverdueSuffix:'d overdue',wlInvoices:'invoices',wlInvoice:'invoice',
-    wlNeverOrdered:'never ordered',wlOrderedBefore:'ordered before'};
+    wlNeverOrdered:'never ordered',wlOrderedBefore:'ordered before',
+    vipGrpHd:'VIP clients',vipFollowHd:'VIP follow-up',vipFollowClear:'Every VIP is up to date',
+    vipFollowDesc:"How it's derived: takes every row of the VIP sheet with Active = Y. Flagged when the CRM last-contact date is older than 14 days (\u2605\u2605\u2605 VVVIP), 21 days (\u2605\u2605 VVIP) or 30 days (\u2605 VIP); when it has an overdue Xero invoice; or when the name can't be matched to a CRM contact (fix the spelling or add an Alias).",
+    vipBanHd:'VIP client',vipNotLoaded:'VIP sheet not found in the AYG Operations workbook.',vipCount:'VIPs',
+    vipNoContact:'no contact for',vipDays:'d',vipNoCrm:'not matched in CRM \u2014 check name / Alias',vipNoDate:'no last-contact date in CRM',vipBy:'added by'};
   var ZH={wlGrpHd:'\u89c2\u5bdf\u540d\u5355 \u2014 \u88ab\u6807\u8bb0\u516c\u53f8',wlActiveLbl:'\u751f\u6548',
     wlLvlSTOP:'\u505c\u6b62',wlLvlCAUTION:'\u8c28\u614e',wlLvlNOTE:'\u5907\u6ce8',
     wlStopHd:'\u5df2\u6807\u8bb0\u516c\u53f8 \u2014 \u9700\u6279\u51c6',
@@ -1789,7 +1805,11 @@ var TX=TX_EN;
     wlNotLoaded:'\u5728 AYG Operations \u5de5\u4f5c\u7c3f\u4e2d\u672a\u627e\u5230 Watchlist \u5de5\u4f5c\u8868\u3002',
     wlUnpaid:'\u672a\u4ed8',wlLive:'\u4e2a\u8fdb\u884c\u4e2d\u8ba2\u5355',wlLiveN:'\u4e2a\u8fdb\u884c\u4e2d\u8ba2\u5355',wlPortal:'\u6761\u95e8\u6237\u8bb0\u5f55',
     wlOverdueSuffix:'\u5929\u903e\u671f',wlInvoices:'\u5f20\u53d1\u7968',wlInvoice:'\u5f20\u53d1\u7968',
-    wlNeverOrdered:'\u4ece\u672a\u4e0b\u5355',wlOrderedBefore:'\u66fe\u4e0b\u5355'};
+    wlNeverOrdered:'\u4ece\u672a\u4e0b\u5355',wlOrderedBefore:'\u66fe\u4e0b\u5355',
+    vipGrpHd:'VIP \u5ba2\u6237',vipFollowHd:'VIP \u8ddf\u8fdb',vipFollowClear:'\u6240\u6709 VIP \u90fd\u5df2\u53ca\u65f6\u8ddf\u8fdb',
+    vipFollowDesc:'\u6765\u6e90\uff1aVIP \u8868\u4e2d Active = Y \u7684\u6bcf\u4e00\u884c\u3002\u6807\u8bb0\u6761\u4ef6\uff1aCRM \u6700\u540e\u8054\u7cfb\u65e5\u671f\u8d85\u8fc7 14 \u5929\uff08\u2605\u2605\u2605 VVVIP\uff09\u300121 \u5929\uff08\u2605\u2605 VVIP\uff09\u6216 30 \u5929\uff08\u2605 VIP\uff09\uff1b\u6709 Xero \u903e\u671f\u53d1\u7968\uff1b\u6216\u540d\u79f0\u5728 CRM \u4e2d\u5bf9\u4e0d\u4e0a\uff08\u8bf7\u4fee\u6b63\u62fc\u5199\u6216\u52a0 Alias\uff09\u3002',
+    vipBanHd:'VIP \u5ba2\u6237',vipNotLoaded:'\u5728 AYG Operations \u5de5\u4f5c\u7c3f\u4e2d\u672a\u627e\u5230 VIP \u5de5\u4f5c\u8868\u3002',vipCount:'\u4e2a VIP',
+    vipNoContact:'\u672a\u8054\u7cfb',vipDays:'\u5929',vipNoCrm:'CRM \u4e2d\u5bf9\u4e0d\u4e0a \u2014 \u8bf7\u68c0\u67e5\u540d\u79f0\uff0fAlias',vipNoDate:'CRM \u6ca1\u6709\u6700\u540e\u8054\u7cfb\u65e5\u671f',vipBy:'\u6dfb\u52a0\u4eba'};
   for(var k in EN)TX_EN[k]=EN[k];
   for(var k2 in ZH)TX_ZH[k2]=ZH[k2];
 })();
@@ -3399,6 +3419,7 @@ function parseAndRender(buf1,buf2){
     // exactly like company_map.xlsx being absent.
     parseWatchlist(wbOps);
   });
+  safely('VIP',function(){parseVip(wbOps);});
 
   safely('Finalize',function(){
     PQA=CLIENTS.filter(function(c){return c.stage==='Quoting';});
@@ -7050,7 +7071,7 @@ var CHK_SEC_KEY='aygops-chk-sections';
 function getChkSecState(){try{return JSON.parse(localStorage.getItem(CHK_SEC_KEY))||{};}catch(e){return {};}}
 // Checks & Reconciliation group order (↑↓ on each group header), remembered like Orders / Clients.
 var CHK_GRP_ORDER_KEY='aygops-chk-grp-order';
-var CHK_GRP_DEFAULT=['orders','portal','crm','watch'];
+var CHK_GRP_DEFAULT=['orders','portal','crm','watch','vip'];
 function getChkGrpOrder(){
   var o=null;try{o=JSON.parse(localStorage.getItem(CHK_GRP_ORDER_KEY));}catch(e){}
   o=(o&&o.length)?o.filter(function(g){return CHK_GRP_DEFAULT.indexOf(g)>-1;}):[];
@@ -7350,9 +7371,99 @@ function wlChip(f){
   return ' <span class="wl-chip wl-'+L.cls+'" title="'+wlEsc(tip)+'">'+wlEsc(wlLevelLbl(f.level))+'</span>';
 }
 // Chip for a company name — '' when the company isn't flagged. Used by every card and table.
-function wlChipFor(name){return wlChip(coFlag(name));}
-function wlCardCls(name){var f=coFlag(name);return f?(' wl-card-'+(WL_LEVELS[f.level]||WL_LEVELS.NOTE).cls):'';}
-function wlRowCls(name){var f=coFlag(name);return f?(' class="wl-row-'+(WL_LEVELS[f.level]||WL_LEVELS.NOTE).cls+'"'):'';}
+// ── VIP clients ──────────────────────────────────────────────────────────────────
+// Source: AYG Operations → "VIP" sheet (Company Name · Active · Level · Alias · Ordered Before ·
+// Comment / Reason · Source · Review Date). Same rules as the Watchlist: columns found by header
+// text, Active = N switches a row off, aliases separated by ; , / or |. Level → stars:
+// VVVIP = 3, VVIP = 2, VIP = 1 (a bare "3"/"★★★" also works).
+var VIP_LEVELS={3:'VVVIP',2:'VVIP',1:'VIP'};
+var VIP_STALE_DAYS={3:14,2:21,1:30};   // VIP follow-up: days without CRM contact before flagging
+function vipStars(n){return '\u2605\u2605\u2605'.slice(0,n||1);}
+function parseVip(wb){
+  VIPS=[];VIP_IDX={};
+  if(!wb||!wb.Sheets||typeof XLSX==='undefined')return;
+  var nm=Object.keys(wb.Sheets).filter(function(k){return /\bv{1,3}ip\b/i.test(k);})[0];
+  if(!nm)return;
+  var rows=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:null});
+  var hi=-1;
+  for(var i=0;i<rows.length&&i<15;i++){
+    var probe=(rows[i]||[]).map(function(c){return String(c==null?'':c).toLowerCase();});
+    if(probe.some(function(c){return c.indexOf('company')>-1;})&&probe.some(function(c){return c.indexOf('level')>-1;})){hi=i;break;}
+  }
+  if(hi<0)return;
+  var H={};
+  (rows[hi]||[]).forEach(function(c,idx){
+    var h=String(c==null?'':c).toLowerCase().trim();if(!h)return;
+    function set(k){if(H[k]===undefined)H[k]=idx;}
+    if(h.indexOf('company')>-1)set('company');
+    else if(h.indexOf('active')>-1)set('active');
+    else if(h.indexOf('level')>-1)set('level');
+    else if(h.indexOf('alias')>-1)set('alias');
+    else if(h.indexOf('ordered')>-1)set('ordered');
+    else if(h.indexOf('comment')>-1||h.indexOf('reason')>-1)set('comment');
+    else if(h.indexOf('source')>-1)set('source');
+    else if(h.indexOf('date')>-1||h.indexOf('added')>-1)set('date');
+  });
+  if(H.company===undefined)return;
+  function g(r,k){
+    if(H[k]===undefined||r[H[k]]==null)return '';
+    var v=r[H[k]];if(v instanceof Date)return wlFmtDate(v);
+    return String(v).trim();
+  }
+  rows.slice(hi+1).forEach(function(r){
+    if(!r)return;
+    var co=g(r,'company');if(!co)return;
+    var act=g(r,'active').toUpperCase();
+    var active=!(act==='N'||act==='NO'||act==='FALSE'||act==='0');
+    var raw=g(r,'level').toUpperCase();
+    var stars=(raw.match(/\u2605/g)||[]).length;
+    if(!stars){var d=raw.match(/[123]/);if(d)stars=+d[0];}
+    if(!stars){var vv=raw.replace(/[^A-Z]/g,'').replace(/IP$/,'');stars=Math.min(3,Math.max(1,(vv.match(/V/g)||[]).length));}
+    var aliases=g(r,'alias').split(/[;,\/|]+/).map(function(x){return x.trim();}).filter(Boolean);
+    var f={company:co,stars:stars,level:VIP_LEVELS[stars],active:active,comment:g(r,'comment'),
+           source:g(r,'source'),orderedSheet:g(r,'ordered'),aliases:aliases,
+           added:wlDate(H.date===undefined?null:r[H.date]),keys:[]};
+    [co].concat(aliases).forEach(function(v){
+      var a=_normCoBase(v),b=_normCo(v);
+      if(a&&f.keys.indexOf(a)<0)f.keys.push(a);
+      if(b&&f.keys.indexOf(b)<0)f.keys.push(b);
+    });
+    VIPS.push(f);
+    if(active)f.keys.forEach(function(k){if(!VIP_IDX[k]||VIP_IDX[k].stars<f.stars)VIP_IDX[k]=f;});
+  });
+}
+function vipFlag(name){
+  if(!name||!VIPS.length)return null;
+  var a=_normCo(name);if(a&&VIP_IDX[a])return VIP_IDX[a];
+  var b=_normCoBase(name);if(b&&VIP_IDX[b])return VIP_IDX[b];
+  return null;
+}
+function vipChip(v,full){
+  if(!v)return '';
+  var tip=[v.level,v.comment].filter(Boolean).join(' \u2014 ');
+  return ' <span class="vip-chip vip-'+v.stars+'" title="'+wlEsc(tip)+'">'+vipStars(v.stars)+(full?'<b>'+v.level+'</b>':'')+'</span>';
+}
+function vipModalBlock(name){
+  var v=vipFlag(name);if(!v)return '';
+  var meta=[];
+  if(v.source)meta.push(wlTx('vipBy','added by')+' '+wlEsc(v.source));
+  if(v.added)meta.push(wlFmtDate(v.added));
+  return '<div class="wl-mblock" style="background:rgba(234,179,8,.08);border-left:3px solid #eab308">'
+    +'<div style="font-size:11px;font-weight:700;color:#ca8a04;margin-bottom:3px">'+vipStars(v.stars)+' '+v.level+' \u2014 '+wlTx('vipBanHd','VIP client')+'</div>'
+    +(v.comment?'<div style="font-size:10.5px;color:var(--m);line-height:1.55">'+wlEsc(v.comment)+'</div>':'')
+    +(meta.length?'<div style="font-size:9.5px;color:var(--dim);line-height:1.5;margin-top:3px">'+meta.join(' \u00b7 ')+'</div>':'')
+    +'</div>';
+}
+function vipBannerHtml(name){
+  var v=vipFlag(name);if(!v)return '';
+  return '<div class="vip-ban"><span style="font-size:14px;line-height:1.2;color:#eab308;flex-shrink:0">'+vipStars(v.stars)+'</span>'
+    +'<div class="wl-ban-b"><div class="wl-ban-h" style="color:#ca8a04">'+v.level+' \u2014 '+wlTx('vipBanHd','VIP client')+'</div>'
+    +(v.comment?'<div class="wl-ban-why">'+wlEsc(v.comment)+'</div>':'')+'</div></div>';
+}
+// Watchlist chip first (a warning outranks a compliment), then the VIP stars.
+function wlChipFor(name){return wlChip(coFlag(name))+vipChip(vipFlag(name));}
+function wlCardCls(name){var f=coFlag(name);if(f)return ' wl-card-'+(WL_LEVELS[f.level]||WL_LEVELS.NOTE).cls;var v=vipFlag(name);return v?' vip-card-'+v.stars:'';}
+function wlRowCls(name){var f=coFlag(name);if(f)return ' class="wl-row-'+(WL_LEVELS[f.level]||WL_LEVELS.NOTE).cls+'"';var v=vipFlag(name);return v?' class="vip-row-'+v.stars+'"':'';}
 // Overdue money per company, straight from the Xero pull. Cached per invoice-list length so a
 // table can call it per row without rebuilding the map each time.
 var _wlOd={n:-1,map:null};
@@ -7429,7 +7540,8 @@ function wlBannerHtml(f,opts){
     +terms+why+metaHtml+ack+'</div></div>';
 }
 // Compact version for the top of a CRM / order modal — no acknowledge button.
-function wlModalBlock(name){
+function wlModalBlock(name){return _wlModalBlock(name)+vipModalBlock(name);}
+function _wlModalBlock(name){
   var f=coFlag(name);if(!f)return '';
   var L=WL_LEVELS[f.level]||WL_LEVELS.NOTE;
   var termsTxt=f.terms||(f.level==='STOP'?wlTx('wlNoTerms','Approval required before quoting'):'');
@@ -7448,8 +7560,9 @@ function wlModalBlock(name){
 }
 // Folded into the global-search text so "watchlist", "stop" or a phrase from the comment finds them.
 function wlSearchText(name){
-  var f=coFlag(name);if(!f)return '';
-  return ' watchlist '+String(f.level).toLowerCase()+' '+String(f.terms||'').toLowerCase()+' '+String(f.comment||'').toLowerCase();
+  var v=vipFlag(name),vt=v?(' vip '+v.level.toLowerCase()+' '+vipStars(v.stars)+' '+String(v.comment||'').toLowerCase()):'';
+  var f=coFlag(name);if(!f)return vt;
+  return vt+' watchlist '+String(f.level).toLowerCase()+' '+String(f.terms||'').toLowerCase()+' '+String(f.comment||'').toLowerCase();
 }
 // Quote screen. Paints the banner for whatever is typed in the client box and, for a STOP,
 // holds the Calculate button until it is acknowledged. Returns the blocking flag, or null.
@@ -7460,7 +7573,7 @@ function wlQuoteCheck(prefix){
   var f=inp?coFlag(inp.value):null;
   // Acknowledgement is per company, not per form — typing a different client clears it.
   if(WL_ACK&&(!f||f._key!==WL_ACK))WL_ACK='';
-  if(box)box.innerHTML=f?wlBannerHtml(f,{ackFor:prefix}):'';
+  if(box)box.innerHTML=(f?wlBannerHtml(f,{ackFor:prefix}):'')+(inp?vipBannerHtml(inp.value):'');
   if(inp)inp.style.borderColor=f?((WL_LEVELS[f.level]||WL_LEVELS.NOTE).col):'';
   var blocked=!!(f&&f.level==='STOP'&&WL_ACK!==f._key);
   var btn=document.getElementById(prefix+'-calc-btn');
@@ -8432,6 +8545,39 @@ function renderChecks(){
   }else{
     _MSG.watch='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+wlTx('wlNotLoaded','Watchlist sheet not found in the AYG Operations workbook.')+'</div>';
   }
+  // ── VIP follow-up: star clients that have gone quiet, owe money, or can't be found in the CRM ──
+  var _vipAct=VIPS.filter(function(v){return v.active;});
+  if(_vipAct.length){
+    var _vc={3:0,2:0,1:0};_vipAct.forEach(function(v){_vc[v.stars]++;});
+    _EXTRA.vip='<span style="font-size:9px;color:var(--dim)">'+[3,2,1].filter(function(n){return _vc[n];}).map(function(n){return '<span style="color:#ca8a04">'+vipStars(n)+'</span> '+_vc[n];}).join(' \u00b7 ')+'</span>';
+    var _vipRows=[];
+    _vipAct.forEach(function(v){
+      var why=[],c=(CLIENTS||[]).filter(function(x){return vipFlag(x.name)===v;})[0];
+      if(CLIENTS&&CLIENTS.length){
+        if(!c)why.push({t:wlTx('vipNoCrm','not matched in CRM'),col:'var(--m)'});
+        else{
+          var d=contactedDaysAgoN(c),lim=VIP_STALE_DAYS[v.stars]||30;
+          if(d<0&&!c.lastContact)why.push({t:wlTx('vipNoDate','no last-contact date in CRM'),col:'var(--amb)'});
+          else if(d>lim)why.push({t:wlTx('vipNoContact','no contact for')+' '+d+wlTx('vipDays','d'),col:'var(--amb)',d:d});
+        }
+      }
+      var od=wlOverdue(v);
+      if(od)why.push({t:(TX.xeroCur||'S$')+' '+fmtMoney(od.due)+' \u00b7 '+od.days+wlTx('wlOverdueSuffix','d overdue'),col:'#ef4444'});
+      if(why.length)_vipRows.push({v:v,c:c,why:why});
+    });
+    _vipRows.sort(function(a,b){return (b.v.stars-a.v.stars)||a.v.company.localeCompare(b.v.company);});
+    var vipHtml=_vipRows.map(function(x){
+      var v=x.v,click=x.c?'openModal('+x.c.id+',\'crm\')':'wlOpen(\''+String(v.company).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')';
+      return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:6px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="'+click+'">'
+        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+wlEsc(v.company)+'</span>'+vipChip(v,true)
+        +(v.comment?'<div style="font-size:10px;color:var(--dim);line-height:1.5;white-space:normal;margin-top:2px">'+wlEsc(v.comment)+'</div>':'')+'</span>'
+        +'<span style="font-size:10px;flex-shrink:0;text-align:right;white-space:nowrap">'+x.why.map(function(w){return '<div style="color:'+w.col+'">'+w.t+'</div>';}).join('')+'</span>'
+      +'</div>';
+    }).join('');
+    html+=chkSection('vip_follow',wlTx('vipFollowHd','VIP follow-up'),'#eab308',_vipRows.length,vipHtml,wlTx('vipFollowClear','Every VIP is up to date'),!!(CLIENTS&&CLIENTS.length),wlTx('vipFollowDesc',''));
+  }else{
+    _MSG.vip='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+wlTx('vipNotLoaded','VIP sheet not found in the AYG Operations workbook.')+'</div>';
+  }
   // ── Assemble: four collapsible groups (same open/close header as the Orders tab), each holding
   // its own collapsible checks. Group open/closed state is remembered like the checks' own. ──
   var _mgmtRecon=(ACCESS_LEVEL==='management')&&RC_MGMT_LOADED;
@@ -8440,7 +8586,8 @@ function renderChecks(){
       secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
     {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_mismatch','ayg_nottally','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
-    {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']}
+    {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']},
+    {id:'vip',title:'<span style="color:#ca8a04">\u2605</span> '+wlTx('vipGrpHd','VIP clients'),secs:['vip_follow']}
   ];
   window.CHK_GRP_SECS={};GROUPS.forEach(function(g){CHK_GRP_SECS[g.id]=g.secs.slice();});
   var _ord=getChkGrpOrder();
@@ -9662,13 +9809,13 @@ if('serviceWorker' in navigator){
     var ix=[];
     A(window.CLIENTS).forEach(function(c){
       ix.push({type:'client',id:c.id,label:s(c.name),
-        sub:function(){var wf=coFlag(c.name);return typeName('client')+(wf?' · '+wlLevelLbl(wf.level)+(wf.terms?' ('+wf.terms+')':''):'')+' · '+s(c.stage)+(c.contact?' · '+s(c.contact):'')+(c.mobile?' · '+s(c.mobile):'');},
+        sub:function(){var wf=coFlag(c.name),vf=vipFlag(c.name);return typeName('client')+(vf?' · '+vipStars(vf.stars)+' '+vf.level:'')+(wf?' · '+wlLevelLbl(wf.level)+(wf.terms?' ('+wf.terms+')':''):'')+' · '+s(c.stage)+(c.contact?' · '+s(c.contact):'')+(c.mobile?' · '+s(c.mobile):'');},
         hay:low([c.name,c.contact,c.pic2,c.email,c.mobile,c.office,c.address,c.website,c.comment,c.stage,c.language,c.position].join(' '))+wlSearchText(c.name),
         nav:{tab:'crm',modal:{id:c.id,type:'crm'}}});
     });
     A(window.ORDERS).forEach(function(o){
       ix.push({type:'order',id:o.id,label:s(o.name),
-        sub:function(){var wf=coFlag(o.name);return typeName('order')+(wf?' · '+wlLevelLbl(wf.level):'')+' · '+s(o.size)+' · '+pcs(o.qty)+(o.status?' · '+s(o.status):'')+(o.invoice?' · '+s(o.invoice):'');},
+        sub:function(){var wf=coFlag(o.name),vf=vipFlag(o.name);return typeName('order')+(vf?' · '+vipStars(vf.stars)+' '+vf.level:'')+(wf?' · '+wlLevelLbl(wf.level):'')+' · '+s(o.size)+' · '+pcs(o.qty)+(o.status?' · '+s(o.status):'')+(o.invoice?' · '+s(o.invoice):'');},
         hay:low([o.name,o.size,o.invoice,o.tracking,o.contact,o.mobile,o.address,o.status,o.payment,o.comment,o.loc,o.colour,o.qty,o.packing||'',o.adhesive||'',o.invoiceNo||''].join(' '))+wlSearchText(o.name),
         nav:{tab:'orders',modal:{id:o.id,type:'orders'}}});
     });
