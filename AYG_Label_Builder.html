@@ -227,7 +227,7 @@
     <button id="importBtn" data-i18n="importj">Import JSON</button>
     <button id="previewBtn" data-i18n="preview">👁 Preview</button>
     <button class="primary" id="exportBtn" data-i18n="exportj">Export spec JSON</button>
-    <span id="buildTag" class="abuild" title="Build version">v18.6 (2026-09-03)</span>
+    <span id="buildTag" class="abuild" title="Build version">v18.7 (2026-10-07)</span>
   </div>
 </header>
 
@@ -269,7 +269,7 @@
 </footer>
 
 <div id="tpPanel">
-  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.6 (2026-09-03)</span></span><button id="tpClose" title="Close">✕</button></div>
+  <div class="tphead"><span><span data-i18n="tptitle">Tapered die-cut</span> <span style="font-size:9px;color:var(--muted)">v18.7 (2026-10-07)</span></span><button id="tpClose" title="Close">✕</button></div>
   <div class="tpsec" data-i18n="tpmeas">Container measurements (mm)</div>
   <div class="tpgrid">
     <span data-i18n="tpshape">Container shape</span>
@@ -364,7 +364,7 @@ function defaultSpec(){
     {id:"nutrition",type:"nutrition_table",box:[0.9,10.9,28.7,27.9],title:"NUTRITION INFORMATION",subtitle:"Servings: 1 · Serving size: 250ml (1 Can)",header:["","Per Serving","Per 100ml"],rows:[["Energy","174kcal*","69.6kcal*"],["Protein","0g","0g"],["Total Fat","0g","0g"],["- Saturated Fat","0g","0g"],["- Trans Fat","0g","0g"],["Cholesterol","0mg","0mg"],["Carbohydrate","42.0g","16.8g"],["Dietary Fibre","0g","0g"],["Sodium","260mg","104mg"],["Sugar","41.0g","16.4g"]],size:1.45},
     {id:"dm",type:"datamatrix",box:[40.1,53,10,10],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"},
     {id:"tenc",type:"image",box:[40.6,6.4,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[34.5,19.9,21.13,29.83],data:"0123456789104",ladder:false,magnification:0.8,rotate:270},
+    {id:"ean",type:"barcode",box:[34.7,19.9,20.74,29.83],data:"0123456789104",ladder:false,magnification:0.8,rotate:270},
     {id:"notes",type:"text",box:[0.9,39.2,28.7,5.4],body:"*1kcal=4.2kJ. Max 3 cans/day. Net Weight: 250ml. Place of Origin: Vietnam. Not suitable for diabetics, young children and persons sensitive to caffeine.",size:1.3},
     {id:"ingredients",type:"text",box:[1.1,45.1,28.5,13.25],title:"INGREDIENTS:",body:"Water, Sugar, Citric acid (330), Taurine (1000mg), Sodium hydro carbonate (500ii), Synthetic flavour, Caffeine, Inositol, Lysine, Choline, Sodium Benzoate (211), Vitamin B3/B5/B6/B12, Colouring: Tartrazine (102), Ponceau 4R (124).",size:1.4},
     {id:"importer",type:"text",box:[1.1,59.3,28.5,5.3],body:"Imported by: GOURMET SUPPLIES PTE LTD. 16 Senoko Crescent, Singapore 758270. \nTEL: 6752 5888 / 6753 5888",size:1.2}
@@ -585,7 +585,7 @@ function tpSync(){
 
 const BLOCK_DEFS = {
   nutrigrade:{ic:"◧",make:()=>({type:"nutrigrade",box:[4,4,25.60,11],grade:"D",orientation:"horizontal",sugar:8,style:"full"})},
-  barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,26.42],data:"0123456789104",ladder:false,magnification:1.0})},
+  barcode:{ic:"|||",make:()=>({type:"barcode",box:[4,4,37.29,25.93],data:"0123456789104",ladder:false,magnification:1.0})},
   datamatrix:{ic:"▦",make:()=>({type:"datamatrix",box:[4,4,14,14],data:"P000000-000000-20260101-DEF-DATAMATRIX-SAMPLEDATAMATRIXONLY"})},
   image:{ic:"⬚",make:()=>({type:"image",box:[4,4,10.0,10.7],src:"bcrs_10c.png",fit:"contain"})},
   title:{ic:"T",make:()=>({type:"title",box:[4,4,40,10],align:"left",size:3.5,lines:["TITLE"]})},
@@ -740,7 +740,7 @@ function validate(){
     if((needsClear(B[i])||needsClear(B[j]))&&g<c-1e-6){add(B[i].id,`${B[i].id}/${B[j].id}: gap ${g.toFixed(1)}<${c}`);add(B[j].id,`gap`);}
   }
   B.forEach(b=>{if(b.type==="image"&&/10c|bcrs/i.test(b.src||"")){if(b.box[3]<9.7-1e-6||b.box[2]<9.0-1e-6)add(b.id,`${b.id}: 10¢ below min 9.7(H)×9.0(W)mm`);}
-    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?19.52:21.13;if(lng<mnL-0.09||shrt<mnS-0.09)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
+    if(b.type==="barcode"){const lng=Math.max(b.box[2],b.box[3]),shrt=Math.min(b.box[2],b.box[3]);const e8=(b.symbology||"ean13")==="ean8";const mnL=e8?21.38:29.83,mnS=e8?17.31:20.74;if(lng<mnL-0.09||shrt<mnS-0.09)add(b.id,`${b.id}: ${e8?"EAN-8":"EAN-13"} below 0.80 min magnification`);}});
   const tg=taperGeom();
   if(tg){
     const zh=state.lang==="zh";
@@ -799,6 +799,17 @@ function ngPreview(b){
       </div>
     </div></div>`;
 }
+// Barcode sizes per magnification (mm). w = width incl. quiet zones, bars = bar height excl. digits
+// (both GS1 GenSpecs Fig. 5.2.6.7-1), dig = full height incl. human-readable digits = box short side.
+// dig = nominal full height at 1.00 x magnification: EAN-8 21.64mm, EAN-13 25.93mm.
+const MAGTAB={
+  ean8:{"0.80":{w:21.38,bars:14.58,dig:17.31},"0.90":{w:24.06,bars:16.41,dig:19.48},"1.00":{w:26.73,bars:18.23,dig:21.64}},
+  ean13:{"0.80":{w:29.83,bars:18.28,dig:20.74},"0.90":{w:33.56,bars:20.57,dig:23.34},"1.00":{w:37.29,bars:22.85,dig:25.93}}};
+function magTable(sym,cur){const T=MAGTAB[sym==="ean8"?"ean8":"ean13"];const c=cur?(+cur).toFixed(2):"";
+  const td='style="padding:2px 4px;text-align:right"',th='style="padding:2px 4px;text-align:right;font-weight:600"';
+  let r=`<table style="margin-top:6px;border-collapse:collapse;font:10px var(--mono);width:100%"><tr><th style="padding:2px 4px;text-align:left;font-weight:600">Mag</th><th ${th}>Width</th><th ${th}>Bars only (GS1)</th><th ${th}>Height with digits</th></tr>`;
+  Object.keys(T).forEach(k=>{const v=T[k],on=k===c;r+=`<tr style="${on?"background:var(--accent);color:#0b1016;font-weight:700":""}"><td style="padding:2px 4px">${k}</td><td ${td}>${v.w.toFixed(2)}</td><td ${td}>${v.bars.toFixed(2)}</td><td ${td}>${v.dig.toFixed(2)}</td></tr>`;});
+  return r+`</table><div class="f" style="margin-top:3px;font-size:10px">mm · Width incl. quiet zones · box = Width × Height with digits</div>`;}
 function barPreview(b){
   const seq=[3,1,1,2,1,3,2,1,1,2,1,1,3,1,2,1,1,2,3,1,1,2,1,3,1,1,2,1,2,1];
   let bars="";seq.forEach((wd,i)=>{bars+=`<div style="flex:0 0 ${wd}px;height:100%;background:${i%2?'#fff':'#000'}"></div>`;});
@@ -1088,7 +1099,8 @@ function renderProps(){
   else if(b.type==="barcode"){const sym=b.symbology||"ean13";f=`${sel("Symbology",sym,["ean13","ean8"],"symbology")}${txt(sym==="ean8"?"EAN-8 data":"EAN-13 data",b.data,"data")}${chk("Ladder (vertical)",b.ladder,"ladder")}
     <div class="field"><span>${sym==="ean8"?"EAN-8":"EAN-13"} magnification · sets true print size</span><div class="row" style="gap:5px;flex-wrap:wrap">
       <button data-mag="0.80">0.80 min</button><button data-mag="0.90">0.90</button><button data-mag="1.00">1.00 nominal</button></div>
-    <div class="f" style="margin-top:5px;font-family:var(--mono)">current: ${b.magnification?(+b.magnification).toFixed(2)+"×":"—"} · ${(Math.max(b.box[2],b.box[3])).toFixed(1)}×${(Math.min(b.box[2],b.box[3])).toFixed(1)} mm</div></div>`;}
+    <div class="f" style="margin-top:5px;font-family:var(--mono)">current: ${b.magnification?(+b.magnification).toFixed(2)+"×":"—"} · ${(Math.max(b.box[2],b.box[3])).toFixed(1)}×${(Math.min(b.box[2],b.box[3])).toFixed(1)} mm</div>
+    ${magTable(sym,b.magnification)}</div>`;}
   else if(b.type==="datamatrix")f=`${txt("Payload",b.data,"data")}
     <div class="field"><span>Data Matrix size H×W (square)</span><div class="row" style="gap:5px;flex-wrap:wrap">
       <button data-dm="9">9×9</button><button data-dm="10">10×10</button><button data-dm="11">11×11</button><button data-dm="12">12×12</button></div></div>`;
@@ -1201,13 +1213,8 @@ function renderProps(){
   const up=p.querySelector("[data-upload]");if(up)up.onchange=e=>{const file=e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{saveState();b.src=rd.result;render();};rd.readAsDataURL(file);};
   p.querySelectorAll("[data-mag]").forEach(btn=>btn.onclick=()=>{saveState();
     // [long, short] mm per magnification. Long = nominal symbol WIDTH (incl. quiet zones, unchanged).
-    // Short = full symbol HEIGHT INCLUDING the human-readable OCR-B digits — set to long × (svg vh/vw)
-    // so the box matches the generated barcode's true aspect ratio (EAN-13 216×153 → ×0.70833;
-    // EAN-8 138×126 → ×0.91304). This includes the digit band AND fixes the previous letterbox that
-    // printed the code undersized. (Bars-only heights were 22.85 / 20.57 / 18.28 for EAN-13.)
-    const T13={"0.80":[29.83,21.13],"0.90":[33.56,23.77],"1.00":[37.29,26.42]};
-    const T8={"0.80":[21.38,19.52],"0.90":[24.06,21.97],"1.00":[26.73,24.41]};
-    const T=(b.symbology||"ean13")==="ean8"?T8:T13;const[lng,shrt]=T[btn.dataset.mag];const rot=((b.rotate||0)%360);if(rot===90||rot===270){b.box[3]=lng;b.box[2]=shrt;}else{b.box[2]=lng;b.box[3]=shrt;}b.magnification=parseFloat(btn.dataset.mag);render();});
+    // Short side = GS1 bars-only height + digits (EAN-8 21.64 / EAN-13 25.93mm nominal x magnification) — see MAGTAB.
+    const e=MAGTAB[(b.symbology||"ean13")==="ean8"?"ean8":"ean13"][btn.dataset.mag];const lng=e.w,shrt=e.dig;const rot=((b.rotate||0)%360);if(rot===90||rot===270){b.box[3]=lng;b.box[2]=shrt;}else{b.box[2]=lng;b.box[3]=shrt;}b.magnification=parseFloat(btn.dataset.mag);render();});
   p.querySelectorAll("[data-dm]").forEach(btn=>btn.onclick=()=>{saveState();const ssz=+btn.dataset.dm;b.box[2]=ssz;b.box[3]=ssz;render();});
   // Nutri-Grade size: dropdown sets the SHORT side; long side = short * ratio (2.3273).
   // Horizontal -> width is the long side; vertical -> height is the long side.
@@ -1279,7 +1286,7 @@ function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLE
   if(v==="55x30")return [  // 55x30: 10c TOP-LEFT, Data Matrix TOP-RIGHT, EAN-13 BOTTOM (rotated)
     {id:"tenc",type:"image",box:[4,3.5,9,9.7],src:"bcrs_10c.png",fit:"contain"},
     {id:"dm",type:"datamatrix",box:[16.9,3.4,10,10],data:DM},
-    {id:"ean",type:"barcode",box:[3.1,18.8,23.8,33.6],data:BC,ladder:false,rotate:270,magnification:0.9}];
+    {id:"ean",type:"barcode",box:[3.33,18.82,23.34,33.56],data:BC,ladder:false,rotate:270,magnification:0.9}];
   if(v==="40x40")return [  // barcode LEFT (ladder), 10c TOP-RIGHT, Data Matrix BOTTOM-RIGHT
     {id:"ean",type:"barcode",box:[2,4,23,32],data:BC,ladder:false,rotate:270},
     {id:"tenc",type:"image",box:[27.5,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
@@ -1290,20 +1297,20 @@ function codeTemplate(v){const DM="P000000-000000-20260101-DEF-DATAMATRIX-SAMPLE
     {id:"dm",type:"datamatrix",box:[27,24.9,11,11],data:DM}];
   if(v==="58x28")return [  // 10c TOP, EAN-13 CENTRE (ladder, 0.80), Data Matrix BOTTOM — all centred, 4 equal gaps
     {id:"tenc",type:"image",box:[9.5,2.12,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[4.86,13.93,18.28,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
+    {id:"ean",type:"barcode",box:[3.63,13.93,20.74,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
     {id:"dm",type:"datamatrix",box:[9,45.88,10,10],data:DM}];
   if(v==="65x24")return [  // 10c TOP, EAN-8 CENTRE (ladder, 0.80), Data Matrix BOTTOM — all centred, 4 equal gaps
     {id:"tenc",type:"image",box:[7.5,5.98,9,9.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[4.71,21.66,14.58,21.38],data:"01234565",ladder:false,rotate:270,magnification:0.80,symbology:"ean8"},
+    {id:"ean",type:"barcode",box:[3.35,21.66,17.31,21.38],data:"01234565",ladder:false,rotate:270,magnification:0.80,symbology:"ean8"},
     {id:"dm",type:"datamatrix",box:[7,49.02,10,10],data:DM}];
   if(v==="40x55")return [  // AYG 40x55 product sticker: EAN-13 LEFT (rotated), 10c + Data Matrix CENTRE, Nutri-Grade RIGHT edge
-    {id:"ean",type:"barcode",box:[2.1,5,21.13,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
+    {id:"ean",type:"barcode",box:[2.3,5,20.74,29.83],data:BC,ladder:false,rotate:270,magnification:0.80},
     {id:"tenc",type:"image",box:[26.7,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
     {id:"dm",type:"datamatrix",box:[26.2,25,11,11],data:DM},
     {id:"nut1",type:"nutrigrade",box:[45.2,8.9,9.5,22.109],grade:"C",orientation:"vertical",style:"full",sugar:8}];
   return [  // 75x30: 10c TOP, barcode CENTRE (ladder), Data Matrix BOTTOM — all centred, 4 equal vertical gaps (~4.0mm)
     {id:"tenc",type:"image",box:[10,4,10,10.7],src:"bcrs_10c.png",fit:"contain"},
-    {id:"ean",type:"barcode",box:[3.5,18.7,22.85,37.29],data:BC,ladder:false,rotate:270,magnification:1.0},
+    {id:"ean",type:"barcode",box:[2.04,18.7,25.93,37.29],data:BC,ladder:false,rotate:270,magnification:1.0},
     {id:"dm",type:"datamatrix",box:[9.5,60,11,11],data:DM}];
 }
 $("#preset").onchange=e=>{const v=e.target.value;const m={"55x30":[55,30],"65x59":[65,59],"75x65":[75,65],"75x30":[75,30],"40x40":[40,40],"43x40":[43,40],"58x28":[58,28],"65x24":[65,24],"40x55":[40,55]}[v];if(!m)return;saveState();state.size={h:m[0],w:m[1]};if(["55x30","75x30","40x40","43x40","58x28","65x24","40x55"].includes(v)){state.blocks=codeTemplate(v);selId=null;selIds=[];}else if(v==="65x59"||v==="75x65"){state.blocks=JSON.parse(JSON.stringify(defaultSpec().blocks));selId=null;selIds=[];}render();};
@@ -1416,7 +1423,7 @@ function extFromDataUri(uri){const m=/^data:([^;,]+)/.exec(uri||"");const t=(m?m
   if(t.includes("jpeg"))return"jpg";if(t.includes("webp"))return"webp";if(t.includes("gif"))return"gif";return"png";}
 function assetName(b){let n=(b.name||"").trim();if(!n)n="asset_"+b.id;if(!/\.[a-z0-9]+$/i.test(n))n+="."+extFromDataUri(b.src);return n;}
 function downloadDataUri(uri,name){const a=document.createElement("a");a.href=uri;a.download=name;document.body.appendChild(a);a.click();a.remove();}
-const BUILD_TAG="v18.6 (2026-09-03)";
+const BUILD_TAG="v18.7 (2026-10-07)";
 console.log("AYG Label Builder "+BUILD_TAG);
 function cleanSpec(){
   return {build:BUILD_TAG,size:state.size,corner:state.corner,clearance:state.clearance,clearApply:state.clearApply||["image","barcode","datamatrix"],lang:state.lang||"en",invert:!!state.invert,
