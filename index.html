@@ -1732,7 +1732,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261012-PRINT3'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261012-SELL2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -8929,6 +8929,8 @@ function qShipPick(k){Q_SHIP_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShi
 var Q_PRINT_PICK='mid';
 var Q_PRINT_MID_FACTOR=1.1, Q_PRINT_HIGH_FACTOR=1.2, Q_PRINT_TOL=0.10, Q_PRINT_NEAREST=3;
 function qPrintJobsToggle(el){var b=el.parentNode.querySelector('.qpj-list');if(b){var on=b.style.display==='none';b.style.display=on?'':'none';el.innerHTML=el.innerHTML.replace(on?'\u25b8':'\u25be',on?'\u25be':'\u25b8');}}
+var Q_SELL_PICK='mid', Q_SELL_MID_FACTOR=1.1, Q_SELL_HIGH_FACTOR=1.2;
+function qSellPick(k){Q_SELL_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShipKeep=false;}
 function qPrintPick(k){Q_PRINT_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShipKeep=false;}
 function _qColClass(s){
   s=String(s||'').toLowerCase();
@@ -8937,26 +8939,28 @@ function _qColClass(s){
   if(/black|1c|黑/.test(s))return 'b';
   return 'other';
 }
-function histPrintRate(qty,area,col){
+function histPrintRate(qty,area,col,kind){
+  // kind 'sell' → selling price per piece (S$); default → factory print cost per piece (RMB)
   var now=new Date(),yearAgo=new Date(now.getFullYear()-1,now.getMonth(),now.getDate());
   function pool(list,priceKey,dateKey){
     return (list||[]).map(function(o){
-      var p=+o[priceKey]||0,q=+o.qty||0,a=+o.area||0;
+      var q=+o.qty||0,a=+o.area||0,p=(typeof priceKey==='function')?priceKey(o,q):(+o[priceKey]||0);
       if(!(p>0&&p<5&&q>0&&a>0))return null;
       var st=String(o.status||'').trim().toUpperCase();if(st==='X'||st==='CANCELLED')return null;
       if(_qColClass(o.colour)!==col)return null;
       if(/样品|sample/i.test(String(o.name||o.company||'')))return null;   // sample runs aren't real pricing
       var d=null;try{d=parseFlexDate(o[dateKey]);}catch(e){}
       var off=Math.max(Math.abs(q-qty)/qty,Math.abs(a-area)/area);     // biggest % gap (qty or area)
-      return {p:p,d:d,company:o.name||o.company||'',qty:q,area:a,size:o.size||'',colour:o.colour,src:srcName,off:off,
+      return {p:p,d:d,company:o.name||o.company||'',qty:q,sku:+o.sku||1,area:a,size:o.size||'',colour:o.colour,src:srcName,off:off,
               dist:Math.abs(Math.log(q/qty))+Math.abs(Math.log(a/area))};  // % gap on both, weighted equally
     }).filter(Boolean);
   }
   var srcName='';
   function within(r){return Math.abs(r.qty-qty)/qty<=Q_PRINT_TOL&&Math.abs(r.area-area)/area<=Q_PRINT_TOL;}
   function median(a){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):0;}
-  srcName='orders';var allOrders=pool(ORDERS,'pricePerPcRmb','received');
-  srcName='quotes';var allQuotes=pool(QUOTES_RAW,'rmbPc','quotedDate');
+  var sellPc=function(o,q){var t=+(o.price!=null?o.price:o.sell)||0;return q>0?t/q:0;};
+  srcName='orders';var allOrders=pool(ORDERS,kind==='sell'?sellPc:'pricePerPcRmb','received');
+  srcName='quotes';var allQuotes=pool(QUOTES_RAW,kind==='sell'?sellPc:'rmbPc','quotedDate');
   var isRecent=function(r){return r.d&&r.d>=yearAgo;};
   var tiers=[
     {src:'orders',recent:true, rows:allOrders.filter(function(r){return within(r)&&isRecent(r);})},
@@ -8981,15 +8985,101 @@ function histPrintRate(qty,area,col){
   };
   return near(allOrders,'orders')||near(allQuotes,'quotes');
 }
+function _qJobsHtml(h,pc){
+  var zh=(lang==='zh'),mn="'JetBrains Mono',monospace";
+  var jobs='';
+  if(h&&h.rows&&h.rows.length){
+    var rs=h.rows.slice().sort(function(a,b){return (b.d?b.d.getTime():0)-(a.d?a.d.getTime():0);});
+    var tip=rs.map(function(r){return r.company+' \u00b7 '+r.qty.toLocaleString()+' pcs \u00b7 '+r.sku+' SKU \u00b7 '+(r.size||r.area+'mm\u00b2')+' \u00b7 '+pc(r.p)+(r.d?' \u00b7 '+wlFmtDate(r.d):'');}).join('\n');
+    jobs='<div style="margin:-1px 0 4px 26px;font-size:10px">'
+      +'<span title="'+wlEsc(tip)+'" onclick="qPrintJobsToggle(this)" style="cursor:pointer;color:var(--tel);text-decoration:underline dotted">\u25b8 '+(zh?'使用的 '+rs.length+' 单':rs.length+' job'+(rs.length>1?'s':'')+' used')+'</span>'
+      +'<div class="qpj-list" style="display:none;margin-top:3px;border:1px solid var(--b);border-radius:6px;overflow:hidden">'
+      +rs.map(function(r,i){return '<div style="display:flex;gap:8px;justify-content:space-between;padding:3px 7px;'+(i?'border-top:1px solid var(--b);':'')+'">'
+        +'<span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t)">'+wlEsc(r.company)+'</span>'
+        +'<span style="flex-shrink:0;color:var(--dim)">'+r.qty.toLocaleString()+' \u00b7 '+r.sku+' SKU \u00b7 '+wlEsc(r.size||(r.area+'mm\u00b2'))+' \u00b7 '+(r.d?wlFmtDate(r.d):'—')+(r.src==='quotes'?' \u00b7 '+(zh?'报价':'quote'):'')+'</span>'
+        +'<b style="flex-shrink:0;font-family:'+mn+';color:var(--tel)">'+pc(r.p)+'</b></div>';}).join('')
+      +'</div></div>';
+  }
+  return jobs;
+}
+// Selling price options: Low = 40% margin on this quote's total cost · Mid = historical S$/pc of
+// similar past jobs (default) · Custom = type a margin % or a price per piece.
+var Q_SELL_LOW_MARGIN=40;
+var Q_SELL_CUSTOM={mode:'',value:null};   // mode 'margin' | 'ppp'; kept until the page reloads
+var _qSellFocus='';
+function qSellCustom(mode,inp){
+  var v=parseFloat(inp.value);Q_SELL_CUSTOM={mode:mode,value:isNaN(v)?null:v,raw:inp.value};   // raw keeps '0.' while typing
+  var pos=inp.selectionStart;_qSellFocus=inp.id;
+  qSellPick('custom');
+  var el=document.getElementById(_qSellFocus);
+  if(el){el.focus();try{el.setSelectionRange(pos,pos);}catch(e){}}
+  _qSellFocus='';
+}
+function qSellCustomPrice(qty,cost,fallback){
+  var c=Q_SELL_CUSTOM;
+  if(c.mode==='margin'&&c.value!=null&&c.value<100)return cost/(1-c.value/100);
+  if(c.mode==='ppp'&&c.value!=null&&c.value>0)return c.value*qty;
+  return fallback;
+}
+function qSellEstRows(o){
+  var zh=(lang==='zh'),mn="'JetBrains Mono',monospace";
+  var pc=function(v){return 'S$'+v.toFixed(4);};
+  var mgOf=function(tot){return tot>0?(tot-o.cost)/tot*100:0;};
+  var mgTxt=function(tot){var m=mgOf(tot);return '<span style="color:'+(m<0?'#ef4444':m<30?'var(--amb)':'var(--grn)')+'">'+(zh?'利润率 ':'margin ')+Math.round(m)+'%</span>';};
+  function row(key,colr,label,calc,tot,extra){
+    var on=o.pick===key;
+    return '<div onclick="qSellPick(\''+key+'\')" style="display:flex;align-items:flex-start;gap:7px;padding:5px 7px;margin:3px 0;border-radius:7px;cursor:pointer;'
+      +'border:1px solid '+(on?colr:'var(--b)')+';background:'+(on?'var(--s2)':'transparent')+'">'
+      +'<span style="flex-shrink:0;width:12px;height:12px;margin-top:2px;border-radius:50%;border:2px solid '+colr+';box-sizing:border-box;background:'+(on?colr:'transparent')+'"></span>'
+      +'<span style="flex:1;min-width:0"><span style="font-weight:600;color:'+colr+'">'+label+'</span><br><span style="font-size:10.5px">'+calc+'</span>'+(extra||'')+'</span>'
+      +'<span style="flex-shrink:0;text-align:right;font-family:'+mn+'"><b style="color:'+(on?'var(--t)':'var(--m)')+'">'+pc(tot/o.qty)+'<span style="font-size:9px;font-weight:400;color:var(--dim)">/pc</span></b>'
+      +'<br><span style="font-size:10.5px;color:var(--dim)">S$'+Math.round(tot).toLocaleString()+'</span></span></div>';
+  }
+  var h=o.hist,srcTxt;
+  if(h&&h.nearest){
+    srcTxt=(zh?'±10% 内无匹配 — 最接近的 ':'Nothing within ±10% — nearest ')+h.n+' '+(h.src==='orders'?(zh?'过往订单':'past orders'):(zh?'过往报价':'past quotes'))
+      +(zh?'，中位数 · 最大相差约 ':', median · up to about ')+Math.round(h.off*100)+'%'+(zh?'':' away')
+      +(h.off>0.5?' <b style="color:var(--amb)">'+(zh?'· 相差较大，仅供参考':'· far from this job — treat with care')+'</b>':'');
+  }else if(h){
+    srcTxt=(h.src==='orders'?(zh?'过往订单':'past orders'):(zh?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
+      +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期':'any date'))+' \u00b7 '+h.n+(zh?' 条，中位数':' matched, median')
+      +(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
+  }else{
+    srcTxt=(zh?'无匹配记录 — 改用 总成本 ×2.1':'No matching history — using total cost \u00d72.1');
+  }
+  var lowTot=o.cost/(1-Q_SELL_LOW_MARGIN/100);
+  var midTot=o.midPc*o.qty;
+  var c=Q_SELL_CUSTOM,cusTot=o.customTot;
+  var inS='width:64px;background:var(--bg);border:1px solid var(--b2);border-radius:5px;padding:2px 5px;color:var(--t);font-family:'+mn+';font-size:11px;text-align:right';
+  var mVal=c.mode==='margin'?c.raw:(Math.round(mgOf(cusTot)*10)/10);
+  var pVal=c.mode==='ppp'?c.raw:(Math.round(cusTot/o.qty*10000)/10000).toFixed(4);
+  var custom='<div onclick="event.stopPropagation()" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:4px;font-size:10.5px">'
+    +'<label>'+(zh?'利润率 %':'Margin %')+' <input id="q-sell-cm" type="text" inputmode="decimal" value="'+wlEsc(mVal)+'" oninput="qSellCustom(\'margin\',this)" style="'+inS+'"></label>'
+    +'<label>'+(zh?'或 每张 S$':'or S$/pc')+' <input id="q-sell-cp" type="text" inputmode="decimal" value="'+wlEsc(pVal)+'" oninput="qSellCustom(\'ppp\',this)" style="'+inS+'"></label></div>';
+  return row('low','var(--tel)',(zh?'低 · 利润率 ':'Low · ')+Q_SELL_LOW_MARGIN+(zh?'%':'% margin'),
+           (zh?'总成本 ':'Total cost ')+'S$'+Math.round(o.cost).toLocaleString()+' \u00f7 (1 \u2212 '+(Q_SELL_LOW_MARGIN/100)+') \u00b7 '+mgTxt(lowTot),lowTot)
+    +row('mid','var(--amb)',h?(h.nearest?(zh?'中 · 历史价格（最接近）':'Mid · Historical (nearest)'):(zh?'中 · 历史价格':'Mid · Historical')):(zh?'中 · 成本 ×2.1（无历史）':'Mid · Cost \u00d72.1 (no history)'),
+           srcTxt+' \u00b7 '+mgTxt(midTot),midTot)+_qJobsHtml(h,pc)
+    +row('custom','#a78bfa',zh?'自定义':'Custom',(zh?'输入利润率或每张价格 · ':'Type a margin or a price per piece · ')+mgTxt(cusTot),cusTot,custom)
+    +'<div style="font-size:10px;color:var(--dim);margin:2px 0 3px">'+(zh?'点选一项计入报价 · 当前：':'Click one to use it in the quote · using: ')
+      +'<b style="color:var(--t)">'+(o.pick==='low'?(zh?'低':'Low'):o.pick==='custom'?(zh?'自定义':'Custom'):(zh?'中':'Mid'))+'</b></div>';
+}
 function qPrintEstRows(o){
   var zh=(lang==='zh'),mn="'JetBrains Mono',monospace";
+  var sellK=o.kind==='sell';
+  var F1=sellK?Q_SELL_MID_FACTOR:Q_PRINT_MID_FACTOR,F2=sellK?Q_SELL_HIGH_FACTOR:Q_PRINT_HIGH_FACTOR;
+  var pc=function(v){return sellK?'S$'+v.toFixed(4):'\u00a5'+v.toFixed(4);};
+  // Selling price: show the job total, and the margin it gives over this quote's total cost.
+  var tot=function(v){return sellK?'S$'+Math.round(v*o.qty).toLocaleString():pc(v);};
+  var mg=function(v){if(!sellK)return '';var m=(v*o.qty-o.cost)/(v*o.qty)*100;
+    return ' \u00b7 <span style="color:'+(m<0?'#ef4444':m<30?'var(--amb)':'var(--grn)')+'">'+(zh?'利润率 ':'margin ')+Math.round(m)+'%</span>';};
   function row(key,colr,label,calc,val){
     var on=o.pick===key;
-    return '<div onclick="qPrintPick(\''+key+'\')" style="display:flex;align-items:flex-start;gap:7px;padding:5px 7px;margin:3px 0;border-radius:7px;cursor:pointer;'
+    return '<div onclick="'+(sellK?'qSellPick':'qPrintPick')+'(\''+key+'\')" style="display:flex;align-items:flex-start;gap:7px;padding:5px 7px;margin:3px 0;border-radius:7px;cursor:pointer;'
       +'border:1px solid '+(on?colr:'var(--b)')+';background:'+(on?'var(--s2)':'transparent')+'">'
       +'<span style="flex-shrink:0;width:12px;height:12px;margin-top:2px;border-radius:50%;border:2px solid '+colr+';box-sizing:border-box;background:'+(on?colr:'transparent')+'"></span>'
       +'<span style="flex:1;min-width:0"><span style="font-weight:600;color:'+colr+'">'+label+'</span><br><span style="font-size:10.5px">'+calc+'</span></span>'
-      +'<b style="flex-shrink:0;font-family:'+mn+';color:'+(on?'var(--t)':'var(--m)')+'">\u00a5'+val.toFixed(4)+'</b></div>';
+      +'<b style="flex-shrink:0;font-family:'+mn+';color:'+(on?'var(--t)':'var(--m)')+'">'+tot(val)+'</b></div>';
   }
   var h=o.hist,base=o.base,srcTxt;
   if(h&&h.nearest){
@@ -9004,24 +9094,14 @@ function qPrintEstRows(o){
   }else{
     srcTxt=(zh?'无匹配记录 — 改用公式：':'No matching history — using the formula: ')+o.formulaTxt;
   }
-  var lowLbl=h?(h.nearest?(zh?'低 · 历史价格（最接近）':'Low · Historical (nearest)'):(zh?'低 · 历史价格':'Low · Historical')):(zh?'低 · 公式（无历史）':'Low · Formula (no history)');
-  // The jobs behind Low: hover for a quick list, click "▸ jobs used" for the full table (works on phones too).
-  var jobs='';
-  if(h&&h.rows&&h.rows.length){
-    var rs=h.rows.slice().sort(function(a,b){return (b.d?b.d.getTime():0)-(a.d?a.d.getTime():0);});
-    var tip=rs.map(function(r){return r.company+' \u00b7 '+r.qty.toLocaleString()+' pcs \u00b7 '+(r.size||r.area+'mm\u00b2')+' \u00b7 \u00a5'+r.p.toFixed(4)+(r.d?' \u00b7 '+wlFmtDate(r.d):'');}).join('\n');
-    jobs='<div style="margin:-1px 0 4px 26px;font-size:10px">'
-      +'<span title="'+wlEsc(tip)+'" onclick="qPrintJobsToggle(this)" style="cursor:pointer;color:var(--tel);text-decoration:underline dotted">\u25b8 '+(zh?'使用的 '+rs.length+' 单':rs.length+' job'+(rs.length>1?'s':'')+' used')+'</span>'
-      +'<div class="qpj-list" style="display:none;margin-top:3px;border:1px solid var(--b);border-radius:6px;overflow:hidden">'
-      +rs.map(function(r,i){return '<div style="display:flex;gap:8px;justify-content:space-between;padding:3px 7px;'+(i?'border-top:1px solid var(--b);':'')+'">'
-        +'<span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t)">'+wlEsc(r.company)+'</span>'
-        +'<span style="flex-shrink:0;color:var(--dim)">'+r.qty.toLocaleString()+' \u00b7 '+wlEsc(r.size||(r.area+'mm\u00b2'))+' \u00b7 '+(r.d?wlFmtDate(r.d):'—')+(r.src==='quotes'?' \u00b7 '+(zh?'报价':'quote'):'')+'</span>'
-        +'<b style="flex-shrink:0;font-family:'+mn+';color:var(--tel)">\u00a5'+r.p.toFixed(4)+'</b></div>';}).join('')
-      +'</div></div>';
+  if(sellK){srcTxt+='<br>'+pc(base)+'/pc \u00d7 '+o.qty.toLocaleString()+mg(base);
   }
+  var lowLbl=h?(h.nearest?(zh?'低 · 历史价格（最接近）':'Low · Historical (nearest)'):(zh?'低 · 历史价格':'Low · Historical')):(sellK?(zh?'低 · 成本 ×2.1（无历史）':'Low · Cost \u00d72.1 (no history)'):(zh?'低 · 公式（无历史）':'Low · Formula (no history)'));
+  // The jobs behind Low: hover for a quick list, click "▸ jobs used" for the full table (works on phones too).
+  var jobs=_qJobsHtml(h,pc);
   return row('low','var(--tel)',lowLbl,srcTxt,base)+jobs
-    +row('mid','var(--amb)',(zh?'中 · ×':'Mid · \u00d7')+Q_PRINT_MID_FACTOR,'\u00a5'+base.toFixed(4)+' \u00d7 '+Q_PRINT_MID_FACTOR,base*Q_PRINT_MID_FACTOR)
-    +row('high','#f87171',(zh?'高 · ×':'High · \u00d7')+Q_PRINT_HIGH_FACTOR,'\u00a5'+base.toFixed(4)+' \u00d7 '+Q_PRINT_HIGH_FACTOR,base*Q_PRINT_HIGH_FACTOR)
+    +row('mid','var(--amb)',(zh?'中 · ×':'Mid · \u00d7')+F1,pc(base)+' \u00d7 '+F1+(sellK?' = '+pc(base*F1)+'/pc'+mg(base*F1):''),base*F1)
+    +row('high','#f87171',(zh?'高 · ×':'High · \u00d7')+F2,pc(base)+' \u00d7 '+F2+(sellK?' = '+pc(base*F2)+'/pc'+mg(base*F2):''),base*F2)
     +'<div style="font-size:10px;color:var(--dim);margin:2px 0 3px">'+(zh?'匹配条件：颜色相同 · 数量 ±10% · 面积 ±10% · 点选一项计入报价 · 当前：':'Match: same colour · qty ±10% · area ±10% · click one to use it · using: ')
       +'<b style="color:var(--t)">'+(o.pick==='low'?(zh?'低':'Low'):o.pick==='high'?(zh?'高':'High'):(zh?'中':'Mid'))+'</b></div>';
 }
@@ -9104,7 +9184,16 @@ function calcQ(){
   var shTotal=shipChosen+docCost;
   var gstAmt=Math.round((printCost+shTotal)*gstPct)/100;
   var totCost=printCost+shTotal+gstAmt;
-  var sell=totCost*2.1,profit=sell-totCost,margin=profit/sell*100,ppp=sell/totalQty;
+  // Selling price: Low = 40% margin on total cost · Mid = historical S$/pc of similar past jobs
+  // (same matching as print cost; no history → total cost ×2.1) · Custom = typed margin or S$/pc.
+  var sellHist=null;try{sellHist=histPrintRate(totalQty,area,col==='c'?'c':'b','sell');}catch(e){}
+  var sellBasePc=sellHist?sellHist.rate:(totCost*2.1/totalQty);
+  if(!_qShipKeep)Q_SELL_PICK='mid';
+  if(Q_SELL_PICK==='high')Q_SELL_PICK='mid';
+  var sellLow=totCost/(1-Q_SELL_LOW_MARGIN/100), sellMid=sellBasePc*totalQty;
+  var sellCustom=qSellCustomPrice(totalQty,totCost,sellMid);
+  var sell=Q_SELL_PICK==='low'?sellLow:Q_SELL_PICK==='custom'?sellCustom:sellMid;
+  var profit=sell-totCost,margin=profit/sell*100,ppp=sell/totalQty;
   var qtyPerSku=sku>0?Math.round(totalQty/sku):totalQty;
 
   var mn="'JetBrains Mono',monospace";
@@ -9150,7 +9239,10 @@ function calcQ(){
     +'<div style="font-size:11px;color:var(--m);font-weight:500;margin:4px 0 2px">GST & '+TX.priceHd+'</div>'
     +'<div style="font-size:11px;color:var(--dim);line-height:1.7">'
       +'GST '+gstPct+'% '+TX.ofLbl2+' ('+fmt(printCost)+' + '+fmt(shTotal)+') = <b style="color:var(--amb)">'+fmt(gstAmt)+'</b><br>'
-      +TX.totalCost+': '+fmt(totCost)+' \u00d7 2.1 = <b style="color:var(--grn)">'+fmt(sell)+'</b><br>'
+      +TX.totalCost+': <b style="color:var(--t)">'+fmt(totCost)+'</b><br>'
+      +'<span style="color:var(--m);font-weight:500">'+TX.sellingPrice+'</span>'
+      +qSellEstRows({pick:Q_SELL_PICK,hist:sellHist,midPc:sellBasePc,qty:totalQty,cost:totCost,customTot:sellCustom})
+      +TX.sellingPrice+': <b style="color:var(--grn)">'+fmt(sell)+'</b> \u00b7 '+TX.pricePerPc+': <b style="color:var(--grn)">S$'+(sell/totalQty).toFixed(4)+'</b><br>'
       +TX.profit+': '+fmt(profit)+' ('+Math.round(margin)+'%) \u00b7 '+TX.perPcLbl+': S$'+ppp.toFixed(5)
     +'</div>'
     +'<div style="margin-top:7px;font-size:10px;color:var(--dim);padding:5px 7px;background:var(--s2);border-radius:var(--r)">\u26a0\ufe0f '+TX.estimateDisclaimer+' \u00a51=S$'+(1/SGD_RMB).toFixed(4)+'</div>';
