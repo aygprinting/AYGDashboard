@@ -1733,7 +1733,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261012-DOCCOL1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261012-SHIP3'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1814,6 +1814,8 @@ var TX=TX_EN;
   for(var k2 in ZH)TX_ZH[k2]=ZH[k2];
 })();
 
+// RMB per 1 SGD — the one exchange rate used for every RMB↔SGD conversion in the dashboard.
+var FX_SGD_RMB=5.15;
 var activeSection=null,dragId=null,editId=null,editType=null;
 var dailyDone={},secDone={},histArea=0,histCol='b';
 var sqHistArea=0,sqHistCol='b';
@@ -4858,7 +4860,7 @@ function toggleShipKgTrendSeries(name){
 // Monthly shipping-rate trend, one line per shipper (or per destination country). Rate is
 // shipping / weight, aggregated per month as total cost / total kg (weighted). A rising line
 // means that shipper/country's rate has been climbing. China is excluded (its shipping is
-// treated as 0 / not tracked). Currency toggle converts SGD<->RMB at the fixed 5.3 rate used
+// treated as 0 / not tracked). Currency toggle converts SGD<->RMB at the fixed FX_SGD_RMB rate used
 // elsewhere. Pills above the chart toggle individual lines on/off. Fixed 6-month window.
 var SHIPKG_TREND_COLORS=['#2dd4bf','#60a5fa','#f472b6','#fbbf24','#a78bfa','#6ee7b7','#f87171','#e879f9'];
 function renderShipKgTrend(){
@@ -4867,7 +4869,7 @@ function renderShipKgTrend(){
   var figBox=document.getElementById('ord-shipkg-trend-figures');
   var isDest=shipKgTrendView==='dest';
   var isRmb=shipKgTrendCur==='rmb';
-  var RATE=5.3;
+  var RATE=FX_SGD_RMB;
   var cur=isRmb?RATE:1;
   var sym=isRmb?'\u00a5':'S$';
   var unit=isRmb?'RMB/kg':'SGD/kg';
@@ -6078,7 +6080,7 @@ function calcStaffQ(){
     var hb0=document.getElementById('sq-hist-box');if(hb0)hb0.style.display='none';
     return;
   }
-  var area=w*h,totalQty=qty,SGD_RMB=5.3;
+  var area=w*h,totalQty=qty,SGD_RMB=FX_SGD_RMB;
   var rpc;
   if(totalQty<=5000)rpc=0.145;else if(totalQty<=10000)rpc=0.085;else if(totalQty<=30000)rpc=0.075;
   else if(totalQty<=50000)rpc=0.055;else if(totalQty<=100000)rpc=0.033;else if(totalQty<=300000)rpc=0.030;else rpc=0.027;
@@ -8913,6 +8915,30 @@ function recalcSummary(){
   document.getElementById('eq-pr').style.color=col;document.getElementById('eq-mg').style.color=col;
 }
 
+// ── Quote estimator: three shipping estimates ──
+var Q_SHIP_PICK='mid';          // which estimate goes into the quote: 'low' | 'mid' | 'high'
+var Q_SHIP_HIGH_FACTOR=1.8;     // High estimate = ¥/kg × 1.8
+function qShipPick(k){Q_SHIP_PICK=k;try{calcQ();}catch(e){}}
+function qShipEstRows(o){
+  var zh=(lang==='zh'),mn="'JetBrains Mono',monospace";
+  var kgTxt=o.kgBilled>o.kg?o.kgBilled.toFixed(2)+'kg ('+(zh?'不足1kg按1kg计':'min. 1 kg')+')':o.kg.toFixed(2)+'kg';
+  function row(key,col,label,calc,val,ok){
+    var on=o.pick===key;
+    return '<div onclick="'+(ok?'qShipPick(\''+key+'\')':'')+'" style="display:flex;align-items:flex-start;gap:7px;padding:5px 7px;margin:3px 0;border-radius:7px;cursor:'+(ok?'pointer':'default')+';'
+      +'border:1px solid '+(on?col:'var(--b)')+';background:'+(on?'var(--s2)':'transparent')+';opacity:'+(ok?1:.55)+'">'
+      +'<span style="flex-shrink:0;width:12px;height:12px;margin-top:2px;border-radius:50%;border:2px solid '+col+';box-sizing:border-box;background:'+(on?col:'transparent')+'"></span>'
+      +'<span style="flex:1;min-width:0"><span style="font-weight:600;color:'+col+'">'+label+'</span><br><span style="font-size:10.5px">'+calc+'</span></span>'
+      +'<b style="flex-shrink:0;font-family:'+mn+';color:'+(on?'var(--t)':'var(--m)')+'">'+(ok?o.fmt(val):'—')+'</b></div>';
+  }
+  return row('low','var(--tel)',zh?'低 · 历史实付':'Low · Historical actual',
+           o.low>0?(o.kg.toFixed(2)+'kg \u00d7 S$'+o.lowRate.toFixed(2)+'/kg ('+o.lowSrc+')'):(zh?'暂无该目的地的历史运费':'No shipping history yet'),o.low,o.low>0)
+    +row('mid','var(--amb)',zh?'中 · 设定系数':'Mid · Set factor',
+           kgTxt+' \u00d7 \u00a5'+o.rmbPerKg+'/kg \u00d7 '+o.destMult+' \u00f7 '+o.fx,o.mid,true)
+    +row('high','#f87171',zh?'高 · 系数 '+Q_SHIP_HIGH_FACTOR:'High · Factor '+Q_SHIP_HIGH_FACTOR,
+           kgTxt+' \u00d7 \u00a5'+o.rmbPerKg+'/kg \u00d7 '+Q_SHIP_HIGH_FACTOR+' \u00f7 '+o.fx,o.high,true)
+    +'<div style="font-size:10px;color:var(--dim);margin:2px 0 3px">'+(zh?'点选一项计入报价 · 当前：':'Click one to use it in the quote · using: ')
+      +'<b style="color:var(--t)">'+(o.pick==='low'?(zh?'低':'Low'):o.pick==='high'?(zh?'高':'High'):(zh?'中':'Mid'))+'</b></div>';
+}
 function calcQ(){
   // A STOP-flagged client holds the quote until its banner is acknowledged.
   if(wlQuoteCheck('q')){var _wb=document.getElementById('q-wl-banner');if(_wb){try{_wb.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}return;}
@@ -8929,7 +8955,7 @@ function calcQ(){
   var _gv=document.getElementById('q-gst').value;
   var gstPct=(_gv===''||_gv===null)?9:(parseFloat(_gv)||0);
   if(!w||!h||!qty)return;
-  var area=w*h,totalQty=qty,SGD_RMB=5.3;
+  var area=w*h,totalQty=qty,SGD_RMB=FX_SGD_RMB;
   // Print cost RMB/pc
   var rpc;
   if(totalQty<=5000)rpc=0.145;else if(totalQty<=10000)rpc=0.085;else if(totalQty<=30000)rpc=0.075;
@@ -8941,23 +8967,28 @@ function calcQ(){
   var weightKg=(totalQty/10000)*4*(area/2250);
   // Destination multipliers — deliberately padded high (+0.25 across the board) so the
   // estimate errs on the safe side and shipping never comes in over quote.
-  var destMult=(dest==='tw'||dest==='jp'||dest==='th')?1.55:dest==='id'?1.4:(dest==='my'||dest==='hk')?1.3:1.25;
-  var shipCost=Math.max(rmbPerKg,weightKg*rmbPerKg)*destMult/SGD_RMB;
+  var destMult=(dest==='tw'||dest==='jp'||dest==='th')?1.55:(dest==='id'||dest==='vn')?1.4:(dest==='my'||dest==='hk')?1.3:1.25;
+  var shipKgBilled=Math.max(1,weightKg);                       // under 1 kg is charged as 1 kg
+  var shipCost=shipKgBilled*rmbPerKg*destMult/SGD_RMB;         // MID — the set factor
+  var shipHigh=shipKgBilled*rmbPerKg*Q_SHIP_HIGH_FACTOR/SGD_RMB; // HIGH — factor 1.8
   // Historical cross-check: actual S$/kg paid on past orders (destination-specific rate
   // when we have one, else the blended rate). The estimator charges whichever shipping
   // estimate is HIGHER — formula or historical — again to avoid under-quoting.
-  var histShipSgd=0,histRateSgd=0;
+  var histShipSgd=0,histRateSgd=0,histSrc='';
   try{
     var _hd=histShipRate();
     if(_hd&&_hd.count&&weightKg>0){
       var _hc=QDEST_TO_COUNTRY[dest]||'';
       var _hu=_hc&&_hd.byCountry[_hc];
       histRateSgd=_hu?_hd.byCountry[_hc].rate:_hd.blended;
-      histShipSgd=weightKg*histRateSgd;
+      histShipSgd=weightKg*histRateSgd;                        // LOW — historical actual
+      histSrc=_hu?(_hc+' \u00b7 '+_hd.byCountry[_hc].count+(lang==='zh'?' 单':' orders')):((lang==='zh'?'全部目的地':'all destinations')+' \u00b7 '+_hd.count+(lang==='zh'?' 单':' orders'));
     }
   }catch(e){}
-  var histWins=histShipSgd>shipCost;
-  var shipChosen=histWins?histShipSgd:shipCost;
+  // Three shipping estimates; the one ticked under "How it was calculated" goes into the quote
+  // (default Mid). Low falls back to Mid when there's no shipping history yet.
+  var _pick=(Q_SHIP_PICK==='low'&&!(histShipSgd>0))?'mid':Q_SHIP_PICK;
+  var shipChosen=_pick==='low'?histShipSgd:_pick==='high'?shipHigh:shipCost;
   var shTotal=shipChosen+docCost;
   var gstAmt=Math.round((printCost+shTotal)*gstPct)/100;
   var totCost=printCost+shTotal+gstAmt;
@@ -9000,9 +9031,9 @@ function calcQ(){
     +'<div style="font-size:11px;color:var(--m);font-weight:500;margin:4px 0 2px">'+TX.shipHd+'</div>'
     +'<div style="font-size:11px;color:var(--dim);line-height:1.7">'
       +TX.weightLbl2+': ('+totalQty.toLocaleString()+'/10k) \u00d7 4 \u00d7 ('+Math.round(area)+'/2250) = <b style="color:var(--t)">'+weightKg.toFixed(2)+'kg</b><br>'
-      +weightKg.toFixed(2)+'kg \u00d7 \u00a5'+rmbPerKg+'/kg \u00d7'+destMult+' \u00f7 '+SGD_RMB+' = <b style="color:'+(histWins?'var(--dim)':'var(--t)')+'">'+fmt(shipCost)+'</b>'
-      +(histShipSgd>0?('<br>'+(lang==='zh'?'\u5386\u53f2\u5b9e\u4ed8':'Historical actual')+': '+weightKg.toFixed(2)+'kg \u00d7 S$'+histRateSgd.toFixed(2)+'/kg = <b style="color:'+(histWins?'var(--t)':'var(--dim)')+'">'+fmt(histShipSgd)+'</b>'):'')
-      +'<br>'+(histShipSgd>0?('<b style="color:var(--amb)">'+(histWins?(lang==='zh'?'\u53d6\u8f83\u9ad8\u8005\uff1a\u5386\u53f2':'higher of the two: historical'):(lang==='zh'?'\u53d6\u8f83\u9ad8\u8005\uff1a\u516c\u5f0f':'higher of the two: formula'))+'</b> '+fmt(shipChosen)+' + '):'')
+      +qShipEstRows({pick:_pick,kg:weightKg,kgBilled:shipKgBilled,rmbPerKg:rmbPerKg,fx:SGD_RMB,destMult:destMult,
+          low:histShipSgd,lowRate:histRateSgd,lowSrc:histSrc,mid:shipCost,high:shipHigh,fmt:fmt})
+      +fmt(shipChosen)+' + '
       +TX.docsLbl+' S$'+docCost+' = <b style="color:var(--grn)">'+fmt(shTotal)+'</b>'
     +'</div>'
     +'<div style="font-size:11px;color:var(--m);font-weight:500;margin:4px 0 2px">GST & '+TX.priceHd+'</div>'
@@ -9216,7 +9247,7 @@ function syncSellPriceFrom(sourceId){
 function recalcFromRmb(skipTable){
   var rmbPc=parseFloat(document.getElementById('eq-rmb-pc').value)||0;
   var totalQty=parseFloat(document.getElementById('q-result').dataset.qty)||1;
-  var printCost=Math.round(rmbPc*totalQty/5.3);
+  var printCost=Math.round(rmbPc*totalQty/FX_SGD_RMB);
   document.getElementById('eq-pc').value=printCost;
   recalcSummary();
   renderQePpcPanel(skipTable); // keep the chart's RMB reference line (and table row) in sync
