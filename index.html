@@ -1732,7 +1732,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261012-SELL2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261012-SECT1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9221,31 +9221,40 @@ function calcQ(){
     +'<div style="'+rs+'border-bottom:none"><span style="'+ls+'">'+TX.pricePerPc+'</span><span id="eq-pp" style="font-family:'+mn+';font-size:12px">S$'+ppp.toFixed(5)+'</span></div>'
     +'<div style="margin-top:9px;padding:6px 8px;background:var(--s2);border-radius:var(--r);font-size:10px;color:var(--dim)">'+TX.editHint+'</div>';
 
+  var zhQ=(lang==='zh');
+  // Each step is its own card: numbered badge + coloured edge, the options inside, and the figure
+  // it hands to the next step in the header (and repeated in the footer line).
+  function qSec(num,title,accent,tint,result,body,foot){
+    return '<div style="border:1px solid var(--b);border-left:4px solid '+accent+';border-radius:10px;background:'+tint+';padding:10px 11px 9px;margin:0 0 10px">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<span style="flex-shrink:0;width:20px;height:20px;border-radius:50%;background:'+accent+';color:#0c0c0e;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">'+num+'</span>'
+        +'<span style="flex:1;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:'+accent+'">'+title+'</span>'
+        +'<span style="font-family:'+mn+';font-size:13px;font-weight:700;color:var(--t)">'+result+'</span>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--dim);line-height:1.7">'+body+'</div>'
+      +(foot?'<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--b2);font-size:11px;color:var(--m)">'+foot+'</div>':'')
+    +'</div>';
+  }
   document.getElementById('q-logic').innerHTML=
     '<div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+TX.howCalc+'</div>'
-    +'<div style="font-size:11px;color:var(--m);font-weight:500;margin:4px 0 2px">'+TX.printCostHd+'</div>'
-    +'<div style="font-size:11px;color:var(--dim);line-height:1.7">'
-      +totalQty.toLocaleString()+' '+TX.pcsUnit+' \u00b7 '+TX.skuLbl+': '+sku+' \u00b7 QTY/SKU: '+qtyPerSku.toLocaleString()+'<br>'
-      +qPrintEstRows({pick:Q_PRINT_PICK,hist:printHist,base:printBase,formulaTxt:formulaTxt})
-      +'\u00a5'+rpc.toFixed(4)+' \u00d7 '+totalQty.toLocaleString()+' \u00f7 '+SGD_RMB+' = <b style="color:var(--grn)">'+fmt(printCost)+'</b>'
-    +'</div>'
-    +'<div style="font-size:11px;color:var(--m);font-weight:500;margin:4px 0 2px">'+TX.shipHd+'</div>'
-    +'<div style="font-size:11px;color:var(--dim);line-height:1.7">'
-      +TX.weightLbl2+': ('+totalQty.toLocaleString()+'/10k) \u00d7 4 \u00d7 ('+Math.round(area)+'/2250) = <b style="color:var(--t)">'+weightKg.toFixed(2)+'kg</b><br>'
-      +qShipEstRows({pick:_pick,kg:weightKg,kgBilled:shipKgBilled,rmbPerKg:rmbPerKg,fx:SGD_RMB,destMult:destMult,
-          low:histShipSgd,lowRate:histRateSgd,lowSrc:histSrc,mid:shipCost,high:shipHigh,fmt:fmt})
-      +(lang==='zh'?'计入报价的运费：':'Shipping used in the quote: ')+'<b style="color:var(--grn)">'+fmt(shTotal)+'</b>'
-    +'</div>'
-    +'<div style="font-size:11px;color:var(--m);font-weight:500;margin:4px 0 2px">GST & '+TX.priceHd+'</div>'
-    +'<div style="font-size:11px;color:var(--dim);line-height:1.7">'
-      +'GST '+gstPct+'% '+TX.ofLbl2+' ('+fmt(printCost)+' + '+fmt(shTotal)+') = <b style="color:var(--amb)">'+fmt(gstAmt)+'</b><br>'
-      +TX.totalCost+': <b style="color:var(--t)">'+fmt(totCost)+'</b><br>'
-      +'<span style="color:var(--m);font-weight:500">'+TX.sellingPrice+'</span>'
-      +qSellEstRows({pick:Q_SELL_PICK,hist:sellHist,midPc:sellBasePc,qty:totalQty,cost:totCost,customTot:sellCustom})
-      +TX.sellingPrice+': <b style="color:var(--grn)">'+fmt(sell)+'</b> \u00b7 '+TX.pricePerPc+': <b style="color:var(--grn)">S$'+(sell/totalQty).toFixed(4)+'</b><br>'
-      +TX.profit+': '+fmt(profit)+' ('+Math.round(margin)+'%) \u00b7 '+TX.perPcLbl+': S$'+ppp.toFixed(5)
-    +'</div>'
-    +'<div style="margin-top:7px;font-size:10px;color:var(--dim);padding:5px 7px;background:var(--s2);border-radius:var(--r)">\u26a0\ufe0f '+TX.estimateDisclaimer+' \u00a51=S$'+(1/SGD_RMB).toFixed(4)+'</div>';
+    +qSec(1,zhQ?'印刷成本':'Print Cost','#60a5fa','rgba(96,165,250,.05)',fmt(printCost),
+        totalQty.toLocaleString()+' '+TX.pcsUnit+' · '+TX.skuLbl+': '+sku+' · QTY/SKU: '+qtyPerSku.toLocaleString()
+        +qPrintEstRows({pick:Q_PRINT_PICK,hist:printHist,base:printBase,formulaTxt:formulaTxt}),
+        '¥'+rpc.toFixed(4)+'/pc × '+totalQty.toLocaleString()+' ÷ '+SGD_RMB+' = <b style="color:#60a5fa">'+fmt(printCost)+'</b>')
+    +qSec(2,zhQ?'运费':'Shipping','#f472b6','rgba(244,114,182,.05)',fmt(shTotal),
+        TX.weightLbl2+': ('+totalQty.toLocaleString()+'/10k) × 4 × ('+Math.round(area)+'/2250) = <b style="color:var(--t)">'+weightKg.toFixed(2)+'kg</b>'
+        +qShipEstRows({pick:_pick,kg:weightKg,kgBilled:shipKgBilled,rmbPerKg:rmbPerKg,fx:SGD_RMB,destMult:destMult,
+            low:histShipSgd,lowRate:histRateSgd,lowSrc:histSrc,mid:shipCost,high:shipHigh,fmt:fmt}),
+        (zhQ?'计入报价的运费：':'Shipping used in the quote: ')+'<b style="color:#f472b6">'+fmt(shTotal)+'</b>')
+    // Total cost strip between the cost steps and the price step
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:7px 11px;border-radius:10px;background:var(--s2);font-size:11px;color:var(--m)">'
+      +'<span>'+fmt(printCost)+' + '+fmt(shTotal)+' + GST '+gstPct+'% '+fmt(gstAmt)+'</span>'
+      +'<span>'+TX.totalCost+' <b style="font-family:'+mn+';font-size:13px;color:var(--t)">'+fmt(totCost)+'</b></span></div>'
+    +qSec(3,zhQ?'售价':'Selling Price','#34d399','rgba(52,211,153,.06)',fmt(sell)+' <span style="font-size:10.5px;font-weight:500;color:var(--dim)">S$'+(sell/totalQty).toFixed(4)+'/pc</span>',
+        qSellEstRows({pick:Q_SELL_PICK,hist:sellHist,midPc:sellBasePc,qty:totalQty,cost:totCost,customTot:sellCustom}),
+        TX.sellingPrice+': <b style="color:#34d399">'+fmt(sell)+'</b> · '+TX.pricePerPc+': <b style="color:#34d399">S$'+(sell/totalQty).toFixed(4)+'</b><br>'
+        +TX.profit+': '+fmt(profit)+' ('+Math.round(margin)+'%)')
+    +'<div style="margin-top:2px;font-size:10px;color:var(--dim);padding:5px 7px;background:var(--s2);border-radius:var(--r)">⚠️ '+TX.estimateDisclaimer+' ¥1=S$'+(1/SGD_RMB).toFixed(4)+'</div>';
 
   // Store the job's non-price details so the highlighted summary line (and its sync logic)
   // can read them without re-running the whole calculation.
