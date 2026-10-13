@@ -172,8 +172,8 @@
     <span class="glabel" data-i18n="size">Size</span>
     <select id="preset">
       <option value="custom">Custom</option>
-      <option value="55x30" selected>55 × 30</option>
-      <option value="65x59">65 × 59</option>
+      <option value="55x30">55 × 30</option>
+      <option value="65x59" selected>65 × 59</option>
       <option value="75x65">75 × 65</option>
       <option value="75x30">75 × 30</option>
       <option value="40x40">40 × 40</option>
@@ -344,8 +344,8 @@ function applyLang(){document.querySelectorAll("[data-i18n]").forEach(el=>{const
 
 
 // ---------- state ----------
-// Default the editor to the AYG 55×30 BCRS layout (codeTemplate is hoisted).
-let state = (function(){const s=defaultSpec();s.size={h:55,w:30};s.blocks=codeTemplate("55x30");return s;})();
+// Default the editor to the AYG 65×59 layout.
+let state = (function(){const s=defaultSpec();s.size={h:65,w:59};return s;})();
 let scale = 6, selId=null, selIds=[];
 let history=[], redo=[];
 function snap0(){return JSON.stringify({state,selId,selIds});}
