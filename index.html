@@ -1127,6 +1127,7 @@ tr.vip-row-3 td:first-child,tr.vip-row-2 td:first-child,tr.vip-row-1 td:first-ch
             </select></div>
           </div>
         </div>
+        <div class="qres" id="q-ship-hist" style="margin-bottom:9px"><div class="dempty" data-tx="shipHistFillForm">Fill in the estimator to see a historical shipping cross-check</div></div>
         <div class="qres">
           <div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px" data-tx="shippingParams">Shipping Parameters</div>
           <div style="margin-bottom:8px;font-size:11px;color:var(--grn);font-weight:500" data-tx="airfreightOnly">&#9992; Airfreight only</div>
@@ -1139,7 +1140,6 @@ tr.vip-row-3 td:first-child,tr.vip-row-2 td:first-child,tr.vip-row-1 td:first-ch
       <div style="width:100%;min-width:0">
         <div class="qres" id="q-result" style="margin-bottom:9px"><div class="dempty" data-tx="fillForm">Fill in the form to calculate</div></div>
         <div class="qres" id="q-logic" style="margin-bottom:9px"><div class="dempty" data-tx="howCalc">Calculation logic</div></div>
-        <div class="qres" id="q-ship-hist"><div class="dempty" data-tx="shipHistFillForm">Fill in the estimator to see a historical shipping cross-check</div></div>
       </div>
       <!-- HIST -->
       <div style="width:100%;min-width:0">
@@ -1162,7 +1162,8 @@ tr.vip-row-3 td:first-child,tr.vip-row-2 td:first-child,tr.vip-row-1 td:first-ch
               <button class="btn" style="font-size:10px;padding:3px 7px" onclick="poReset()" data-tx="poReset">Reset</button>
             </div>
           </div>
-          <input id="po-search" type="search" oninput="PO.auto=false;renderPastOrders()" placeholder="Search company, size, colour, location…" style="width:100%;margin-bottom:6px;background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:6px 9px;color:var(--t);font-size:12px;outline:none">
+          <div id="po-client"></div>
+          <input id="po-search" type="search" oninput="renderPastOrders()" placeholder="Search company, size, colour, location…" style="width:100%;margin-bottom:6px;background:var(--s2);border:1px solid var(--b);border-radius:var(--r);padding:6px 9px;color:var(--t);font-size:12px;outline:none">
           <div class="po-filters">
             <select id="po-size" onchange="renderPastOrders()"><option value="" data-tx="poAllSizes">All sizes</option></select>
             <select id="po-col" onchange="renderPastOrders()"><option value="" data-tx="poAllColours">All colours</option><option value="b" data-tx="black">1C Black</option><option value="c" data-tx="colourOpt">Colour</option></select>
@@ -1772,7 +1773,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261013-HIST1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261013-NOTE2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6182,6 +6183,137 @@ function _destCode(s){
   if(/china|^cn\b|prc/.test(s))return 'cn';if(/taiwan|^tw\b/.test(s))return 'tw';if(/indonesia/.test(s))return 'id';
   if(/japan|janpan/.test(s))return 'jp';if(/thailand/.test(s))return 'th';if(/vietnam|viet nam/.test(s))return 'vn';return '';
 }
+// ── 4 · Things to Note ─────────────────────────────────────────────────────
+// Compares the price per piece being quoted with (4.1) this client's past orders, (4.2) quotes to
+// clients we lost, (4.3) other clients' orders for a similar job. Anything higher is shown:
+// ⚠ Higher = up to 10% above, ▲ Much higher = more than 10% above, ✓ = at or below.
+// Management reads the management file; Staff Quotes reads AYG Operations ONLY (STAFF_HIST/CLIENTS).
+var NOTE_TOL=0.10,NOTE_BIG=0.10;
+function _noteRec(o,src){   // normalise any order / quote record
+  var q=+o.qty||0,sku=+o.sku||1,a=+o.area||0,p=+o.p||0;
+  if(!p){var tot=+(o.price!=null?o.price:o.sell)||0;p=q>0?tot/q:0;}
+  if(!p&&+o.ppp)p=+o.ppp;
+  var d=o.d||null;if(!d){try{d=parseFlexDate(o.received||o.quotedDate);}catch(e){}}
+  var st=String(o.status||'').trim().toUpperCase();
+  return {company:o.company||o.name||'',size:o.size||'',area:a,qty:q,sku:sku,qps:Math.round(q/sku),col:normCol(o.colour),colour:o.colour||'',
+    loc:o.loc||'',dest:_destCode(o.loc),p:p,d:d,comment:o.comment||'',src:src,
+    bad:(st==='X'||st==='CANCELLED'||/样品|sample/i.test(o.company||o.name||''))};
+}
+function _noteIsClient(name,rec){if(!name||!rec.company)return false;var n=name.toLowerCase();
+  return rec.company.toLowerCase().indexOf(n)>-1||(typeof _coMatch==='function'&&_coMatch(name,rec.company))||(typeof coDisplay==='function'&&String(coDisplay(rec.company)).toLowerCase().indexOf(n)>-1);}
+function _noteNear(r,c){return Math.abs(r.qty-c.qty)/c.qty<=NOTE_TOL&&Math.abs(r.area-c.area)/c.area<=NOTE_TOL;}
+function _noteMedian(a){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):0;}
+function _noteState(price,ref){if(!(ref>0))return 'none';var g=price/ref-1;return g<=0.00005?'ok':g<=NOTE_BIG?'warn':'bad';}
+function _notePct(price,ref){var g=(price/ref-1)*100;return (g>0?'+':'')+(Math.abs(g)<10?g.toFixed(1):Math.round(g))+'%';}
+// c = {price, qty, area, col, qps, dest, client, orders:[recs], lost:[recs]}
+function thingsToNoteHtml(c){
+  var zh=(lang==='zh'),mn="font-family:'JetBrains Mono',monospace",pc=function(v){return '<span style="'+mn+'">S$'+v.toFixed(4)+'</span>';};
+  var fd=function(d){return d?wlFmtDate(d):'';};
+  var desc=function(r){return wlEsc(r.company)+' · '+r.qty.toLocaleString()+(r.sku>1?' ('+r.sku+' SKU)':'')+' · '+wlEsc(r.size||Math.round(r.area)+'mm²')+(r.d?' · '+fd(r.d):'');};
+  var good=function(list){return list.filter(function(r){return !r.bad&&r.p>0&&r.p<5&&r.qty>0&&r.area>0;});};
+  var items=[];
+  // 4.1 this client's past orders
+  (function(){
+    var t=zh?'该客户的过往订单':'This client’s past orders';
+    if(!c.client){items.push({id:'4.1',t:t,st:'none',txt:zh?'在 Job Details 输入客户名称即可比较':'Type a client in Job Details to compare'});return;}
+    var mine=good(c.orders).filter(function(r){return _noteIsClient(c.client,r);});
+    if(!mine.length){items.push({id:'4.1',t:t,st:'none',txt:zh?'没有找到该客户的过往订单':'No past orders found for “'+wlEsc(c.client)+'”'});return;}
+    var same=mine.filter(function(r){return r.col===c.col;}),near=same.filter(function(r){return _noteNear(r,c);});
+    var byDate=function(a,b){return (b.d?b.d.getTime():0)-(a.d?a.d.getTime():0);};
+    var ref,how;
+    if(near.length){near.sort(byDate);ref=near[0];how=zh?'上次类似订单':'last similar order';}
+    else{var pool=(same.length?same:mine).map(function(r){r._dist=Math.abs(Math.log(r.qty/c.qty))+Math.abs(Math.log(r.area/c.area));return r;}).sort(function(a,b){return a._dist-b._dist;});
+      ref=pool[0];how=zh?'最接近的订单（尺寸/数量不同）':'closest order (different size/qty)';}
+    var st=_noteState(c.price,ref.p);
+    var txt=st==='ok'?((zh?'不高于':'Not higher than the ')+how+': '+pc(ref.p)+' — '+desc(ref))
+      :('<b style="color:var(--t)">'+_notePct(c.price,ref.p)+'</b> '+(zh?'对比':'vs the ')+how+': '+pc(ref.p)+' — '+desc(ref));
+    var rows=near.length?near:[ref];
+    items.push({id:'4.1',t:t,st:st,txt:txt,rows:rows,lbl:rows.length+(zh?' 单':' order'+(rows.length>1?'s':''))});
+  })();
+  // 4.2 lost-client quotes
+  (function(){
+    var t=zh?'流失客户的报价':'Lost-client quotes';
+    var near=good(c.lost).filter(function(r){return r.col===c.col&&_noteNear(r,c);});
+    if(!near.length){items.push({id:'4.2',t:t,st:'none',txt:zh?'没有类似（数量/尺寸 ±10%）的流失报价':'No similar quote (qty & size ±10%) to a lost client'});return;}
+    var lowest=near.slice().sort(function(a,b){return a.p-b.p;})[0];
+    var above=near.filter(function(r){return c.price>r.p+0.000005;}).length;
+    var st=_noteState(c.price,lowest.p);
+    var txt=(st==='ok'?(zh?'不高于任何类似的流失报价。':'Not higher than any similar quote we lost. ')
+        :((zh?'高于 ':'Higher than ')+'<b style="color:var(--t)">'+above+(zh?' / ':' of ')+near.length+'</b>'+(zh?' 个类似的流失报价。':' similar quote'+(near.length>1?'s':'')+' we lost. ')))
+      +(zh?'最低流失报价 ':'Lowest lost quote ')+pc(lowest.p)+(st!=='ok'?' (<b style="color:var(--t)">'+_notePct(c.price,lowest.p)+'</b>)':'')+' — '+desc(lowest);
+    items.push({id:'4.2',t:t,st:st,txt:txt,rows:near,lbl:near.length+(zh?' 个报价':' lost quote'+(near.length>1?'s':''))});
+  })();
+  // 4.3 other clients' orders — same colour, qty, area, QTY/SKU (±10%) and destination; relaxed step by step if empty
+  (function(){
+    var t=zh?'其他客户的订单':'Other clients’ orders';
+    var others=good(c.orders).filter(function(r){return !(c.client&&_noteIsClient(c.client,r))&&r.col===c.col&&_noteNear(r,c);});
+    var qpsOk=function(r){return Math.abs(r.qps-c.qps)/c.qps<=NOTE_TOL;},destOk=function(r){return r.dest===c.dest;};
+    var steps=[[function(r){return qpsOk(r)&&destOk(r);},''],[destOk,zh?'（不限 QTY/SKU）':' (any QTY/SKU)'],[qpsOk,zh?'（所有目的地）':' (all destinations)'],[function(){return true;},zh?'（不限 QTY/SKU、所有目的地）':' (any QTY/SKU, all destinations)']];
+    var m=[],relax='';for(var i=0;i<steps.length;i++){m=others.filter(steps[i][0]);if(m.length){relax=steps[i][1];break;}}
+    if(!m.length){items.push({id:'4.3',t:t,st:'none',txt:zh?'没有其他客户的类似订单':'No similar order from other clients'});return;}
+    var ps=m.map(function(r){return r.p;}),med=_noteMedian(ps),lo=Math.min.apply(null,ps),hi=Math.max.apply(null,ps);
+    var above=m.filter(function(r){return c.price>r.p+0.000005;}).length,st=_noteState(c.price,med);
+    var dn=(typeof _DEST_NAME!=='undefined'&&_DEST_NAME[c.dest])||c.dest||'';
+    var txt=m.length+' '+(zh?'个类似订单':'similar order'+(m.length>1?'s':''))+(relax?relax:(dn?' · '+dn+' · QTY/SKU ±10%':''))+': '
+      +(m.length>1?pc(lo)+' – '+pc(hi)+(zh?'，中位数 ':', median ')+pc(med):pc(med))+'. '
+      +(above?((zh?'你的价格高于其中 ':'You’re higher than ')+'<b style="color:var(--t)">'+above+(zh?' / ':' of ')+m.length+'</b>'+(st!=='ok'?(zh?'（对比中位数 ':' (')+'<b style="color:var(--t)">'+_notePct(c.price,med)+'</b>'+(zh?'）':' vs median)'):'')+'.')
+             :(zh?'不高于其中任何一单。':'Not higher than any of them.'));
+    // "As long as higher, show it": at/below median but above some → still flagged ⚠
+    if(st==='ok'&&above>0)st='warn';
+    items.push({id:'4.3',t:t,st:st,txt:txt,rows:m,lbl:m.length+(zh?' 单':' order'+(m.length>1?'s':''))});
+  })();
+  var C={warn:['#f59e0b','rgba(245,158,11,.10)','⚠ '+(zh?'偏高':'Higher')],bad:['#f87171','rgba(248,113,113,.10)','▲ '+(zh?'明显偏高':'Much higher')],
+         ok:['#34d399','rgba(52,211,153,.07)','✓ '+(zh?'正常':'OK')],none:['var(--dim)','transparent','— '+(zh?'无数据':'No data')]};
+  var flagged=items.filter(function(x){return x.st==='warn'||x.st==='bad';}).length;
+  var head=flagged?'<span style="font-size:11px;font-weight:700;color:#f59e0b">'+flagged+(zh?' 项需留意':' to check')+'</span>'
+                  :'<span style="font-size:11px;font-weight:700;color:#34d399">'+(zh?'无需留意':'All clear')+'</span>';
+  var jobs=function(rows,lbl){var rs=rows.slice().sort(function(a,b){return (b.d?b.d.getTime():0)-(a.d?a.d.getTime():0);});
+    return '<div style="font-size:10px;margin-top:3px"><span onclick="qPrintJobsToggle(this)" style="cursor:pointer;color:var(--tel);text-decoration:underline dotted">▸ '+lbl+'</span>'
+      +'<div class="qpj-list" style="display:none;margin-top:3px;border:1px solid var(--b);border-radius:6px;overflow:hidden;background:var(--sur)">'
+      +rs.map(function(r,i){var hi=c.price>r.p+0.000005;
+        return '<div style="padding:4px 7px;'+(i?'border-top:1px solid var(--b);':'')+'"><div style="display:flex;gap:8px;justify-content:space-between"><span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t)">'+wlEsc(r.company)+'</span>'
+          +'<b style="flex-shrink:0;'+mn+';color:'+(hi?'#f59e0b':'var(--tel)')+'">S$'+r.p.toFixed(4)+'</b></div>'
+          +'<div style="color:var(--dim)">'+r.qty.toLocaleString()+' · '+r.sku+' SKU · '+wlEsc(r.size||Math.round(r.area)+'mm²')+' · '+wlEsc(r.colour)+(r.loc?' · '+wlEsc(r.loc):'')+(r.d?' · '+fd(r.d):'')
+          +' · '+(r.src==='orders'?(zh?'订单':'order'):(zh?'报价':'quote'))+'</div>'
+          +(r.comment?'<div style="color:var(--m);font-style:italic">'+wlEsc(r.comment)+'</div>':'')+'</div>';}).join('')
+      +'</div></div>';};
+  return '<div style="border:1px solid var(--b);border-left:4px solid #f59e0b;border-radius:10px;background:rgba(245,158,11,.05);padding:10px 11px 9px;margin:0 0 10px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#0c0c0e;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">4</span>'
+    +'<span style="flex:1;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#f59e0b">'+(zh?'注意事项':'Things to Note')+'</span>'+head+'</div>'
+    +'<div style="font-size:10.5px;color:var(--dim)">'+(zh?'你的价格：':'Your price: ')+'<b style="'+mn+';color:var(--t)">S$'+c.price.toFixed(4)+'/pc</b> (S$'+Math.round(c.price*c.qty).toLocaleString()+')'
+    +(zh?' · 同颜色，数量和尺寸 ±10%':' · same colour, qty & size within ±10%')+'</div>'
+    +items.map(function(x){var k=C[x.st];
+      return '<div style="border:1px solid var(--b);border-radius:8px;padding:7px 9px;margin-top:6px;background:'+k[1]+'">'
+        +'<div style="display:flex;gap:8px;align-items:center"><b style="color:var(--m);font-size:11px">'+x.id+'</b><span style="flex:1;font-size:11.5px;font-weight:600;color:var(--t)">'+x.t+'</span>'
+        +'<span style="flex-shrink:0;font-size:11px;font-weight:700;color:'+k[0]+'">'+k[2]+'</span></div>'
+        +'<div style="font-size:11px;color:var(--dim);line-height:1.6;margin-top:3px">'+x.txt+'</div>'
+        +(x.rows&&x.rows.length?jobs(x.rows,x.lbl):'')+'</div>';}).join('')
+    +'</div>';
+}
+// Management: data from the management file (ORDERS + quotes to Lost-stage clients).
+var Q_NOTE_CTX=null;
+function renderQNotes(){
+  var el=document.getElementById('q-notes');if(!el||!Q_NOTE_CTX)return;
+  var c=Object.assign({},Q_NOTE_CTX),sp=document.getElementById('eq-sp');
+  var tot=sp?parseFloat(sp.value):NaN;c.price=(tot>0?tot:c.sell)/c.qty;
+  c.client=((document.getElementById('q-client')||{}).value||'').trim();
+  c.orders=(ORDERS||[]).map(function(o){return _noteRec(o,'orders');});
+  var lr=[];try{lr=buildLostClientQuoteRows();}catch(e){}
+  c.lost=lr.map(function(r){var x=_noteRec(r.quote,'quotes');if(!x.company&&r.client)x.company=r.client.name;return x;});
+  el.innerHTML=thingsToNoteHtml(c);
+}
+// Staff: AYG Operations only — Ops Orders, and Ops Quotations to clients marked Lost in Ops Contacts.
+var SQ_NOTE_CTX=null;
+function renderSqNotes(){
+  var el=document.getElementById('sq-notes');if(!el||!SQ_NOTE_CTX)return;
+  var c=Object.assign({},SQ_NOTE_CTX);c.price=c.sell/c.qty;
+  c.client=((document.getElementById('sq-client')||{}).value||'').trim();
+  c.orders=(STAFF_HIST.orders||[]).map(function(o){return _noteRec(o,'orders');});
+  var lostNames=(CLIENTS||[]).filter(function(k){return k.stage==='Lost / Stalled';}).map(function(k){return k.name;}).filter(Boolean);
+  c.lost=(STAFF_HIST.quotes||[]).map(function(o){return _noteRec(o,'quotes');}).filter(function(r){
+    return r.company&&lostNames.some(function(n){return _coMatch(n,r.company)||n.toLowerCase().indexOf(r.company.toLowerCase())>-1||r.company.toLowerCase().indexOf(n.toLowerCase())>-1;});});
+  el.innerHTML=thingsToNoteHtml(c);
+}
 // Staff selling price from history (AYG Operations only): same colour, qty ±10%, area ±10%.
 // Search order: Orders (last 12 months → any date) → Quotations (last 12 months → any date);
 // if fewer than 3 orders match, matching quotes from the same period are added to them.
@@ -6293,10 +6425,13 @@ function calcStaffQ(){
     +'<div style="'+rs+'font-weight:600"><span style="'+ls+'font-weight:600;color:var(--grn)">'+TX.sellingPrice+'</span><span style="font-family:'+mn+';font-size:13px;font-weight:600;color:var(--grn)">S$'+Math.round(sell).toLocaleString()+'</span></div>'
     +'<div style="'+rs+'border-bottom:none"><span style="'+ls+'">'+TX.pricePerPc+'</span><span style="font-family:'+mn+';font-size:12px">S$'+ppp.toFixed(5)+'</span></div>'
     +'<div style="font-size:10px;color:var(--m);margin-top:6px;line-height:1.5">'+basis+'</div>'+(sh?staffJobsHtml(sh):'')
+    +'<div id="sq-notes" style="margin-top:10px"></div>'
     +'<div style="margin-top:9px;padding:6px 8px;background:var(--s2);border-radius:var(--r);font-size:10px;color:var(--dim)">\u26a0\ufe0f '+TX.estimateDisclaimer+'</div>';
   // Store quote context on the result element so the staff comparison row can read it.
   resEl.dataset.qty=totalQty;resEl.dataset.w=w;resEl.dataset.h=h;resEl.dataset.area=area;
   resEl.dataset.sku=sku;resEl.dataset.colour=col;resEl.dataset.sell=Math.round(sell);
+  SQ_NOTE_CTX={sell:sell,qty:totalQty,area:area,col:col==='c'?'c':'b',qps:Math.round(totalQty/(sku||1)),dest:_sqd};
+  try{renderSqNotes();}catch(e){console.warn('sq notes',e);}
   // Three benchmark estimate cards (Standard / Sato / Honsen) — reuses the shared
   // compute functions, pointed at staff-only element IDs. All from hardcoded tier
   // pricing + AYG Ops Standard/Competitor data (no profit/markup shown).
@@ -6437,6 +6572,7 @@ function renderStaffLostQuotes(){
 // Client order+quote history for the typed client name (staff estimator).
 // fromCalc=true means calcStaffQ invoked us — don't call calcStaffQ back (avoids recursion).
 function renderStaffClientHistory(fromCalc){
+  if(!fromCalc){try{renderSqNotes();}catch(e){}}
   var box=document.getElementById('sq-clienthist-box');
   var el=document.getElementById('sq-clienthist');
   if(!box||!el)return;
@@ -9043,7 +9179,7 @@ function applyHF(){
 // ── Past Orders (Quote Estimator, under the nearest-jobs table) ──
 // Every past order, searchable, filterable (size, colour, area, qty, QTY/SKU, S$/pc) and
 // sortable by clicking a column heading. Typing a client in Job Details pre-fills the search.
-var PO={sort:'d',dir:-1,limit:100,auto:false,sizesFor:null};
+var PO={sort:'d',dir:-1,limit:100,client:'',sizesFor:null};
 function _poRows(){
   return (ORDERS||[]).filter(function(o){return (+o.qty||0)>0;}).map(function(o){var q=+o.qty,sku=+o.sku||1,pr=+o.price||0;
     var st=String(o.status||'').trim().toUpperCase();
@@ -9066,7 +9202,15 @@ function renderPastOrders(){
   var term=((document.getElementById('po-search')||{}).value||'').trim().toLowerCase();
   var sz=sel?sel.value:'',col=(document.getElementById('po-col')||{}).value||'';
   var a1=_poNum('po-a1'),a2=_poNum('po-a2'),q1=_poNum('po-q1'),q2=_poNum('po-q2'),s1=_poNum('po-s1'),s2=_poNum('po-s2'),p1=_poNum('po-p1'),p2=_poNum('po-p2');
+  var chip=document.getElementById('po-client');
+  if(chip){if(PO.client){var hit=all.filter(function(r){return _poClientMatch(PO.client,r);});
+      var nm=Array.from(new Set(hit.map(function(r){return r.disp;}))).slice(0,3).join(', ');
+      chip.innerHTML='<div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:6px;padding:3px 6px 3px 10px;border-radius:14px;background:rgba(110,231,183,.12);border:1px solid rgba(110,231,183,.4);font-size:11px;color:var(--grn);max-width:100%">'
+        +'<span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(zh?'客户：':'Client: ')+'<b>'+wlEsc(nm||PO.client)+'</b>'+(hit.length?'':(zh?'（无订单）':' (no orders)'))+'</span>'
+        +'<button onclick="poClearClient()" style="background:none;border:none;color:var(--grn);cursor:pointer;font-size:13px;line-height:1;padding:0 2px">\u2715</button></div>';}
+    else chip.innerHTML='';}
   var rows=all.filter(function(r){
+    if(PO.client&&!_poClientMatch(PO.client,r))return false;
     if(term){var hay=(r.company+' '+r.disp+' '+r.size+' '+r.colour+' '+r.loc+' '+r.status).toLowerCase();
       if(hay.indexOf(term)<0&&!(typeof _coMatch==='function'&&_coMatch(term,r.company)))return false;}
     if(sz&&r.size.replace(/\s+/g,'').toLowerCase()!==sz)return false;
@@ -9098,7 +9242,7 @@ function renderPastOrders(){
 }
 function poSort(k){if(PO.sort===k)PO.dir=-PO.dir;else{PO.sort=k;PO.dir=(k==='disp'||k==='size'||k==='col')?1:-1;}renderPastOrders();}
 function poReset(){['po-search','po-size','po-col','po-a1','po-a2','po-q1','po-q2','po-s1','po-s2','po-p1','po-p2'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
-  PO.auto=false;PO.limit=100;PO.sort='d';PO.dir=-1;renderPastOrders();}
+  PO.limit=100;PO.sort='d';PO.dir=-1;renderPastOrders();}   // Reset keeps the client chip (✕ clears it)
 // Fill the filters from the job in the estimator: same colour, area ±10%, total qty ±10%.
 function poMatchQuote(){
   var w=parseFloat((document.getElementById('q-w')||{}).value)||0,h=parseFloat((document.getElementById('q-h')||{}).value)||0,q=parseInt((document.getElementById('q-qty')||{}).value)||0;
@@ -9108,9 +9252,11 @@ function poMatchQuote(){
   set('po-col',(document.getElementById('q-col')||{}).value||'');set('po-size','');
   PO.limit=100;renderPastOrders();
 }
-// Typing a client in Job Details pre-fills the Past Orders search (unless you've typed your own).
-function poFromClient(name){var e=document.getElementById('po-search');if(!e)return;
-  if(PO.auto||!e.value){e.value=name||'';PO.auto=!!name;PO.limit=100;}renderPastOrders();}
+// Typing a client in Job Details shows a "Client: … ✕" chip and filters Past Orders to that client
+// (company-mapping names included). The search box stays free for searching within the client.
+function poFromClient(name){PO.client=(name||'').trim();PO.limit=100;renderPastOrders();}
+function poClearClient(){PO.client='';renderPastOrders();}
+function _poClientMatch(term,r){term=term.toLowerCase();return r.company.toLowerCase().indexOf(term)>-1||String(r.disp).toLowerCase().indexOf(term)>-1||(typeof _coMatch==='function'&&_coMatch(term,r.company));}
 
 // ── Lost Client Quote Matches (Quote Estimator) ──────────────────────────
 // Same matching pattern as the "10 Nearest Historical Orders" panel above, but searched
@@ -9176,6 +9322,7 @@ function renderClientHistory(){
   var name=rawName.toLowerCase();
   wlQuoteCheck('q');   // watchlist banner + Calculate gating for whatever is typed
   try{poFromClient(rawName);}catch(e){}
+  try{renderQNotes();}catch(e){}
   if(!name){if(box)box.style.display='none';updateContextBand();return;}
   var matchedOrders=ORDERS.filter(function(o){return o.name&&(o.name.toLowerCase().indexOf(name)>-1||_coMatch(name,o.name));});
   var matchedQuotes=QUOTES_RAW.filter(function(q){return q.company&&(q.company.toLowerCase().indexOf(name)>-1||_coMatch(name,q.company));});
@@ -9203,6 +9350,7 @@ function renderClientHistory(){
 }
 
 function recalcSummary(){
+  setTimeout(function(){try{renderQNotes();}catch(e){}},0);   // Things to Note follows the edited price
   var pc=parseFloat(document.getElementById('eq-pc').value)||0;
   var sc=parseFloat(document.getElementById('eq-sc').value)||0;
   var gstEl=document.getElementById('eq-gst-pct');
@@ -9561,6 +9709,7 @@ function calcQ(){
         qSellEstRows({pick:Q_SELL_PICK,hist:sellHist,midPc:sellBasePc,qty:totalQty,cost:totCost,customTot:sellCustom}),
         TX.sellingPrice+': <b style="color:#34d399">'+fmt(sell)+'</b> · '+TX.pricePerPc+': <b style="color:#34d399">S$'+(sell/totalQty).toFixed(4)+'</b><br>'
         +TX.profit+': '+fmt(profit)+' ('+Math.round(margin)+'%)')
+    +'<div id="q-notes"></div>'
     +'<div style="margin-top:2px;font-size:10px;color:var(--dim);padding:5px 7px;background:var(--s2);border-radius:var(--r)">⚠️ '+TX.estimateDisclaimer+' ¥1=S$'+(1/SGD_RMB).toFixed(4)+'</div>';
 
   // Store the job's non-price details so the highlighted summary line (and its sync logic)
@@ -9571,6 +9720,8 @@ function calcQ(){
   qrEl.dataset.w=w;qrEl.dataset.h=h;
   qrEl.dataset.sku=sku;
   qrEl.dataset.colour=col;
+  Q_NOTE_CTX={sell:sell,qty:totalQty,area:area,col:col==='c'?'c':'b',qps:qtyPerSku,dest:dest};
+  try{renderQNotes();}catch(e){console.warn('notes',e);}
 
   renderHistTable(area,col);
   renderLostQuoteMatchPanel(area,col);
@@ -9618,8 +9769,8 @@ function renderShipHistCard(weightKg,destCode,formShTotal,docCost,SGD_RMB){
   var srcCount=useDest?data.byCountry[country].count:data.count;
   var srcKg=useDest?data.byCountry[country].kg:null;
 
-  var rs='display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 0;border-bottom:1px solid var(--b);';
-  var ls='font-size:11px;color:var(--m);flex:1;min-width:0';
+  var rs='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:2px 6px;padding:5px 0;border-bottom:1px solid var(--b);';
+  var ls='font-size:11px;color:var(--m);flex:1 1 90px;min-width:0';
   var div='<div style="border-top:1px solid var(--b2);margin:6px 0 4px"></div>';
   // Difference vs the estimator's own shipping+docs figure. formShTotal includes docs, so compare
   // against est shipping + the same docs to keep it apples-to-apples.
@@ -9631,14 +9782,14 @@ function renderShipHistCard(weightKg,destCode,formShTotal,docCost,SGD_RMB){
   box.innerHTML=
     '<div style="font-size:10px;font-weight:600;color:var(--m);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+TX.shipHistCardHd+'</div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+srcLabel+'</span>'
-      +'<span style="font-family:'+mn+';font-size:12px;display:inline-flex;gap:8px;align-items:baseline">'
+      +'<span style="font-family:'+mn+';font-size:12px;display:inline-flex;gap:8px;align-items:baseline;flex-shrink:0;white-space:nowrap;margin-left:auto">'
         +'<span style="color:var(--tel)">S$'+rateSgd.toFixed(2)+'<span style="color:var(--m);font-size:9px"> SGD/kg</span></span>'
         +'<span style="color:var(--amb)">\u00a5'+rateRmb.toFixed(2)+'<span style="color:var(--m);font-size:9px"> RMB/kg</span></span>'
       +'</span></div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.shipHistEstWeight+'</span><span style="font-family:'+mn+';font-size:12px;color:var(--t)">'+weightKg.toFixed(2)+' kg</span></div>'
     +div
     +'<div style="'+rs+'font-weight:600"><span style="'+ls+';color:var(--t);font-weight:600">'+TX.shipHistEstShip+'</span>'
-      +'<span style="font-family:'+mn+';font-size:12px;font-weight:600;display:inline-flex;gap:8px;align-items:baseline">'
+      +'<span style="font-family:'+mn+';font-size:12px;font-weight:600;display:inline-flex;gap:8px;align-items:baseline;flex-shrink:0;white-space:nowrap;margin-left:auto">'
         +'<span style="color:var(--tel)">S$'+estShipSgd.toFixed(2)+'</span>'
         +'<span style="color:var(--amb)">\u00a5'+estShipRmb.toFixed(2)+'</span>'
       +'</span></div>'
