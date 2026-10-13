@@ -84,6 +84,8 @@ button{cursor:pointer}
 .cc-body{flex:1;overflow:auto;min-height:0}
 .sc .cc-body{overflow:visible}
 @media (max-width:1100px){.crm-chart-card{grid-column:span 12!important}}
+/* Tablets (iPad): Quote Estimator 3 columns is too cramped beside the sidebar — form + summary side by side, history table full width below */
+@media (min-width:769px) and (max-width:1100px){#qt-est > div[style*="grid-template-columns:200px 1fr 1fr"]{grid-template-columns:200px 1fr!important}#qt-est > div[style*="grid-template-columns:200px 1fr 1fr"] > :nth-child(n+3){grid-column:1 / -1}}
 .cc-title{font-size:12px;font-weight:600;color:var(--t);margin-bottom:10px;text-transform:uppercase;letter-spacing:.03em}
 .ord-section{margin-bottom:14px}
 .ord-sec-head{display:flex;align-items:center;gap:9px;padding:9px 12px;background:var(--s2);border:1px solid var(--b2);border-radius:var(--rl);cursor:pointer;user-select:none;margin-bottom:10px;transition:background .12s}
@@ -394,7 +396,15 @@ html,body{overscroll-behavior-y:contain}
   .sync-box{font-size:9px;padding:3px 6px;max-width:175px}
   #sync-btn{padding:2px 6px!important;font-size:10px!important;margin-right:2px!important}
   #sync-time{font-size:9px}
-  .page{padding:10px 8px}
+  .page{padding:10px 8px 84px}
+  /* Section headers (Checks, CRM, Orders): let long titles + flag badges wrap instead of pushing the ↑↓ buttons off-screen */
+  .ord-sec-head{flex-wrap:wrap;row-gap:6px}
+  .ord-sec-title{flex:1 1 55%;min-width:0}
+  .ord-sec-moves{flex-shrink:0;margin-left:auto}
+  /* Chart/table cards: fit their content on phones instead of the desktop fixed row height (empty space under short charts) */
+  .crm-charts-grid:not(.edit-mode){grid-auto-rows:auto}
+  .crm-charts-grid:not(.edit-mode) .crm-chart-card{grid-row:auto!important}
+  .crm-charts-grid:not(.edit-mode) .cc-body{max-height:440px}   /* bottom room so the search button never covers the last row */
   /* Todo */
   .todo-checklists{grid-template-columns:1fr 1fr!important;gap:6px}
   .det{max-height:calc(100vh - 420px)}
@@ -411,6 +421,11 @@ html,body{overscroll-behavior-y:contain}
   /* Quotes — stack vertically */
   #qt-est > div[style*="grid-template-columns:200px"]{display:flex!important;flex-direction:column!important;gap:9px}
   #q-result,#q-logic,#q-hist-box{width:100%}
+  #sqt-est > div[style*="grid-template-columns:220px"]{display:flex!important;flex-direction:column!important;gap:9px}
+  #sqt-est > div[style*="grid-template-columns:220px"] > *{width:100%;min-width:0}
+  /* Search: floating round button bottom-right instead of sitting over page titles */
+  .nav.collapsed .gsearch-trigger{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom,0px));width:52px;height:52px;margin:0;padding:0;border-radius:50%;justify-content:center;background:var(--sur);border:1px solid var(--b2);color:var(--t);box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:61}
+  .nav.collapsed .gsearch-trigger svg{width:20px;height:20px}
   #pricing-estimates > div{grid-template-columns:1fr!important}
   /* Competitor tables */
   .comp-table{font-size:11px}
@@ -1591,7 +1606,14 @@ tr.vip-row-3 td:first-child,tr.vip-row-2 td:first-child,tr.vip-row-1 td:first-ch
             <div class="field"><label data-tx="qtyPcs">Total Qty (pcs)</label><input id="sq-qty" type="number" oninput="calcStaffQ()"></div>
             <div class="field"><label data-tx="skus">No. of SKUs</label><input id="sq-sku" type="number" value="1" oninput="calcStaffQ()"></div>
           </div>
-          <div class="field"><label data-tx="colour">Colour</label><select id="sq-col" onchange="calcStaffQ()"><option value="b" data-tx="black">1C Black</option><option value="c" data-tx="colourOpt">Colour</option></select></div>
+          <div class="frow">
+            <div class="field"><label data-tx="colour">Colour</label><select id="sq-col" onchange="calcStaffQ()"><option value="b" data-tx="black">1C Black</option><option value="c" data-tx="colourOpt">Colour</option></select></div>
+            <div class="field"><label data-tx="destination">Destination</label><select id="sq-dest" onchange="calcStaffQ()">
+              <option value="sg" data-tx="countrySG">Singapore</option><option value="my" data-tx="countryMY">Malaysia</option><option value="cn" data-tx="countryCN">China</option>
+              <option value="tw" data-tx="countryTW">Taiwan</option><option value="hk" data-tx="countryHK">Hong Kong</option><option value="id" data-tx="countryID">Indonesia</option>
+              <option value="jp" data-tx="countryJP">Japan</option><option value="th" data-tx="countryTH">Thailand</option><option value="vn" data-tx="countryVN">Vietnam</option>
+            </select></div>
+          </div>
           <button class="btn btn-g" id="sq-calc-btn" style="width:100%;justify-content:center;padding:9px;margin-top:8px" onclick="calcStaffQ()"><span data-tx="calculate">Calculate</span></button>
         </div>
       </div>
@@ -1741,7 +1763,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261013-OQ1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261013-MOB1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3222,6 +3244,36 @@ function parseAndRender(buf1,buf2){
     sr2.slice(4).forEach(function(row){
       sc.forEach(function(sz){if(row[sz[1]]&&row[sz[2]]){var q=ri(row[sz[1]]),p=fn(row[sz[2]]);if(q>0&&p>0)STD[sz[0]].push({qty:q,price:p,ppp:Math.round(p/q*1e6)/1e6});}});
     });
+  });
+
+  safely('Staff price history',function(){
+    // Staff Quotes price history — ONLY from the AYG Operations file (selling prices staff can
+    // already see): Orders (what clients paid) and Quotations (what we quoted). Read by heading.
+    STAFF_HIST={orders:[],quotes:[]};
+    function readSheet(nameTest,kind){
+      var nm=Object.keys(wbOps.Sheets).filter(nameTest)[0];if(!nm)return;
+      var rows=XLSX.utils.sheet_to_json(wbOps.Sheets[nm],{header:1,defval:null});
+      var hi=-1;for(var i=0;i<Math.min(rows.length,8);i++){var pr=(rows[i]||[]).map(function(c){return String(c==null?'':c).toLowerCase();});
+        if(pr.some(function(c){return c.indexOf('company name')>-1;})&&pr.some(function(c){return c.indexOf('total order')>-1;})){hi=i;break;}}
+      if(hi<0)return;
+      var H={};(rows[hi]||[]).forEach(function(c,ix){var h=String(c==null?'':c).toLowerCase().trim();if(!h)return;
+        var k=h.indexOf('size')===0?'size':h==='area'?'area':h==='sku'?'sku':h.indexOf('colour')===0?'colour':h.indexOf('total order')===0?'qty':
+              h.indexOf('company name')===0?'company':h.indexOf('location')===0?'loc':h.indexOf('selling price')===0?'sell':
+              (h.indexOf('order received')===0||h.indexOf('quoted date')===0)?'date':h==='status'?'status':h==='comment'?'comment':h==='comment 2'?'comment2':'';
+        if(k&&H[k]===undefined)H[k]=ix;});
+      var g=function(r,k){return H[k]===undefined?null:r[H[k]];};
+      rows.slice(hi+1).forEach(function(r,ri2){
+        if(!r)return;var q=ri(g(r,'qty')),sell=fn(g(r,'sell'));if(!(q>0&&sell>0))return;
+        var st=String(cv(g(r,'status'))).trim().toUpperCase();if(st==='X'||st==='CANCELLED')return;
+        var size=cv(g(r,'size')),m=size.match(/([\d.]+)\s*[xX\u00d7*]\s*([\d.]+)/);
+        var area=fn(g(r,'area'))||(m?parseFloat(m[1])*parseFloat(m[2]):0);if(!(area>0))return;
+        var dv=g(r,'date'),dt=null;try{if(dv instanceof Date){var _dp=cellDateParts(dv);dt=_dp?new Date(_dp.y,_dp.m,_dp.d):null;}else dt=parseFlexDate(dv);}catch(e){}
+        STAFF_HIST[kind].push({company:cv(g(r,'company')),size:size,area:area,qty:q,sku:ri(g(r,'sku'))||1,colour:cv(g(r,'colour')),
+          loc:cv(g(r,'loc')),p:sell/q,total:sell,d:dt,comment:[cv(g(r,'comment')),cv(g(r,'comment2'))].filter(Boolean).join(' \u00b7 '),src:kind,row:hi+2+ri2});
+      });
+    }
+    readSheet(function(k){return k.indexOf('Orders')>-1||k.indexOf('\u8ba2\u5355')>-1;},'orders');
+    readSheet(function(k){return k.indexOf('Quotation')>-1||k.indexOf('\u62a5\u4ef7')>-1;},'quotes');
   });
 
   safely('Competitor Pricing',function(){
@@ -6110,6 +6162,66 @@ function honsenSort(key){if(honsenSK===key)honsenSD*=-1;else{honsenSK=key;honsen
 // Staff quote estimator: same tier math as calcQ but shows ONLY the selling price
 // and price-per-piece (no cost/profit/margin breakdown, no "how calculated" panel,
 // no supplier benchmark). Uses hardcoded tier pricing (not BCRS), so it's safe for staff.
+var STAFF_MARGIN=0.40;   // staff quote margin on total cost — used only when there's no price history
+var STAFF_HIST={orders:[],quotes:[]};
+var _DEST_NAME={sg:'Singapore',my:'Malaysia',cn:'China',tw:'Taiwan',hk:'Hong Kong',id:'Indonesia',jp:'Japan',th:'Thailand',vn:'Vietnam'};
+function _destCode(s){
+  s=String(s||'').toLowerCase();
+  if(/singapore|s'?pore|^sg\b/.test(s))return 'sg';if(/malaysia|^my\b/.test(s))return 'my';if(/hong ?kong|^hk\b/.test(s))return 'hk';
+  if(/china|^cn\b|prc/.test(s))return 'cn';if(/taiwan|^tw\b/.test(s))return 'tw';if(/indonesia/.test(s))return 'id';
+  if(/japan|janpan/.test(s))return 'jp';if(/thailand/.test(s))return 'th';if(/vietnam|viet nam/.test(s))return 'vn';return '';
+}
+// Staff selling price from history (AYG Operations only): same colour, qty ±10%, area ±10%.
+// Search order: Orders (last 12 months → any date) → Quotations (last 12 months → any date);
+// if fewer than 3 orders match, matching quotes from the same period are added to them.
+// Price = 75th percentile (upper-middle) of the matched jobs, so staff err on the high side.
+// Safeguards: (1) never below the same figure for all destinations combined; (2) if the
+// destination has nothing within ±10%, use the all-destination match before "nearest 3".
+function _staffHistCore(qty,area,col,dest){
+  var now=new Date(),yearAgo=new Date(now.getFullYear()-1,now.getMonth(),now.getDate());
+  function base(list){return list.filter(function(r){
+    if(/样品|sample/i.test(r.company))return false;
+    var c;try{c=_qColClass(r.colour);}catch(e){c='other';}
+    return c===col&&(dest==='*'||_destCode(r.loc)===dest)&&r.p>0&&r.p<5;}).map(function(r){
+      var o=Object.assign({},r);o.off=Math.max(Math.abs(r.qty-qty)/qty,Math.abs(r.area-area)/area);
+      o.dist=Math.abs(Math.log(r.qty/qty))+Math.abs(Math.log(r.area/area));return o;});}
+  function pct(a,k){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;if(!n)return 0;var i=(n-1)*k,l=Math.floor(i);return b[l]+(b[Math.ceil(i)]-b[l])*(i-l);}
+  var O=base(STAFF_HIST.orders),Q=base(STAFF_HIST.quotes);
+  var within=function(r){return r.off<=0.10;},recent=function(r){return r.d&&r.d>=yearAgo;};
+  var oR=O.filter(function(r){return within(r)&&recent(r);}),oA=O.filter(within),qR=Q.filter(function(r){return within(r)&&recent(r);}),qA=Q.filter(within);
+  var tiers=[[oR,qR,'orders',true],[oA,qA,'orders',false],[qR,[],'quotes',true],[qA,[],'quotes',false]];
+  for(var i=0;i<tiers.length;i++){var t=tiers[i][0],src=tiers[i][2];if(!t.length)continue;
+    if(t.length<3&&tiers[i][1].length){t=t.concat(tiers[i][1]);src='mixed';}   // thin on orders → add quotes
+    var m0=pct(t.map(function(r){return r.p;}),0.5),kept=t.filter(function(r){return r.p<=m0*2&&r.p>=m0/2;});if(!kept.length)continue;
+    return {rate:pct(kept.map(function(r){return r.p;}),0.75),rows:kept,src:src,recent:tiers[i][3],dropped:t.length-kept.length};}
+  var near=function(list,src){list=list.filter(function(r){return r.off<=0.5;});if(!list.length)return null;  // too far off → formula
+    var pick=list.slice().sort(function(a,b){return (a.dist-b.dist)||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));}).slice(0,3);
+    return {rate:pct(pick.map(function(r){return r.p;}),0.75),rows:pick,src:src,nearest:true,off:Math.max.apply(null,pick.map(function(r){return r.off;}))};};
+  return near(O,'orders')||near(Q,'quotes');
+}
+function staffHistPrice(qty,area,col,dest){
+  var d=_staffHistCore(qty,area,col,dest),all=_staffHistCore(qty,area,col,'*');
+  if(d&&!d.nearest){
+    if(all&&!all.nearest&&all.rate>d.rate){all.floor=true;return all;}   // destination price below the overall → use overall
+    return d;}
+  if(all&&!all.nearest){all.anyDest=true;return all;}                    // nothing close for this destination
+  return d||all;
+}
+function staffJobsHtml(h){
+  var zh=(lang==='zh'),mn="'JetBrains Mono',monospace";
+  var rs=h.rows.slice().sort(function(a,b){return (b.d?b.d.getTime():0)-(a.d?a.d.getTime():0);});
+  var fd=function(d){return d?wlFmtDate(d):'\u2014';};
+  return '<div style="margin-top:6px;font-size:10px">'
+    +'<span onclick="qPrintJobsToggle(this)" style="cursor:pointer;color:var(--tel);text-decoration:underline dotted">\u25b8 '+(zh?'使用的 '+rs.length+' 单':rs.length+' job'+(rs.length>1?'s':'')+' used')+'</span>'
+    +'<div class="qpj-list" style="display:none;margin-top:3px;border:1px solid var(--b);border-radius:6px;overflow:hidden">'
+    +rs.map(function(r,i){return '<div style="padding:4px 7px;'+(i?'border-top:1px solid var(--b);':'')+'">'
+      +'<div style="display:flex;gap:8px;justify-content:space-between"><span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t)">'+wlEsc(r.company)+'</span>'
+      +'<b style="flex-shrink:0;font-family:'+mn+';color:var(--tel)">S$'+r.p.toFixed(4)+'</b></div>'
+      +'<div style="color:var(--dim)">'+r.qty.toLocaleString()+' \u00b7 '+r.sku+' SKU \u00b7 '+wlEsc(r.size||Math.round(r.area)+'mm\u00b2')+' \u00b7 '+wlEsc(r.colour)+' \u00b7 '+wlEsc(r.loc)+' \u00b7 '+fd(r.d)
+      +' \u00b7 '+(r.src==='orders'?(zh?'订单':'order'):(zh?'报价':'quote'))+'</div>'
+      +(r.comment?'<div style="color:var(--m);font-style:italic">'+wlEsc(r.comment)+'</div>':'')+'</div>';}).join('')
+    +'</div></div>';
+}
 function calcStaffQ(){
   if(wlQuoteCheck('sq')){var _wsb=document.getElementById('sq-wl-banner');if(_wsb){try{_wsb.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}return;}
   var w=parseFloat(document.getElementById('sq-w').value)||0;
@@ -6131,13 +6243,31 @@ function calcStaffQ(){
   else if(totalQty<=50000)rpc=0.055;else if(totalQty<=100000)rpc=0.033;else if(totalQty<=300000)rpc=0.030;else rpc=0.027;
   var colMult=col==='c'?1.6:1,areaMult=area>3000?1.3:area>2000?1.15:1;
   rpc*=colMult*areaMult;
+  // Staff price = management's rule, worked out in the background (nothing below is shown):
+  //   Print cost  = High  → band formula × Q_PRINT_HIGH_FACTOR (staff can't read factory-cost history)
+  //   Shipping    = Mid   → weight (min 1 kg) × ¥35/kg × destination factor ÷ FX
+  //   Selling     = total cost ÷ (1 − STAFF_MARGIN)  → 40% margin
+  rpc*=Q_PRINT_HIGH_FACTOR;
   var printCost=totalQty*rpc/SGD_RMB;
   var weightKg=(totalQty/10000)*4*(area/2250);
-  var shipCost=Math.max(35,weightKg*35)/SGD_RMB;
+  var _sqd=(document.getElementById('sq-dest')||{}).value||'sg';
+  var _sqMult=(_sqd==='tw'||_sqd==='jp'||_sqd==='th')?1.55:(_sqd==='id'||_sqd==='vn')?1.4:(_sqd==='my'||_sqd==='hk')?1.3:1.25;
+  var shipCost=Math.max(1,weightKg)*35*_sqMult/SGD_RMB;
   var shTotal=shipCost;   // documentation cost no longer charged
   var gstAmt=Math.round((printCost+shTotal)*9)/100;
   var totCost=printCost+shTotal+gstAmt;
-  var sell=totCost*2.1,ppp=sell/totalQty;
+  var sell=totCost/(1-STAFF_MARGIN);
+  // Prefer the price history from AYG Operations (Orders, then Quotations); formula only as fallback.
+  var sh=null;try{sh=staffHistPrice(totalQty,area,col==='c'?'c':'b',_sqd);}catch(e){}
+  if(sh)sell=sh.rate*totalQty;
+  var ppp=sell/totalQty;
+  var zhS=(lang==='zh');
+  var basis=sh?(sh.nearest
+      ?(zhS?'依据：±10% 内无匹配，取最接近的 ':'Based on: nothing within ±10% — nearest ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):(zhS?'过往报价':'past quotes'))+(zhS?'（中位数，最大相差约 ':' (up to about ')+Math.round(sh.off*100)+'%'+(zhS?'）':' away)')
+      :(zhS?'依据：':'Based on: ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):sh.src==='mixed'?(zhS?'过往订单 + 报价':'past orders + quotes'):(zhS?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
+        +' \u00b7 '+(sh.recent?(zhS?'近12个月':'last 12 months'):(zhS?'不限日期':'any date'))+(zhS?' · 偏高位':' \u00b7 upper-middle'))
+      +' \u00b7 '+((sh.floor||sh.anyDest)?(zhS?'所有目的地':'all destinations'):(_DEST_NAME[_sqd]||_sqd))
+    :(zhS?'依据：该目的地暂无相近记录 — 使用标准公式':'Based on: no similar past job for this destination — standard formula');
   var qtyPerSku=sku>0?Math.round(totalQty/sku):totalQty;
   var mn="'JetBrains Mono',monospace";
   var rs='display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 0;border-bottom:1px solid var(--b);';
@@ -6151,6 +6281,7 @@ function calcStaffQ(){
     +div
     +'<div style="'+rs+'font-weight:600"><span style="'+ls+'font-weight:600;color:var(--grn)">'+TX.sellingPrice+'</span><span style="font-family:'+mn+';font-size:13px;font-weight:600;color:var(--grn)">S$'+Math.round(sell).toLocaleString()+'</span></div>'
     +'<div style="'+rs+'border-bottom:none"><span style="'+ls+'">'+TX.pricePerPc+'</span><span style="font-family:'+mn+';font-size:12px">S$'+ppp.toFixed(5)+'</span></div>'
+    +'<div style="font-size:10px;color:var(--m);margin-top:6px;line-height:1.5">'+basis+'</div>'+(sh?staffJobsHtml(sh):'')
     +'<div style="margin-top:9px;padding:6px 8px;background:var(--s2);border-radius:var(--r);font-size:10px;color:var(--dim)">\u26a0\ufe0f '+TX.estimateDisclaimer+'</div>';
   // Store quote context on the result element so the staff comparison row can read it.
   resEl.dataset.qty=totalQty;resEl.dataset.w=w;resEl.dataset.h=h;resEl.dataset.area=area;
