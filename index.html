@@ -1773,7 +1773,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261013-NOTE2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261014-NOTE5'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6202,6 +6202,34 @@ function _noteRec(o,src){   // normalise any order / quote record
 function _noteIsClient(name,rec){if(!name||!rec.company)return false;var n=name.toLowerCase();
   return rec.company.toLowerCase().indexOf(n)>-1||(typeof _coMatch==='function'&&_coMatch(name,rec.company))||(typeof coDisplay==='function'&&String(coDisplay(rec.company)).toLowerCase().indexOf(n)>-1);}
 function _noteNear(r,c){return Math.abs(r.qty-c.qty)/c.qty<=NOTE_TOL&&Math.abs(r.area-c.area)/c.area<=NOTE_TOL;}
+// Widening match (4.2 / 4.3). Quantity: ±10% → ±20% → 3 nearest on quantity if within 30%.
+// Area: ±10% → ±15% → nothing (never wider than ±15%). Returns {rows, how, nearest} or null.
+function _noteWiden(list,c,extra){
+  var qg=function(r){return Math.abs(r.qty-c.qty)/c.qty;},ag=function(r){return Math.abs(r.area-c.area)/c.area;};
+  var zh=(lang==='zh');
+  var tiers=[[0.10,0.10,''],[0.20,0.10,zh?'数量 ±20%':'qty ±20%'],[0.20,0.15,zh?'数量 ±20%、面积 ±15%':'qty ±20%, area ±15%']];
+  for(var i=0;i<tiers.length;i++){var t=tiers[i];
+    var m=list.filter(function(r){return qg(r)<=t[0]+1e-9&&ag(r)<=t[1]+1e-9&&(!extra||extra(r));});
+    if(m.length)return {rows:m,how:t[2]};}
+  var pool=list.filter(function(r){return qg(r)<=0.30+1e-9&&ag(r)<=0.15+1e-9&&(!extra||extra(r));})
+    .sort(function(a,b){return (qg(a)-qg(b))||(ag(a)-ag(b));}).slice(0,3);
+  if(!pool.length)return null;
+  var far=Math.round(Math.max.apply(null,pool.map(qg))*100);
+  return {rows:pool,how:(zh?'最接近数量的 '+pool.length+' 个（最多相差 '+far+'%，面积 ±15% 内）':pool.length+' nearest on qty (up to '+far+'% away, area within ±15%)'),nearest:true};
+}
+// Honsen reference for 4.4 — same logic as the Honsen card under Compare Pricing: nearest Honsen
+// size by area, tier = first tier with qty ≥ QTY/SKU (else the largest). If the card's tier
+// dropdown has been changed, that chosen tier is used instead.
+function _honsenRef(c,elId){
+  if(typeof HONSEN==='undefined'||typeof HONSEN_AREAS==='undefined')return null;
+  var keys=Object.keys(HONSEN_AREAS).filter(function(k){return (HONSEN[k]||[]).length;});if(!keys.length)return null;
+  var sz=keys.slice().sort(function(a,b){return Math.abs(HONSEN_AREAS[a]-c.area)-Math.abs(HONSEN_AREAS[b]-c.area);})[0];
+  var rows=HONSEN[sz].slice().sort(function(a,b){return (a.qty||a.pcs||0)-(b.qty||b.pcs||0);});
+  var row=rows.find(function(r){return (r.qty||r.pcs||0)>=c.qps;})||rows[rows.length-1],picked=false;
+  var sel=elId&&document.getElementById(elId+'-sel');
+  if(sel&&+sel.dataset.qty===c.qty){var v=parseFloat(sel.value);var hit=rows.filter(function(r){return Math.abs(r.ppp-v)<1e-9;})[0];if(hit&&hit!==row){row=hit;picked=true;}}
+  return {size:sz,area:HONSEN_AREAS[sz],tierQty:row.qty||row.pcs||0,p:row.ppp,picked:picked};
+}
 function _noteMedian(a){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):0;}
 function _noteState(price,ref){if(!(ref>0))return 'none';var g=price/ref-1;return g<=0.00005?'ok':g<=NOTE_BIG?'warn':'bad';}
 function _notePct(price,ref){var g=(price/ref-1)*100;return (g>0?'+':'')+(Math.abs(g)<10?g.toFixed(1):Math.round(g))+'%';}
@@ -6233,34 +6261,55 @@ function thingsToNoteHtml(c){
   // 4.2 lost-client quotes
   (function(){
     var t=zh?'流失客户的报价':'Lost-client quotes';
-    var near=good(c.lost).filter(function(r){return r.col===c.col&&_noteNear(r,c);});
-    if(!near.length){items.push({id:'4.2',t:t,st:'none',txt:zh?'没有类似（数量/尺寸 ±10%）的流失报价':'No similar quote (qty & size ±10%) to a lost client'});return;}
+    var w=_noteWiden(good(c.lost).filter(function(r){return r.col===c.col;}),c);
+    if(!w){items.push({id:'4.2',t:t,st:'none',txt:zh?'没有类似的流失报价（数量 30% 内、面积 15% 内）':'No similar quote to a lost client (qty within 30%, area within 15%)'});return;}
+    var near=w.rows,wh=w.how?' <span style="color:var(--amb)">['+(zh?'放宽：':'widened: ')+w.how+']</span>':'';
     var lowest=near.slice().sort(function(a,b){return a.p-b.p;})[0];
     var above=near.filter(function(r){return c.price>r.p+0.000005;}).length;
     var st=_noteState(c.price,lowest.p);
     var txt=(st==='ok'?(zh?'不高于任何类似的流失报价。':'Not higher than any similar quote we lost. ')
         :((zh?'高于 ':'Higher than ')+'<b style="color:var(--t)">'+above+(zh?' / ':' of ')+near.length+'</b>'+(zh?' 个类似的流失报价。':' similar quote'+(near.length>1?'s':'')+' we lost. ')))
-      +(zh?'最低流失报价 ':'Lowest lost quote ')+pc(lowest.p)+(st!=='ok'?' (<b style="color:var(--t)">'+_notePct(c.price,lowest.p)+'</b>)':'')+' — '+desc(lowest);
+      +(zh?'最低流失报价 ':'Lowest lost quote ')+pc(lowest.p)+(st!=='ok'?' (<b style="color:var(--t)">'+_notePct(c.price,lowest.p)+'</b>)':'')+' — '+desc(lowest)+wh;
     items.push({id:'4.2',t:t,st:st,txt:txt,rows:near,lbl:near.length+(zh?' 个报价':' lost quote'+(near.length>1?'s':''))});
   })();
   // 4.3 other clients' orders — same colour, qty, area, QTY/SKU (±10%) and destination; relaxed step by step if empty
   (function(){
     var t=zh?'其他客户的订单':'Other clients’ orders';
-    var others=good(c.orders).filter(function(r){return !(c.client&&_noteIsClient(c.client,r))&&r.col===c.col&&_noteNear(r,c);});
+    var others=good(c.orders).filter(function(r){return !(c.client&&_noteIsClient(c.client,r))&&r.col===c.col;});
     var qpsOk=function(r){return Math.abs(r.qps-c.qps)/c.qps<=NOTE_TOL;},destOk=function(r){return r.dest===c.dest;};
     var steps=[[function(r){return qpsOk(r)&&destOk(r);},''],[destOk,zh?'（不限 QTY/SKU）':' (any QTY/SKU)'],[qpsOk,zh?'（所有目的地）':' (all destinations)'],[function(){return true;},zh?'（不限 QTY/SKU、所有目的地）':' (any QTY/SKU, all destinations)']];
-    var m=[],relax='';for(var i=0;i<steps.length;i++){m=others.filter(steps[i][0]);if(m.length){relax=steps[i][1];break;}}
-    if(!m.length){items.push({id:'4.3',t:t,st:'none',txt:zh?'没有其他客户的类似订单':'No similar order from other clients'});return;}
+    // QTY/SKU + destination are relaxed first; only then are quantity / area widened (same rule as 4.2)
+    var m=[],relax='',wh='';
+    var widen=[function(r){return _noteNear(r,c);},function(r){return Math.abs(r.qty-c.qty)/c.qty<=0.2+1e-9&&Math.abs(r.area-c.area)/c.area<=0.1+1e-9;},
+               function(r){return Math.abs(r.qty-c.qty)/c.qty<=0.2+1e-9&&Math.abs(r.area-c.area)/c.area<=0.15+1e-9;}];
+    var wlab=['',zh?'数量 ±20%':'qty ±20%',zh?'数量 ±20%、面积 ±15%':'qty ±20%, area ±15%'];
+    outer:for(var wi=0;wi<widen.length;wi++){for(var i=0;i<steps.length;i++){
+      m=others.filter(function(r){return widen[wi](r)&&steps[i][0](r);});if(m.length){relax=steps[i][1];wh=wlab[wi];break outer;}}}
+    if(!m.length){for(i=0;i<steps.length;i++){var nw=_noteWiden(others,c,steps[i][0]);if(nw&&nw.nearest){m=nw.rows;relax=steps[i][1];wh=nw.how;break;}}}
+    if(!m.length){items.push({id:'4.3',t:t,st:'none',txt:zh?'没有其他客户的类似订单（数量 30% 内、面积 15% 内）':'No similar order from other clients (qty within 30%, area within 15%)'});return;}
     var ps=m.map(function(r){return r.p;}),med=_noteMedian(ps),lo=Math.min.apply(null,ps),hi=Math.max.apply(null,ps);
     var above=m.filter(function(r){return c.price>r.p+0.000005;}).length,st=_noteState(c.price,med);
     var dn=(typeof _DEST_NAME!=='undefined'&&_DEST_NAME[c.dest])||c.dest||'';
     var txt=m.length+' '+(zh?'个类似订单':'similar order'+(m.length>1?'s':''))+(relax?relax:(dn?' · '+dn+' · QTY/SKU ±10%':''))+': '
       +(m.length>1?pc(lo)+' – '+pc(hi)+(zh?'，中位数 ':', median ')+pc(med):pc(med))+'. '
       +(above?((zh?'你的价格高于其中 ':'You’re higher than ')+'<b style="color:var(--t)">'+above+(zh?' / ':' of ')+m.length+'</b>'+(st!=='ok'?(zh?'（对比中位数 ':' (')+'<b style="color:var(--t)">'+_notePct(c.price,med)+'</b>'+(zh?'）':' vs median)'):'')+'.')
-             :(zh?'不高于其中任何一单。':'Not higher than any of them.'));
+             :(zh?'不高于其中任何一单。':'Not higher than any of them.'))
+      +(wh?' <span style="color:var(--amb)">['+(zh?'放宽：':'widened: ')+wh+']</span>':'');
     // "As long as higher, show it": at/below median but above some → still flagged ⚠
     if(st==='ok'&&above>0)st='warn';
     items.push({id:'4.3',t:t,st:st,txt:txt,rows:m,lbl:m.length+(zh?' 单':' order'+(m.length>1?'s':''))});
+  })();
+  // 4.4 Competitor quote — Honsen
+  (function(){
+    var t=zh?'竞争对手报价 — Honsen':'Competitor quote \u2014 Honsen';
+    var h=null;try{h=_honsenRef(c,c.honsenEl);}catch(e){}
+    if(!h||!(h.p>0)){items.push({id:'4.4',t:t,st:'none',txt:zh?'没有 Honsen 价格数据':'No Honsen pricing loaded'});return;}
+    var st=_noteState(c.price,h.p),aOff=Math.abs(h.area-c.area)/c.area;
+    var where=h.size+'mm \u00b7 '+(zh?'档位 ':'tier ')+h.tierQty.toLocaleString()+(h.picked?(zh?'（卡片中已选）':' (picked in card)'):(zh?'（QTY/SKU '+c.qps.toLocaleString()+'）':' (QTY/SKU '+c.qps.toLocaleString()+')'))
+      +(aOff>0.15?' <span style="color:var(--amb)">['+(zh?'最接近的 Honsen 尺寸，面积相差 ':'nearest Honsen size, area ')+Math.round(aOff*100)+'%'+(zh?'':' off')+']</span>':'');
+    var txt=st==='ok'?((zh?'不高于 Honsen：':'Not higher than Honsen: ')+pc(h.p)+' \u2014 '+where)
+      :('<b style="color:var(--t)">'+_notePct(c.price,h.p)+'</b> '+(zh?'对比 Honsen：':'vs Honsen: ')+pc(h.p)+' \u2014 '+where);
+    items.push({id:'4.4',t:t,st:st,txt:txt});
   })();
   var C={warn:['#f59e0b','rgba(245,158,11,.10)','⚠ '+(zh?'偏高':'Higher')],bad:['#f87171','rgba(248,113,113,.10)','▲ '+(zh?'明显偏高':'Much higher')],
          ok:['#34d399','rgba(52,211,153,.07)','✓ '+(zh?'正常':'OK')],none:['var(--dim)','transparent','— '+(zh?'无数据':'No data')]};
@@ -6281,7 +6330,7 @@ function thingsToNoteHtml(c){
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#0c0c0e;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">4</span>'
     +'<span style="flex:1;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#f59e0b">'+(zh?'注意事项':'Things to Note')+'</span>'+head+'</div>'
     +'<div style="font-size:10.5px;color:var(--dim)">'+(zh?'你的价格：':'Your price: ')+'<b style="'+mn+';color:var(--t)">S$'+c.price.toFixed(4)+'/pc</b> (S$'+Math.round(c.price*c.qty).toLocaleString()+')'
-    +(zh?' · 同颜色，数量和尺寸 ±10%':' · same colour, qty & size within ±10%')+'</div>'
+    +(zh?' · 同颜色 · 数量 ±10%→±20%→最接近3个(≤30%) · 面积 ±10%→±15%':' · same colour · qty ±10% → ±20% → 3 nearest (≤30%) · area ±10% → ±15%')+'</div>'
     +items.map(function(x){var k=C[x.st];
       return '<div style="border:1px solid var(--b);border-radius:8px;padding:7px 9px;margin-top:6px;background:'+k[1]+'">'
         +'<div style="display:flex;gap:8px;align-items:center"><b style="color:var(--m);font-size:11px">'+x.id+'</b><span style="flex:1;font-size:11.5px;font-weight:600;color:var(--t)">'+x.t+'</span>'
@@ -6294,7 +6343,7 @@ function thingsToNoteHtml(c){
 var Q_NOTE_CTX=null;
 function renderQNotes(){
   var el=document.getElementById('q-notes');if(!el||!Q_NOTE_CTX)return;
-  var c=Object.assign({},Q_NOTE_CTX),sp=document.getElementById('eq-sp');
+  var c=Object.assign({},Q_NOTE_CTX),sp=document.getElementById('eq-sp');c.honsenEl='honsen-estimate-body';
   var tot=sp?parseFloat(sp.value):NaN;c.price=(tot>0?tot:c.sell)/c.qty;
   c.client=((document.getElementById('q-client')||{}).value||'').trim();
   c.orders=(ORDERS||[]).map(function(o){return _noteRec(o,'orders');});
@@ -6306,7 +6355,7 @@ function renderQNotes(){
 var SQ_NOTE_CTX=null;
 function renderSqNotes(){
   var el=document.getElementById('sq-notes');if(!el||!SQ_NOTE_CTX)return;
-  var c=Object.assign({},SQ_NOTE_CTX);c.price=c.sell/c.qty;
+  var c=Object.assign({},SQ_NOTE_CTX);c.price=c.sell/c.qty;c.honsenEl='sq-honsen-estimate-body';
   c.client=((document.getElementById('sq-client')||{}).value||'').trim();
   c.orders=(STAFF_HIST.orders||[]).map(function(o){return _noteRec(o,'orders');});
   var lostNames=(CLIENTS||[]).filter(function(k){return k.stage==='Lost / Stalled';}).map(function(k){return k.name;}).filter(Boolean);
@@ -6444,6 +6493,7 @@ function calcStaffQ(){
     }
     // Editable Honsen estimate (same as management — with the qty-range dropdown).
     computeHonsenEstimateStaff(area,totalQty,qps);
+    try{renderSqNotes();}catch(e){}   // 4.4 reads the Honsen card
     computeJewelEstimateStaff(area,totalQty,qps);
     computeOtherQuotesEstimate(area,totalQty,col==='c'?'c':'b','sq-oq-estimate-body');
   }
@@ -9094,6 +9144,7 @@ function computeEstimate(pricing,areaMap,targetArea,totalQty,qps,bodyId,color){
 function recalcEstimate(sel){
   if(typeof sel==='string')sel=document.getElementById(sel);
   if(!sel)return;
+  if(sel.dataset.bodyid==='honsen-estimate-body'){try{renderQNotes();}catch(e){}}else if(sel.dataset.bodyid==='sq-honsen-estimate-body'){try{renderSqNotes();}catch(e){}}
   var bodyId=sel.dataset.bodyid;var totalQty=parseFloat(sel.dataset.qty)||1;var color=sel.dataset.color;
   var ppp=parseFloat(sel.value)||0;var estTotal=ppp*totalQty;
   var pppEl=document.getElementById(bodyId+'-ppp');if(pppEl){pppEl.textContent='S$'+ppp.toFixed(5);pppEl.style.color=color;}
@@ -9728,6 +9779,7 @@ function calcQ(){
   renderClientHistory();
   renderQePpcPanel();
   renderShipHistCard(weightKg,dest,shTotal,docCost,SGD_RMB);
+  try{renderQNotes();}catch(e){}   // again, now the Honsen card (4.4) is built
 }
 
 // ── Historical shipping cross-check ─────────────────────────────────────────
@@ -9904,6 +9956,7 @@ function syncSellPriceFrom(sourceId){
     var el=document.getElementById(id);if(el)el.value=val;
   });
   if(sourceId==='eq-sp')recalcSummary();
+  else{try{renderQNotes();}catch(e){}}   // price typed in a 'Your Quote' row → Things to Note follows too
   var totalQty=parseFloat(document.getElementById('q-result').dataset.qty)||1;
   var sellVal=parseFloat(val)||0;
   ['yq-sp-hist','yq-sp-lost'].forEach(function(id){
