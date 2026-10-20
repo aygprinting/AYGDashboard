@@ -1775,15 +1775,20 @@ var QUOTES_RAW=[]; // Full quote line items from "Custom Sizes & Quotes" (kept s
 // Manual aliases for cases where a quote was placed under a different/related company name
 // than the one tracked in Contacts (e.g. an agency or contractor placing quotes on a client's behalf).
 // Each entry: the exact Contacts company name -> array of company-name strings as they appear in quotes.
-var QUOTE_ALIASES={
-  'Coca-Cola Singapore Beverages Pte. Ltd. ; HH Global':['HH Global'] // HH Global is Coca-Cola's print/packaging contractor
-};
+var QUOTE_ALIASES={};   // name links now live in company_map.xlsx (aliases column), not in the code
 var STD={"75x30":[],"65x24":[],"75x65":[],"65x59":[],"27x17":[]};
 var COMP_QUOTES=[];   // Competitor Pricing → 'Competitor Quotes' block: real quotes, any competitor/size/qty
 var COMP_PRICING={"75x30":[],"65x24":[],"75x65":[],"65x59":[],"27x17":[]};
 var SATO_LIST=[];
 var JEWEL_LIST=[];
 var HONSEN_LIST=[];
+var COST_BANDS=null;   // management file → 'Cost Bands' sheet
+function bandRpc(qty,col,area){
+  if(!COST_BANDS)return null;var t=COST_BANDS.tiers,base=t[t.length-1].rmb;
+  for(var i=0;i<t.length;i++){if(qty<=t[i].max){base=t[i].rmb;break;}}
+  var cm=col==='c'?COST_BANDS.colour:1,am=1;for(var j=0;j<COST_BANDS.area.length;j++){if(area>COST_BANDS.area[j].over){am=COST_BANDS.area[j].mult;break;}}
+  return {base:base,colMult:cm,areaMult:am,rpc:base*cm*am};
+}
 var AYG_COMP_LIST=[];     // AYG's own printer column from the Competitors sheet — reference only, not displayed
 var AYG_COMP_KEYS={};     // normalized-name -> original AYG company, for "also our client" overlap flagging
 var RECENT_ORDERS=[];     // Competitors sheet "last 14 days" block: {date,vendor,size,qty} per recent order
@@ -1801,7 +1806,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261020-PAY2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261020-PRIV3'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1810,10 +1815,10 @@ var OLDMAIN_JUMP=null;              // same, for the Old Order History table
 var ORDER_COMPANIES=[];
 
 var STD_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
-var HONSEN={"75x30":[{"qty":1000,"price":180,"ppp":0.18},{"qty":5000,"price":230,"ppp":0.046},{"qty":10000,"price":310,"ppp":0.031},{"qty":15000,"price":370,"ppp":0.0246667},{"qty":20000,"price":450,"ppp":0.0225},{"qty":25000,"price":520,"ppp":0.0208},{"qty":30000,"price":565,"ppp":0.0188333},{"qty":35000,"price":600,"ppp":0.0171429},{"qty":40000,"price":640,"ppp":0.016},{"qty":45000,"price":815,"ppp":0.0181111},{"qty":50000,"price":850,"ppp":0.017},{"qty":55000,"price":820,"ppp":0.0149091},{"qty":60000,"price":1065,"ppp":0.01775},{"qty":65000,"price":1139.55,"ppp":0.0175315},{"qty":70000,"price":1207.92,"ppp":0.017256},{"qty":75000,"price":1280.4,"ppp":0.017072},{"qty":80000,"price":1357.22,"ppp":0.0169653},{"qty":85000,"price":1425.08,"ppp":0.0167656},{"qty":90000,"price":1496.34,"ppp":0.016626},{"qty":95000,"price":1571.15,"ppp":0.0165384},{"qty":100000,"price":1649.71,"ppp":0.0164971},{"qty":250000,"price":1950,"ppp":0.0078},{"qty":500000,"price":3530,"ppp":0.00706},{"qty":1000000,"price":6695,"ppp":0.006695}],"65x24":[{"qty":1000,"price":180,"ppp":0.18},{"qty":5000,"price":220,"ppp":0.044},{"qty":10000,"price":280,"ppp":0.028},{"qty":15000,"price":350,"ppp":0.0233333},{"qty":20000,"price":420,"ppp":0.021},{"qty":25000,"price":470,"ppp":0.0188},{"qty":30000,"price":530,"ppp":0.0176667},{"qty":35000,"price":570,"ppp":0.0162857},{"qty":40000,"price":600,"ppp":0.015},{"qty":45000,"price":795,"ppp":0.0176667},{"qty":50000,"price":800,"ppp":0.016},{"qty":55000,"price":785,"ppp":0.0142727},{"qty":60000,"price":980,"ppp":0.0163333},{"qty":65000,"price":1048.6,"ppp":0.0161323},{"qty":70000,"price":1111.52,"ppp":0.0158789},{"qty":75000,"price":1178.21,"ppp":0.0157095},{"qty":80000,"price":1248.9,"ppp":0.0156113},{"qty":85000,"price":1311.34,"ppp":0.0154275},{"qty":90000,"price":1376.91,"ppp":0.015299},{"qty":95000,"price":1445.76,"ppp":0.0152185},{"qty":100000,"price":1518.04,"ppp":0.0151804},{"qty":250000,"price":1770,"ppp":0.00708},{"qty":500000,"price":3180,"ppp":0.00636},{"qty":1000000,"price":6005,"ppp":0.006005}],"75x65":[{"qty":1000,"price":190,"ppp":0.19},{"qty":5000,"price":340,"ppp":0.068},{"qty":10000,"price":540,"ppp":0.054},{"qty":15000,"price":610,"ppp":0.0406667},{"qty":20000,"price":705,"ppp":0.03525},{"qty":25000,"price":805,"ppp":0.0322},{"qty":30000,"price":900,"ppp":0.03},{"qty":35000,"price":925,"ppp":0.0264286},{"qty":40000,"price":995,"ppp":0.024875},{"qty":45000,"price":1250,"ppp":0.0277778},{"qty":50000,"price":1385,"ppp":0.0277},{"qty":55000,"price":1350,"ppp":0.0245455},{"qty":60000,"price":1620,"ppp":0.027},{"qty":65000,"price":1733.4,"ppp":0.0266677},{"qty":70000,"price":1837.4,"ppp":0.0262486},{"qty":75000,"price":1947.65,"ppp":0.0259687},{"qty":80000,"price":2064.51,"ppp":0.0258064},{"qty":85000,"price":2167.73,"ppp":0.0255027},{"qty":90000,"price":2276.12,"ppp":0.0252902},{"qty":95000,"price":2389.93,"ppp":0.0251572},{"qty":100000,"price":2509.42,"ppp":0.0250942},{"qty":250000,"price":2945,"ppp":0.01178},{"qty":500000,"price":5525,"ppp":0.01105},{"qty":1000000,"price":10670,"ppp":0.01067}],"65x59":[{"qty":1000,"price":190,"ppp":0.19},{"qty":5000,"price":290,"ppp":0.058},{"qty":10000,"price":430,"ppp":0.043},{"qty":15000,"price":560,"ppp":0.0373333},{"qty":20000,"price":665,"ppp":0.03325},{"qty":25000,"price":755,"ppp":0.0302},{"qty":30000,"price":860,"ppp":0.0286667},{"qty":35000,"price":900,"ppp":0.0257143},{"qty":40000,"price":945,"ppp":0.023625},{"qty":45000,"price":990,"ppp":0.022},{"qty":50000,"price":1250,"ppp":0.025},{"qty":55000,"price":1200,"ppp":0.0218182},{"qty":60000,"price":1270,"ppp":0.0211667},{"qty":65000,"price":1358.9,"ppp":0.0209062},{"qty":70000,"price":1440.43,"ppp":0.0205776},{"qty":75000,"price":1526.86,"ppp":0.0203581},{"qty":80000,"price":1618.47,"ppp":0.0202309},{"qty":85000,"price":1699.4,"ppp":0.0199929},{"qty":90000,"price":1784.36,"ppp":0.0198262},{"qty":95000,"price":1873.58,"ppp":0.0197219},{"qty":100000,"price":1967.26,"ppp":0.0196726},{"qty":250000,"price":2760,"ppp":0.01104},{"qty":500000,"price":5180,"ppp":0.01036},{"qty":1000000,"price":10010,"ppp":0.01001}],"27x17":[{"qty":1000,"price":180,"ppp":0.18},{"qty":5000,"price":180,"ppp":0.036},{"qty":10000,"price":200,"ppp":0.02},{"qty":15000,"price":210,"ppp":0.014},{"qty":20000,"price":230,"ppp":0.0115},{"qty":25000,"price":250,"ppp":0.01},{"qty":30000,"price":260,"ppp":0.0086667},{"qty":35000,"price":280,"ppp":0.008},{"qty":40000,"price":310,"ppp":0.00775},{"qty":45000,"price":320,"ppp":0.0071111},{"qty":50000,"price":350,"ppp":0.007},{"qty":55000,"price":370,"ppp":0.0067273},{"qty":60000,"price":390,"ppp":0.0065},{"qty":65000,"price":410,"ppp":0.0063077},{"qty":70000,"price":440,"ppp":0.0062857},{"qty":75000,"price":450,"ppp":0.006},{"qty":80000,"price":480,"ppp":0.006},{"qty":85000,"price":500,"ppp":0.0058824},{"qty":90000,"price":520,"ppp":0.0057778},{"qty":95000,"price":540,"ppp":0.0056842},{"qty":100000,"price":560,"ppp":0.0056},{"qty":250000,"price":900,"ppp":0.0036},{"qty":500000,"price":1350,"ppp":0.0027},{"qty":1000000,"price":2370,"ppp":0.00237}]};
+var HONSEN={};   // loaded from AYG Operations → 'Competitor Price Tables' sheet (not kept in the code)
 /* HONSEN_V2 */
 var HONSEN_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
-var JEWEL={"75x30":[{"qty":5000,"price":270,"ppp":0.054},{"qty":10000,"price":380,"ppp":0.038},{"qty":20000,"price":620,"ppp":0.031},{"qty":50000,"price":1170,"ppp":0.0234},{"qty":70000,"price":1600,"ppp":0.0228571},{"qty":100000,"price":2150,"ppp":0.0215},{"qty":500000,"price":9560,"ppp":0.01912},{"qty":1000000,"price":19000,"ppp":0.019}],"65x24":[{"qty":5000,"price":250,"ppp":0.05},{"qty":10000,"price":350,"ppp":0.035},{"qty":20000,"price":570,"ppp":0.0285},{"qty":50000,"price":1030,"ppp":0.0206},{"qty":70000,"price":1450,"ppp":0.0207143},{"qty":100000,"price":1900,"ppp":0.019},{"qty":500000,"price":8440,"ppp":0.01688},{"qty":1000000,"price":15000,"ppp":0.015}],"75x65":[{"qty":5000,"price":345,"ppp":0.069},{"qty":10000,"price":530,"ppp":0.053},{"qty":20000,"price":790,"ppp":0.0395},{"qty":50000,"price":1690,"ppp":0.0338},{"qty":70000,"price":2350,"ppp":0.0335714},{"qty":100000,"price":2950,"ppp":0.0295},{"qty":500000,"price":12660,"ppp":0.02532},{"qty":1000000,"price":22500,"ppp":0.0225}]};
+var JEWEL={};    // loaded from AYG Operations → 'Competitor Price Tables' sheet
 var JEWEL_AREAS={'75x30':2250,'65x24':1560,'75x65':4875};
 var CMP_AREAS={'75x30':2250,'65x24':1560,'75x65':4875,'65x59':3835,'27x17':459};
 var CRM_STAGES=[{id:'Enquiry',zh:'\u8be2\u76d8',color:'#60a5fa'},{id:'Quoting',zh:'\u62a5\u4ef7\u4e2d',color:'#f472b6'},{id:'Design & Approval',zh:'\u8bbe\u8ba1\u4e0e\u5ba1\u6279',color:'#a78bfa'},{id:'Order Placed',zh:'\u5df2\u4e0b\u5355',color:'#818cf8'},{id:'In Production',zh:'\u751f\u4ea7\u4e2d',color:'#2dd4bf'},{id:'Delivery',zh:'\u914d\u9001\u4e2d',color:'#22d3ee'},{id:'Pending Payment',zh:'\u5f85\u4ed8\u6b3e',color:'#fbbf24'},{id:'Paid',zh:'\u5df2\u4ed8\u6b3e',color:'#6ee7b7'},{id:'Lost / Stalled',zh:'\u5df2\u6d41\u5931/\u505c\u6ede',color:'#45454f'}];
@@ -1894,7 +1899,7 @@ var TX=TX_EN;
 })();
 
 // RMB per 1 SGD — the one exchange rate used for every RMB↔SGD conversion in the dashboard.
-var FX_SGD_RMB=5.15;
+var FX_SGD_RMB=0;   // quote settings come from the management file (Cost Bands → Settings)
 var activeSection=null,dragId=null,editId=null,editType=null;
 var dailyDone={},secDone={},histArea=0,histCol='b';
 var sqHistArea=0,sqHistCol='b';
@@ -2052,7 +2057,7 @@ async function fetchExcelFromSharePoint(){
       if(typeof XLSX==='undefined')throw new Error('XLSX library not loaded');
       showSyncStatus(TX.parsingData,'loading');
       // Company-name aliases (company_map.xlsx) are just name mappings — no financial data — so
-      // staff load them too; otherwise "LNC" only matched in management view.
+      // staff load them too; otherwise a mapped name only matched in management view.
       try{await syncCompanyMap(token);}catch(e){}
       parseAndRender(null,buf2s); // buf1=null signals staff mode inside parseAndRender
       await applyMe();
@@ -2141,7 +2146,7 @@ async function resolvePipeFileId(token){
 }
 // ── Company-name alias map (company_map.xlsx) ────────────────────────────────
 // Optional file on the same drive. Lets you hand-map name variants (CRM vs pipeline vs WhatsApp)
-// to ONE canonical company so the checks pair them up — e.g. "Interchamp Trading" == "Interchamp".
+// to ONE canonical company so the checks pair them up — e.g. "ABC Trading" == "ABC".
 // Columns: A Chat Name · B Suggested · C Company(canonical) · D Notes · E Aliases(comma-separated).
 // Fully fail-safe: if the file/sheet is missing or errors, the alias map stays empty and nothing
 // else changes. Cached per session after the first successful load.
@@ -3453,6 +3458,51 @@ function parseAndRender(buf1,buf2){
     }
     readSheet(function(k){return k.indexOf('Orders')>-1||k.indexOf('\u8ba2\u5355')>-1;},'orders');
     readSheet(function(k){return k.indexOf('Quotation')>-1||k.indexOf('\u62a5\u4ef7')>-1;},'quotes');
+  });
+
+  safely('Competitor Price Tables',function(){
+    // Sheet 'Competitor Price Tables' (AYG Operations): Competitor | Size | Qty | Price (S$).
+    // Fills HONSEN / JEWEL (and their size→area maps). Kept in Excel so prices aren't in the public code.
+    HONSEN={};JEWEL={};
+    // Either its own sheet, or a block inside 'Competitor Pricing' with the heading row
+    // Competitor | Size | Qty | Price (S$)  (no Area column — that's the Competitor Quotes block).
+    var nm=Object.keys(wbOps.Sheets).filter(function(k){return /competitor price tables|竞争对手价格表/i.test(k);})[0]||(wbOps.Sheets['Competitor Pricing']?'Competitor Pricing':null);
+    if(!nm){SHEET_COL_WARN.push('AYG Operations → “Competitor Price Tables” (Honsen / Jewel prices)');_colWarnSoon();return;}
+    var rows=XLSX.utils.sheet_to_json(wbOps.Sheets[nm],{header:1,defval:null}),hi=-1,H={};
+    for(var i=0;i<rows.length;i++){var ks=(rows[i]||[]).map(function(c){return String(c==null?'':c).toLowerCase().trim();});
+      if(ks[0]==='competitor'&&ks.some(function(k){return k.indexOf('size')===0;})&&ks.some(function(k){return k==='qty'||k.indexOf('qty')===0;})&&!ks.some(function(k){return k.indexOf('area')===0;})){hi=i;ks.forEach(function(k,j){
+        var key=k.indexOf('competitor')===0?'c':k.indexOf('size')===0?'s':(k.indexOf('qty')===0||k.indexOf('quantity')===0)?'q':k.indexOf('price')===0?'p':'';if(key&&H[key]===undefined)H[key]=j;});break;}}
+    if(hi<0||H.c===undefined||H.s===undefined||H.q===undefined||H.p===undefined){SHEET_COL_WARN.push('Competitor Price Tables → headings Competitor / Size / Qty / Price (S$)');_colWarnSoon();return;}
+    var _end=false;
+    rows.slice(hi+1).forEach(function(r){if(_end)return;if(!r||!r.some(function(x){return x!=null&&String(x).trim();})){_end=true;return;}   // block ends at the first empty row
+      var c=String(r[H.c]||'').trim().toLowerCase(),sz=String(r[H.s]||'').trim().replace(/\s+/g,'').replace(/[X×*]/g,'x'),q=parseFloat(String(r[H.q]).replace(/,/g,'')),pr=parseFloat(String(r[H.p]).replace(/[,S$\s]/g,''));
+      if(!c||!sz||!(q>0)||!(pr>0))return;
+      var tgt=c.indexOf('honsen')>-1?HONSEN:c.indexOf('jewel')>-1?JEWEL:null;if(!tgt)return;
+      (tgt[sz]=tgt[sz]||[]).push({qty:q,price:pr,ppp:pr/q});});
+    [[HONSEN,HONSEN_AREAS],[JEWEL,JEWEL_AREAS]].forEach(function(x){Object.keys(x[0]).forEach(function(sz){
+      x[0][sz].sort(function(a,b){return a.qty-b.qty;});var m=sz.match(/([\d.]+)x([\d.]+)/);if(m&&!x[1][sz])x[1][sz]=Math.round(parseFloat(m[1])*parseFloat(m[2]));});});
+  });
+  safely('Cost Bands',function(){
+    // Management file → sheet 'Cost Bands': factory print-cost bands used by the Quote Estimator
+    // when no similar past job exists. Staff never load this file, so they never see it.
+    COST_BANDS=null;if(!wbBcrs)return;
+    var nm=Object.keys(wbBcrs.Sheets).filter(function(k){return /cost bands|成本价格/i.test(k);})[0];
+    if(!nm){SHEET_COL_WARN.push('BCRS Scheme Management → sheet “Cost Bands” (factory print-cost bands)');_colWarnSoon();return;}
+    var rows=XLSX.utils.sheet_to_json(wbBcrs.Sheets[nm],{header:1,defval:null});
+    var b={tiers:[],colour:1,area:[]},mode='';
+    rows.forEach(function(r){if(!r)return;var a=String(r[0]==null?'':r[0]).trim(),v=r[1];var al=a.toLowerCase();
+      if(/^qty up to/.test(al)){mode='t';return;}if(/^adjustment/.test(al)){mode='a';return;}if(/^setting/.test(al)){mode='s';return;}
+      var n=parseFloat(String(v).replace(/,/g,''));if(!(n>0))return;
+      if(mode==='t'){var mx=/above|over|以上/.test(al)?Infinity:parseFloat(a.replace(/,/g,''));if(mx>0)b.tiers.push({max:mx,rmb:n});}
+      else if(mode==='s'){b.set=b.set||{};var key=/fx|rmb per s/.test(al)?'fx':/print.*mid/.test(al)?'pm':/print.*high/.test(al)?'ph':/low margin/.test(al)?'lm':
+          /shipping mid/.test(al)?'sm':/shipping high/.test(al)?'sh':/selling.*fallback|fallback.*selling/.test(al)?'sf':/shipping.*fallback|fallback.*shipping/.test(al)?'shf':'';if(key)b.set[key]=n;}
+      else if(mode==='a'){if(/colou?r|彩色/.test(al))b.colour=n;else{var m=al.match(/area\s*over\s*([\d,]+)/);if(m)b.area.push({over:parseFloat(m[1].replace(/,/g,'')),mult:n});}}});
+    b.tiers.sort(function(x,y){return x.max-y.max;});b.area.sort(function(x,y){return y.over-x.over;});
+    if(b.tiers.length)COST_BANDS=b;else{SHEET_COL_WARN.push('Cost Bands sheet → no rows under “Qty up to”');_colWarnSoon();}
+    var st=b.set||{},need=['fx','pm','ph','lm','sm','sh','sf','shf'],miss=need.filter(function(k){return !(st[k]>0);});
+    if(miss.length){SHEET_COL_WARN.push('Cost Bands sheet → Settings block ('+miss.length+' setting'+(miss.length>1?'s':'')+' missing)');_colWarnSoon();}
+    FX_SGD_RMB=st.fx||0;Q_PRINT_MID_FACTOR=Q_SELL_MID_FACTOR=st.pm||0;Q_PRINT_HIGH_FACTOR=Q_SELL_HIGH_FACTOR=st.ph||0;Q_SELL_LOW_MARGIN=st.lm||0;
+    Q_SHIP_MID_BUF=st.sm||0;Q_SHIP_HIGH_BUF=st.sh||0;Q_SELL_FALLBACK=st.sf||0;Q_SHIP_FALLBACK_RMB=st.shf||0;
   });
 
   safely('Competitor Pricing',function(){
@@ -4940,7 +4990,7 @@ function findQuotesForLostClient(clientName){
     var isMatch=false;
     for(var i=0;i<aliasTargets.length;i++){if(q.company.toLowerCase()===aliasTargets[i].toLowerCase()){isMatch=true;break;}}
     if(!isMatch)isMatch=companyNamesMatch(clientName,q.company);
-    if(!isMatch)isMatch=_coMatch(clientName,q.company);   // company_map.xlsx aliases (e.g. Interchamp Trading == Interchamp)
+    if(!isMatch)isMatch=_coMatch(clientName,q.company);   // company_map.xlsx aliases (e.g. ABC Trading == ABC)
     if(isMatch){matchedRows.push(q);matchedNamesSet[q.company]=true;}
   });
   return{quotes:matchedRows,matchedNames:Object.keys(matchedNamesSet)};
@@ -5344,8 +5394,8 @@ function renderOrdCharts(){
   }).join('') : '<div class="cc-empty">'+TX.noUnpaidAging+'</div>';
 
   // ── Top 10 clients by order volume (qty) ──
-  // Company names vary in case/punctuation/suffix across rows (e.g. "HONG XIN DA
-  // PTE. LTD." vs "Hong Xin Da Pte Ltd"), which would otherwise split one company
+  // Company names vary in case/punctuation/suffix across rows (e.g. "ABC FOODS
+  // PTE. LTD." vs "Abc Foods Pte Ltd"), which would otherwise split one company
   // into multiple bars. Normalise to a key for grouping; display the longest
   // original spelling seen for that key.
   function normCo(name){
@@ -6343,7 +6393,7 @@ function honsenSort(key){if(honsenSK===key)honsenSD*=-1;else{honsenSK=key;honsen
 // Staff quote estimator: same tier math as calcQ but shows ONLY the selling price
 // and price-per-piece (no cost/profit/margin breakdown, no "how calculated" panel,
 // no supplier benchmark). Uses hardcoded tier pricing (not BCRS), so it's safe for staff.
-var STAFF_MARGIN=0.40;   // staff quote margin on total cost — used only when there's no price history
+// (staff price comes only from AYG Operations price history — see staffHistPrice)
 var STAFF_HIST={orders:[],quotes:[]};
 var _DEST_NAME={sg:'Singapore',my:'Malaysia',cn:'China',tw:'Taiwan',hk:'Hong Kong',id:'Indonesia',jp:'Japan',th:'Thailand',vn:'Vietnam'};
 function _destCode(s){
@@ -6523,7 +6573,7 @@ function renderQNotes(){
 // Staff: AYG Operations only — Ops Orders, and Ops Quotations to clients marked Lost in Ops Contacts.
 var SQ_NOTE_CTX=null;
 function renderSqNotes(){
-  var el=document.getElementById('sq-notes');if(!el||!SQ_NOTE_CTX)return;
+  var el=document.getElementById('sq-notes');if(!el)return;if(!SQ_NOTE_CTX){el.innerHTML='';return;}
   var c=Object.assign({},SQ_NOTE_CTX);c.price=c.sell/c.qty;c.honsenEl='sq-honsen-estimate-body';
   c.client=((document.getElementById('sq-client')||{}).value||'').trim();
   c.orders=(STAFF_HIST.orders||[]).map(function(o){return _noteRec(o,'orders');});
@@ -6598,37 +6648,20 @@ function calcStaffQ(){
     var hb0=document.getElementById('sq-hist-box');if(hb0)hb0.style.display='none';
     return;
   }
-  var area=w*h,totalQty=qty,SGD_RMB=FX_SGD_RMB;
-  var rpc;
-  if(totalQty<=5000)rpc=0.145;else if(totalQty<=10000)rpc=0.085;else if(totalQty<=30000)rpc=0.075;
-  else if(totalQty<=50000)rpc=0.055;else if(totalQty<=100000)rpc=0.033;else if(totalQty<=300000)rpc=0.030;else rpc=0.027;
-  var colMult=col==='c'?1.6:1,areaMult=area>3000?1.3:area>2000?1.15:1;
-  rpc*=colMult*areaMult;
-  // Staff price = management's rule, worked out in the background (nothing below is shown):
-  //   Print cost  = High  → band formula × Q_PRINT_HIGH_FACTOR (staff can't read factory-cost history)
-  //   Shipping    = Mid   → weight (min 1 kg) × ¥35/kg × destination factor ÷ FX
-  //   Selling     = total cost ÷ (1 − STAFF_MARGIN)  → 40% margin
-  rpc*=Q_PRINT_HIGH_FACTOR;
-  var printCost=totalQty*rpc/SGD_RMB;
-  var weightKg=(totalQty/10000)*4*(area/2250);
+  var area=w*h,totalQty=qty;
   var _sqd=(document.getElementById('sq-dest')||{}).value||'sg';
-  var _sqMult=(_sqd==='tw'||_sqd==='jp'||_sqd==='th')?1.55:(_sqd==='id'||_sqd==='vn')?1.4:(_sqd==='my'||_sqd==='hk')?1.3:1.25;
-  var shipCost=Math.max(1,weightKg)*35*_sqMult/SGD_RMB;
-  var shTotal=shipCost;   // documentation cost no longer charged
-  var gstAmt=Math.round((printCost+shTotal)*9)/100;
-  var totCost=printCost+shTotal+gstAmt;
-  var sell=totCost/(1-STAFF_MARGIN);
-  // Prefer the price history from AYG Operations (Orders, then Quotations); formula only as fallback.
+  // Staff price comes ONLY from AYG Operations price history (Orders, then Quotations).
+  // No similar past job → no price; staff check with management.
   var sh=null;try{sh=staffHistPrice(totalQty,area,col==='c'?'c':'b',_sqd);}catch(e){}
-  if(sh)sell=sh.rate*totalQty;
-  var ppp=sell/totalQty;
+  var sell=sh?sh.rate*totalQty:0;
+  var ppp=totalQty>0?sell/totalQty:0;
   var zhS=(lang==='zh');
   var basis=sh?(sh.nearest
       ?(zhS?'依据：±10% 内无匹配，取最接近的 ':'Based on: nothing within ±10% — nearest ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):(zhS?'过往报价':'past quotes'))+(zhS?'（中位数，最大相差约 ':' (up to about ')+Math.round(sh.off*100)+'%'+(zhS?'）':' away)')
       :(zhS?'依据：':'Based on: ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):sh.src==='mixed'?(zhS?'过往订单 + 报价':'past orders + quotes'):(zhS?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
         +' \u00b7 '+(sh.recent?(zhS?'近12个月':'last 12 months'):(zhS?'不限日期':'any date'))+(zhS?' · 偏高位':' \u00b7 upper-middle'))
       +' \u00b7 '+((sh.floor||sh.anyDest)?(zhS?'所有目的地':'all destinations'):(_DEST_NAME[_sqd]||_sqd))
-    :(zhS?'依据：该目的地暂无相近记录 — 使用标准公式':'Based on: no similar past job for this destination — standard formula');
+    :'';
   var qtyPerSku=sku>0?Math.round(totalQty/sku):totalQty;
   var mn="'JetBrains Mono',monospace";
   var rs='display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 0;border-bottom:1px solid var(--b);';
@@ -6640,15 +6673,16 @@ function calcStaffQ(){
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.totalQty+'</span><span style="font-family:'+mn+';font-size:12px">'+totalQty.toLocaleString()+' '+TX.pcsUnit+'</span></div>'
     +'<div style="'+rs+'"><span style="'+ls+'">'+TX.qtyPerSku+'</span><span style="font-family:'+mn+';font-size:12px;color:var(--amb)">'+qtyPerSku.toLocaleString()+'</span></div>'
     +div
-    +'<div style="'+rs+'font-weight:600"><span style="'+ls+'font-weight:600;color:var(--grn)">'+TX.sellingPrice+'</span><span style="font-family:'+mn+';font-size:13px;font-weight:600;color:var(--grn)">S$'+Math.round(sell).toLocaleString()+'</span></div>'
-    +'<div style="'+rs+'border-bottom:none"><span style="'+ls+'">'+TX.pricePerPc+'</span><span style="font-family:'+mn+';font-size:12px">S$'+ppp.toFixed(5)+'</span></div>'
-    +'<div style="font-size:10px;color:var(--m);margin-top:6px;line-height:1.5">'+basis+'</div>'+(sh?staffJobsHtml(sh):'')
+    +(sh?'':'<div style="margin:8px 0 2px;padding:9px 11px;border:1px solid rgba(245,158,11,.45);border-radius:8px;background:rgba(245,158,11,.08);font-size:12px;color:var(--t);line-height:1.5">\u26a0\ufe0f <b>'+(zhS?'此工作暂无价格记录':'No price history for this job')+'</b><br><span style="color:var(--m);font-size:11px">'+(zhS?'没有类似的过往订单或报价 — 请与管理层确认价格。':'No similar past order or quote \u2014 check with management for the price.')+'</span></div>')
+    +(!sh?'':'<div style="'+rs+'font-weight:600"><span style="'+ls+'font-weight:600;color:var(--grn)">'+TX.sellingPrice+'</span><span style="font-family:'+mn+';font-size:13px;font-weight:600;color:var(--grn)">S$'+Math.round(sell).toLocaleString()+'</span></div>'
+    +'<div style="'+rs+'border-bottom:none"><span style="'+ls+'">'+TX.pricePerPc+'</span><span style="font-family:'+mn+';font-size:12px">S$'+ppp.toFixed(5)+'</span></div>')
+    +(sh?'<div style="font-size:10px;color:var(--m);margin-top:6px;line-height:1.5">'+basis+'</div>'+staffJobsHtml(sh):'')
     +'<div id="sq-notes" style="margin-top:10px"></div>'
     +'<div style="margin-top:9px;padding:6px 8px;background:var(--s2);border-radius:var(--r);font-size:10px;color:var(--dim)">\u26a0\ufe0f '+TX.estimateDisclaimer+'</div>';
   // Store quote context on the result element so the staff comparison row can read it.
   resEl.dataset.qty=totalQty;resEl.dataset.w=w;resEl.dataset.h=h;resEl.dataset.area=area;
   resEl.dataset.sku=sku;resEl.dataset.colour=col;resEl.dataset.sell=Math.round(sell);
-  SQ_NOTE_CTX={sell:sell,qty:totalQty,area:area,col:col==='c'?'c':'b',qps:Math.round(totalQty/(sku||1)),dest:_sqd};
+  SQ_NOTE_CTX=sh?{sell:sell,qty:totalQty,area:area,col:col==='c'?'c':'b',qps:Math.round(totalQty/(sku||1)),dest:_sqd}:null;
   try{renderSqNotes();}catch(e){console.warn('sq notes',e);}
   // Three benchmark estimate cards (Standard / Sato / Honsen) — reuses the shared
   // compute functions, pointed at staff-only element IDs. All from hardcoded tier
@@ -7029,28 +7063,28 @@ function renderBcrsPortal(){
 // CRM date (CRM may be behind), plus impossible CRM dates. Never suggests moving a date backward,
 // because CRM also captures phone/WhatsApp/in-person contact that email data can't see. Read-only.
 // Explicit company-name aliases loaded from company_map.xlsx (col C = canonical, col E = aliases).
-// Maps a normalised variant -> normalised canonical, e.g. "interchamptrading" -> "interchamp".
+// Maps a normalised variant -> normalised canonical, e.g. "abctrading" -> "abc".
 // Empty until syncCompanyMap() loads the file; if the file is absent, matching just works as before.
 var CO_ALIAS_MAP={};
 // Canonical display name per normalised key — company_map.xlsx column C exactly as typed, e.g.
-// "lnc" -> "LNC Pte Ltd". Lets Client Update show the mapped name before the pipeline is re-run.
+// "xyz" -> "XYZ Pte Ltd". Lets Client Update show the mapped name before the pipeline is re-run.
 var CO_CANON_NAME={};
 function coDisplay(name){var k=_normCo(name);return (k&&CO_CANON_NAME[k])||name;}
 function _normCoBase(s){
   s=String(s||'').toLowerCase().trim();
-  s=s.replace(/\([^)]*\)/g,' ');   // drop parenthetical suffixes, e.g. "(Etika Holdings)", "(SG)"
+  s=s.replace(/\([^)]*\)/g,' ');   // drop parenthetical suffixes, e.g. "(XYZ Holdings)", "(SG)"
   s=s.replace(/;.*$/,' ');          // drop "; alias" suffixes so the parent name still matches
-  s=s.replace(/['\u2019]s\b/g,'');  // possessive: "Bawa's Delicacy" == "Bawa Delicacy"
+  s=s.replace(/['\u2019]s\b/g,'');  // possessive: "Joe's Bakery" == "Joe Bakery"
   s=s.replace(/&/g,'and').replace(/\bn\b/g,'and'); // "Fresh & Natural" == "Fresh N Natural"
   s=s.replace(/\b(singapore|s'pore|spore|sg)\b/g,' ');  // drop jurisdiction words: "X Singapore" == "X"
   s=s.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
   return s.replace(/[^a-z0-9]/g,'');
 }
 // Public normaliser used everywhere for company matching: base-normalise, THEN apply the explicit
-// alias map so hand-mapped variants (e.g. "Interchamp Trading" -> "Interchamp") resolve to one key.
+// alias map so hand-mapped variants (e.g. "ABC Trading" -> "ABC") resolve to one key.
 function _normCo(s){ var b=_normCoBase(s); return CO_ALIAS_MAP[b]||b; }
 // True when two company names resolve to the SAME canonical company — i.e. they're identical after
-// suffix-stripping, OR explicitly linked in company_map.xlsx (e.g. "Interchamp Trading" == "Interchamp").
+// suffix-stripping, OR explicitly linked in company_map.xlsx (e.g. "ABC Trading" == "ABC").
 // This is the single alias-aware equality used across the checks AND the quote/lost-client matching,
 // so the Excel map governs the whole dashboard. Purely explicit: unrelated names never collapse.
 function _coMatch(a,b){ var ka=_normCo(a),kb=_normCo(b); return !!ka&&ka===kb; }
@@ -7128,16 +7162,16 @@ function buildContactCheck(){
   function _normInv(x){
     x=String(x||'').toLowerCase().trim();
     x=x.split(';')[0];                         // drop CRM alias suffix
-    x=x.replace(/['\u2019]s\b/g,'');             // possessive: "Bawa's Delicacy" == "Bawa Delicacy"
-    x=x.replace(/\([^)]*\)/g,' ');             // drop parenthetical suffixes, e.g. "(Etika Holdings)"
+    x=x.replace(/['\u2019]s\b/g,'');             // possessive: "Joe's Bakery" == "Joe Bakery"
+    x=x.replace(/\([^)]*\)/g,' ');             // drop parenthetical suffixes, e.g. "(XYZ Holdings)"
     x=x.replace(/\u0026/g,'and').replace(/\bn\b/g,'and'); // & / standalone n -> and
     x=x.replace(/\b(singapore|s'pore|spore)\b/g,' '); // drop jurisdiction words so YHS (Singapore) reduces the same as YHS
     x=x.replace(/\b(pte|ltd|pte\.|ltd\.|private|limited|sdn|bhd|inc|co|company|the|llp|llc)\b/g,'');
     return x.replace(/[^a-z0-9]/g,'');
   }
   // Every identity hidden inside a CRM name: the parent name PLUS each "(trading name)"
-  // and each "; alias" suffix, so an invoice billed to a trading name (e.g. "Shun Yue Hong"
-  // filed under "APAC Food Pte. Ltd. (Shun Yue Hong)") still resolves to its client.
+  // and each "; alias" suffix, so an invoice billed to a trading name (e.g. "Trading Name"
+  // filed under "Parent Co Pte. Ltd. (Trading Name)") still resolves to its client.
   function _invKeys(name){
     var raw=String(name||'');
     var parts=[raw.replace(/\([^)]*\)/g,' ')];                          // primary parent name
@@ -7151,14 +7185,14 @@ function buildContactCheck(){
   if(INVOICES&&INVOICES.length&&CLIENTS&&CLIENTS.length){
     // Alias-aware: fold each normalized key through the company_map.xlsx alias map
     // (CO_ALIAS_MAP) so Xero/CRM spelling variants explicitly linked there resolve
-    // to one company — e.g. "N & N" == "N&N", "Forever Living Products Singapore
-    // Pte Ltd" == "Forever Living" — instead of misfiring as "not in CRM". Purely
+    // to one company — e.g. "N & N" == "N&N", "DEF Products Singapore
+    // Pte Ltd" == "DEF" — instead of misfiring as "not in CRM". Purely
     // explicit: if the map is absent or a name isn't listed, the key is unchanged,
     // so matching behaves exactly as before.
     var _invAlias=function(k){return (k&&CO_ALIAS_MAP&&CO_ALIAS_MAP[k])||k;};
     var crmIdx={};
     CLIENTS.forEach(function(cl){_invKeys(cl.name).forEach(function(k){var ak=_invAlias(k);if(!crmIdx[ak])crmIdx[ak]=cl;});});
-    // Short CRM names: "Link Edge" in Contacts should still match Xero's "LINKEDGE INTERNATIONAL
+    // Short CRM names: "Ab Cd" in Contacts should still match Xero's "ABCD INTERNATIONAL
     // PTE. LTD." — accept a CRM name that is the START of the Xero name (or vice versa), min 5 letters,
     // longest match wins.
     var crmKeys=Object.keys(crmIdx).filter(function(k){return k.length>=5;}).sort(function(a,b){return b.length-a.length;});
@@ -7460,8 +7494,8 @@ function renderClientsUpdate(){
     var pool2=cfg.data.slice().sort(function(a,b){return a.company.localeCompare(b.company);});
     var sq=(cfg.search||'').toLowerCase().trim();
     if(sq){
-      // company_map.xlsx aliases count too: searching "LNC" finds the row the pipeline filed as
-      // "OK Food (okfoodsg5)" when the map lists okfoodsg5 / OK Food as aliases of LNC Pte Ltd.
+      // company_map.xlsx aliases count too: searching "XYZ" finds the row the pipeline filed as
+      // "Brand X (brandx1)" when the map lists brandx1 / Brand X as aliases of XYZ Pte Ltd.
       var grp={};
       Object.keys(CO_ALIAS_MAP||{}).forEach(function(k){var c=CO_ALIAS_MAP[k];(grp[c]=grp[c]||[c]).push(k);});
       var sqN=_normCoBase(sq);
@@ -8964,12 +8998,12 @@ function renderChecks(){
   var html='';
   // ── Group 1: CRM, Email & Invoices ──
   // Alias-map status chip: the "behind"/stage checks can only pair a CRM name with its email/pipeline
-  // name when company_map.xlsx is loaded (e.g. "Interchamp Trading" == "Interchamp"). If it isn't
+  // name when company_map.xlsx is loaded (e.g. "ABC Trading" == "ABC"). If it isn't
   // loaded, name variants silently won't match — so surface the state right here.
   var _aliasN=CO_ALIAS_MAP?Object.keys(CO_ALIAS_MAP).length:0;
   var aliasChip=_aliasN
     ? '<span title="company_map.xlsx loaded — CRM/email name variants are being reconciled" style="font-size:9px;color:var(--tel);background:rgba(20,184,166,.12);padding:2px 7px;border-radius:9px;white-space:nowrap">'+(zh?'公司名映射：':'name map: ')+_aliasN+(zh?' 条':'')+'</span>'
-    : '<span title="company_map.xlsx not loaded from SharePoint — name variants like &quot;Interchamp Trading&quot; vs &quot;Interchamp&quot; will NOT be matched. Add company_map.xlsx to the SharePoint folder and press Sync Data." style="font-size:9px;color:var(--amb);background:rgba(245,158,11,.14);padding:2px 7px;border-radius:9px;white-space:nowrap">⚠ '+(zh?'公司名映射未加载':'name map not loaded')+'</span>';
+    : '<span title="company_map.xlsx not loaded from SharePoint — name variants like &quot;ABC Trading&quot; vs &quot;ABC&quot; will NOT be matched. Add company_map.xlsx to the SharePoint folder and press Sync Data." style="font-size:9px;color:var(--amb);background:rgba(245,158,11,.14);padding:2px 7px;border-radius:9px;white-space:nowrap">⚠ '+(zh?'公司名映射未加载':'name map not loaded')+'</span>';
   _EXTRA.crm=aliasChip+(TX.ccNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccNote+'</span>':'');
   if(CLIENTS&&CLIENTS.length){
     function stageLbl(id){var s=CRM_STAGES.find(function(s){return s.id===id;});return s?(zh?s.zh:s.id):id;}
@@ -9591,7 +9625,6 @@ function recalcSummary(){
 
 // ── Quote estimator: three shipping estimates ──
 var Q_SHIP_PICK='mid';          // which estimate goes into the quote: 'low' | 'mid' | 'high'
-var Q_SHIP_HIGH_FACTOR=1.8;     // High estimate = ¥/kg × 1.8
 var _qShipKeep=false;           // true only while re-calculating because an estimate was clicked
 function qShipPick(k){Q_SHIP_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShipKeep=false;}
 
@@ -9600,11 +9633,11 @@ function qShipPick(k){Q_SHIP_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShi
 //          label area within ±10%. Search order: Orders (last 12 months) → Orders (any date) →
 //          Quotes (last 12 months) → Quotes (any date). Outliers (more than 2× or under half the
 //          median) are dropped. No match anywhere → the old band formula is used as the base.
-//   Mid  = Low × 1.1   ·   High = Low × 1.2
+//   Mid  = Low × Settings 'Print cost Mid factor'   ·   High = Low × Settings 'Print cost High factor'
 var Q_PRINT_PICK='mid';
-var Q_PRINT_MID_FACTOR=1.1, Q_PRINT_HIGH_FACTOR=1.2, Q_PRINT_TOL=0.10, Q_PRINT_NEAREST=3;
+var Q_PRINT_MID_FACTOR=0, Q_PRINT_HIGH_FACTOR=0, Q_PRINT_TOL=0.10, Q_PRINT_NEAREST=3;
 function qPrintJobsToggle(el){var b=el.parentNode.querySelector('.qpj-list');if(b){var on=b.style.display==='none';b.style.display=on?'':'none';el.innerHTML=el.innerHTML.replace(on?'\u25b8':'\u25be',on?'\u25be':'\u25b8');}}
-var Q_SELL_PICK='mid', Q_SELL_MID_FACTOR=1.1, Q_SELL_HIGH_FACTOR=1.2;
+var Q_SELL_PICK='mid', Q_SELL_MID_FACTOR=0, Q_SELL_HIGH_FACTOR=0;
 function qSellPick(k){Q_SELL_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShipKeep=false;}
 function qPrintPick(k){Q_PRINT_PICK=k;_qShipKeep=true;try{calcQ();}catch(e){}_qShipKeep=false;}
 function _qColClass(s){
@@ -9677,9 +9710,9 @@ function _qJobsHtml(h,pc){
   }
   return jobs;
 }
-// Selling price options: Low = 40% margin on this quote's total cost · Mid = historical S$/pc of
+// Selling price options: Low = Settings 'Low margin' on this quote's total cost · Mid = historical S$/pc of
 // similar past jobs (default) · Custom = type a margin % or a price per piece.
-var Q_SELL_LOW_MARGIN=40;
+var Q_SELL_LOW_MARGIN=0, Q_SELL_FALLBACK=0, Q_SHIP_FALLBACK_RMB=0;
 var Q_SELL_CUSTOM={mode:'',value:null};   // mode 'margin' | 'ppp'; kept until the page reloads
 var _qSellFocus='';
 function qSellCustom(mode,inp){
@@ -9720,7 +9753,7 @@ function qSellEstRows(o){
       +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期':'any date'))+' \u00b7 '+h.n+(zh?' 条，中位数':' matched, median')
       +(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
   }else{
-    srcTxt=(zh?'无匹配记录 — 改用 总成本 ×2.1':'No matching history — using total cost \u00d72.1');
+    srcTxt=(zh?'无匹配记录 — 改用 总成本 ×'+Q_SELL_FALLBACK:'No matching history \u2014 using total cost \u00d7'+Q_SELL_FALLBACK);
   }
   var lowTot=o.cost/(1-Q_SELL_LOW_MARGIN/100);
   var midTot=o.midPc*o.qty;
@@ -9733,7 +9766,7 @@ function qSellEstRows(o){
     +'<label>'+(zh?'或 每张 S$':'or S$/pc')+' <input id="q-sell-cp" type="text" inputmode="decimal" value="'+wlEsc(pVal)+'" oninput="qSellCustom(\'ppp\',this)" style="'+inS+'"></label></div>';
   return row('low','var(--tel)',(zh?'低 · 利润率 ':'Low · ')+Q_SELL_LOW_MARGIN+(zh?'%':'% margin'),
            (zh?'总成本 ':'Total cost ')+'S$'+Math.round(o.cost).toLocaleString()+' \u00f7 (1 \u2212 '+(Q_SELL_LOW_MARGIN/100)+') \u00b7 '+mgTxt(lowTot),lowTot)
-    +row('mid','var(--amb)',h?(h.nearest?(zh?'中 · 历史价格（最接近）':'Mid · Historical (nearest)'):(zh?'中 · 历史价格':'Mid · Historical')):(zh?'中 · 成本 ×2.1（无历史）':'Mid · Cost \u00d72.1 (no history)'),
+    +row('mid','var(--amb)',h?(h.nearest?(zh?'中 · 历史价格（最接近）':'Mid · Historical (nearest)'):(zh?'中 · 历史价格':'Mid · Historical')):(zh?'中 · 成本 ×'+Q_SELL_FALLBACK+'（无历史）':'Mid · Cost \u00d7'+Q_SELL_FALLBACK+' (no history)'),
            srcTxt+' \u00b7 '+mgTxt(midTot),midTot)+_qJobsHtml(h,pc)
     +row('custom','#a78bfa',zh?'自定义':'Custom',(zh?'输入利润率或每张价格 · ':'Type a margin or a price per piece · ')+mgTxt(cusTot),cusTot,custom)
     +'<div style="font-size:10px;color:var(--dim);margin:2px 0 3px">'+(zh?'点选一项计入报价 · 当前：':'Click one to use it in the quote · using: ')
@@ -9771,7 +9804,7 @@ function qPrintEstRows(o){
   }
   if(sellK){srcTxt+='<br>'+pc(base)+'/pc \u00d7 '+o.qty.toLocaleString()+mg(base);
   }
-  var lowLbl=h?(h.nearest?(zh?'低 · 历史价格（最接近）':'Low · Historical (nearest)'):(zh?'低 · 历史价格':'Low · Historical')):(sellK?(zh?'低 · 成本 ×2.1（无历史）':'Low · Cost \u00d72.1 (no history)'):(zh?'低 · 公式（无历史）':'Low · Formula (no history)'));
+  var lowLbl=h?(h.nearest?(zh?'低 · 历史价格（最接近）':'Low · Historical (nearest)'):(zh?'低 · 历史价格':'Low · Historical')):(sellK?(zh?'低 · 成本 ×'+Q_SELL_FALLBACK+'（无历史）':'Low · Cost \u00d7'+Q_SELL_FALLBACK+' (no history)'):(zh?'低 · 公式（无历史）':'Low · Formula (no history)'));
   // The jobs behind Low: hover for a quick list, click "▸ jobs used" for the full table (works on phones too).
   var jobs=_qJobsHtml(h,pc);
   return row('low','var(--tel)',lowLbl,srcTxt,base)+jobs
@@ -9800,9 +9833,9 @@ function qShipEstRows(o){
   return mkLine
     +row('low','var(--tel)',zh?'低 · 历史实付':'Low · Historical actual',
            kgTxt+' × S$'+o.baseRate.toFixed(2)+'/kg'+mkTxt+' <span style="opacity:.8">('+o.lowSrc+')</span>',o.low,o.low>0)
-    +row('mid','var(--amb)',zh?'中 · 低 +15%':'Mid · Low +15%',
+    +row('mid','var(--amb)',(zh?'中 · 低 +':'Mid · Low +')+Math.round((Q_SHIP_MID_BUF-1)*100)+'%',
            o.fmt(o.low)+' × '+Q_SHIP_MID_BUF+(zh?' — 报价到出货之间的价格波动':' — covers price moves between quote and shipping'),o.mid,true)
-    +row('high','#f87171',zh?'高 · 低 +50%':'High · Low +50%',
+    +row('high','#f87171',(zh?'高 · 低 +':'High · Low +')+Math.round((Q_SHIP_HIGH_BUF-1)*100)+'%',
            o.fmt(o.low)+' × '+Q_SHIP_HIGH_BUF+(zh?' — 旺季 / 突发情况':' — peak season / disruption'),o.high,true)
     +'<div style="font-size:10px;color:var(--dim);margin:2px 0 3px">'+(zh?'点选一项计入报价 · 当前：':'Click one to use it in the quote · using: ')
       +'<b style="color:var(--t)">'+(o.pick==='low'?(zh?'低':'Low'):o.pick==='high'?(zh?'高':'High'):(zh?'中':'Mid'))+'</b></div>';
@@ -9822,15 +9855,13 @@ function calcQ(){
   var _gv=document.getElementById('q-gst').value;
   var gstPct=(_gv===''||_gv===null)?9:(parseFloat(_gv)||0);
   if(!w||!h||!qty)return;
+  if(!(FX_SGD_RMB>0)){var _qr=document.getElementById('q-result');if(_qr)_qr.innerHTML='<div class="dempty">'+(lang==='zh'?'缺少报价设置 — 请在管理文件的「Cost Bands」表加入 Settings 区块':'Quote settings missing \u2014 add the Settings block to the “Cost Bands” sheet in the management file')+'</div>';return;}
   var area=w*h,totalQty=qty,SGD_RMB=FX_SGD_RMB;
-  // Print cost RMB/pc
-  var rpc;
-  if(totalQty<=5000)rpc=0.145;else if(totalQty<=10000)rpc=0.085;else if(totalQty<=30000)rpc=0.075;
-  else if(totalQty<=50000)rpc=0.055;else if(totalQty<=100000)rpc=0.033;else if(totalQty<=300000)rpc=0.030;else rpc=0.027;
-  var baseRpc=rpc,colMult=col==='c'?1.6:1,areaMult=area>3000?1.3:area>2000?1.15:1;
-  rpc*=colMult*areaMult;
-  var rpcFormula=rpc;
-  var formulaTxt='\u00a5'+baseRpc.toFixed(4)+(colMult>1?' \u00d7'+colMult:'')+(areaMult>1?' \u00d7'+areaMult:'')+' = \u00a5'+rpcFormula.toFixed(4);
+  // Print cost RMB/pc — fallback formula = factory cost bands from the management file ('Cost Bands' sheet)
+  var rpc,_bd=bandRpc(totalQty,col,area);
+  var rpcFormula=_bd?_bd.rpc:0;
+  var formulaTxt=_bd?('¥'+_bd.base.toFixed(4)+(_bd.colMult>1?' ×'+_bd.colMult:'')+(_bd.areaMult>1?' ×'+_bd.areaMult:'')+' = ¥'+rpcFormula.toFixed(4))
+    :(lang==='zh'?'未找到「Cost Bands」表 — 请在管理文件中添加':'No “Cost Bands” sheet in the management file');
   var printHist=null;try{printHist=histPrintRate(totalQty,area,col==='c'?'c':'b');}catch(e){}
   var printBase=printHist?printHist.rate:rpcFormula;
   if(!_qShipKeep)Q_PRINT_PICK='mid';   // every new calculation starts on Mid
@@ -9840,18 +9871,17 @@ function calcQ(){
   var weightKg=(totalQty/10000)*4*(area/2250);
   // Destination multipliers — deliberately padded high (+0.25 across the board) so the
   // estimate errs on the safe side and shipping never comes in over quote.
-  var destMult=(dest==='tw'||dest==='jp'||dest==='th')?1.55:(dest==='id'||dest==='vn')?1.4:(dest==='my'||dest==='hk')?1.3:1.25;
   var shipKgBilled=Math.max(1,weightKg);                       // under 1 kg is charged as 1 kg
   // LOW = what we actually pay for a shipment this size (weight-band median S$/kg) × market
   // adjustment (Current shipper rate ÷ usual rate, only when a current rate is typed in).
-  // MID = Low × 1.15 (moves between quoting and shipping) · HIGH = Low × 1.5 (peak season / disruption).
+  // MID = Low × Settings 'Shipping Mid buffer' · HIGH = Low × Settings 'Shipping High buffer'.
   var usualRmb=0,mktIdx=1,band=null;
   try{usualRmb=shipUsualRmb();band=shipBandRate(weightKg,dest);}catch(e){}
   if(rmbPerKg>0&&usualRmb>0)mktIdx=rmbPerKg/usualRmb;
   var histShipSgd=0,histRateSgd=0,histSrc='';
   if(band){histRateSgd=band.rate*mktIdx;histShipSgd=shipKgBilled*histRateSgd;
     histSrc=band.band+' · '+band.src+' · '+band.n+(lang==='zh'?' 单':' orders')+(band.note?' · '+band.note:'');}
-  else{histRateSgd=35*destMult/SGD_RMB;histShipSgd=shipKgBilled*histRateSgd;histSrc=lang==='zh'?'暂无运费记录 — 使用 ¥35 × 目的地系数':'no shipping history — ¥35 × destination factor';}
+  else{histRateSgd=Q_SHIP_FALLBACK_RMB/SGD_RMB;histShipSgd=shipKgBilled*histRateSgd;histSrc=lang==='zh'?'暂无运费记录 — 使用设定的后备费率':'no shipping history \u2014 fallback rate from Settings';}
   var shipCost=histShipSgd*Q_SHIP_MID_BUF;                     // MID
   var shipHigh=histShipSgd*Q_SHIP_HIGH_BUF;                    // HIGH
   // Three shipping estimates; the one ticked under "How it was calculated" goes into the quote
@@ -9862,10 +9892,10 @@ function calcQ(){
   var shTotal=shipChosen+docCost;
   var gstAmt=Math.round((printCost+shTotal)*gstPct)/100;
   var totCost=printCost+shTotal+gstAmt;
-  // Selling price: Low = 40% margin on total cost · Mid = historical S$/pc of similar past jobs
-  // (same matching as print cost; no history → total cost ×2.1) · Custom = typed margin or S$/pc.
+  // Selling price: Low = Settings 'Low margin' on total cost · Mid = historical S$/pc of similar past jobs
+  // (same matching as print cost; no history → total cost × Settings 'Selling fallback') · Custom = typed margin or S$/pc.
   var sellHist=null;try{sellHist=histPrintRate(totalQty,area,col==='c'?'c':'b','sell');}catch(e){}
-  var sellBasePc=sellHist?sellHist.rate:(totCost*2.1/totalQty);
+  var sellBasePc=sellHist?sellHist.rate:(totCost*Q_SELL_FALLBACK/totalQty);
   if(!_qShipKeep)Q_SELL_PICK='mid';
   if(Q_SELL_PICK==='high')Q_SELL_PICK='mid';
   var sellLow=totCost/(1-Q_SELL_LOW_MARGIN/100), sellMid=sellBasePc*totalQty;
@@ -9978,7 +10008,7 @@ function histShipRate(){
 // MEDIAN S$/kg that past orders of the same weight band actually paid. Destination's own figure
 // when it has ≥3 past orders in that band, else all destinations in that band.
 var SHIP_BANDS=[[0,5,'<5 kg'],[5,15,'5–15 kg'],[15,40,'15–40 kg'],[40,1e9,'40 kg+']];
-var Q_SHIP_MID_BUF=1.15, Q_SHIP_HIGH_BUF=1.50;   // Mid = Low +15% · High = Low +50%
+var Q_SHIP_MID_BUF=0, Q_SHIP_HIGH_BUF=0;   // from Cost Bands → Settings
 function _shipRows(){return (ORDERS||[]).filter(function(o){return o.weight>0&&o.shipping>0;}).map(function(o){return {c:o.loc||'',kg:o.weight,r:o.shipping/o.weight};});}
 function _med(a){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):0;}
 function shipBandRate(kg,destCode){
@@ -10881,8 +10911,8 @@ if('serviceWorker' in navigator){
         hay:low([g.company,Object.keys(g.sizes).join(' ')].join(' '))+' '+g.extra.join(' '),
         nav:{tab:'quotes',box:{sel:'#hs-company',term:g.company,expand:'#qt-search'}}});
     });
-    // company_map.xlsx: every entry also answers to its company's other names. Searching "okfood"
-    // finds LNC's CRM card, orders and invoices; searching "LNC" finds the pipeline's "OK Food"
+    // company_map.xlsx: every entry also answers to its company's other names. Searching "brandx"
+    // finds XYZ's CRM card, orders and invoices; searching "XYZ" finds the pipeline's "Brand X"
     // entry. When the sheet's name differs from column C, the column C name is shown on the result.
     try{
       var grp={};
