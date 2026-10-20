@@ -1801,7 +1801,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261020-PAY1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261020-PAY2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -2663,9 +2663,11 @@ function renderPayments(){
         +'<span style="color:var(--m);width:12px;flex-shrink:0">'+(c?'▸':'▾')+'</span>'
         +'<b style="flex:1 1 200px;min-width:0;color:var(--t)">'+wlEsc(g.name)+'</b>'
         +'<span style="font-size:11px;color:var(--m)">'+g.rows.length+(zh?' 单':' order'+(g.rows.length>1?'s':''))+'</span>'
-        +(g.od.length?'<span style="font-size:10.5px;font-weight:700;color:#f87171;border:1px solid rgba(248,113,113,.5);border-radius:9px;padding:0 7px">'+g.od.length+(zh?' 逾期':' overdue')+'</span>':'')
         +'<span style="font-size:11px;color:var(--m)">'+(isFinite(g.first)?(zh?'最早到期 ':'next due ')+wlFmtDate(new Date(g.first)):'')+'</span>'
-        +'<b style="'+mn+';color:var(--amb)">'+fm(g.total)+'</b></div>'
+        +'<span style="display:inline-flex;gap:12px;align-items:baseline;flex-shrink:0">'
+          +'<span style="font-size:10.5px;color:var(--m)">'+(zh?'逾期 ':'Overdue ')+'<b style="'+mn+';font-size:13px;color:'+(g.od.length?'#f87171':'var(--dim)')+'">'+fm(sum(g.od))+'</b>'+(g.od.length?' <span style="color:#f87171">('+g.od.length+')</span>':'')+'</span>'
+          +'<span style="font-size:10.5px;color:var(--m)">'+(zh?'合计 ':'Total ')+'<b style="'+mn+';font-size:13px;color:var(--amb)">'+fm(g.total)+'</b></span>'
+        +'</span></div>'
       +(c?'':'<div style="overflow-x:auto"><table class="comp-table" style="width:100%;min-width:760px"><thead><tr>'
         +'<th>'+(zh?'参考编号':'Reference No.')+'</th><th>'+(zh?'发票编号':'Invoice No.')+'</th><th>'+(zh?'订单日期':'Order date')+'</th><th>'+(zh?'状态':'Status')+'</th>'
         +'<th style="text-align:right">'+(zh?'金额':'Amount')+'</th><th style="text-align:right">'+(zh?'Xero 应付':'Xero due')+'</th><th>'+(zh?'到期日':'Due date')+'</th><th>'+(zh?'付款':'Payment')+'</th></tr></thead><tbody>'
