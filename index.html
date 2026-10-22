@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261023-NOREF1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261023-OID1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3705,8 +3705,8 @@ function parseAndRender(buf1,buf2){
       if(!row||(!row[1]&&!row[3]))return;
       var match=cv(row[11]);if(!match)return;
       PORTAL_STATUS.push({
-        orderRef:cv(row[1]), aygRef:cv(row[2]), company:cv(row[3]),
-        product:cv(row[5]), qty:ri(row[7]), portal:cv(row[9]), crm:cv(row[10]), match:match
+        orderRef:cv(row[1]), aygRef:cv(row[2]), company:cv(row[3]), created:row[0], createdKey:dayKey(row[0]),
+        product:cv(row[5]), productCode:cv(row[6]), stype:cv(row[8]), qty:ri(row[7]), portal:cv(row[9]), crm:cv(row[10]), match:match
       });
     });
   });
@@ -3718,12 +3718,13 @@ function parseAndRender(buf1,buf2){
     var amSheet=wbOps.Sheets['Auto Main'];if(!amSheet)return;
     var amr=XLSX.utils.sheet_to_json(amSheet,{header:1,defval:null});
     AUTO_MAIN=[];
-    amr.slice(1).forEach(function(row){
+    amr.slice(1).forEach(function(row,ri_){
       if(!row[0]&&!row[1])return;
       var dt=row[5];var dtStr='';
       if(dt instanceof Date&&!isNaN(dt.getTime()))dtStr=dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
       else if(dt){var s=String(dt).trim();if(s&&s!=='None'&&s!=='nan')dtStr=s.slice(0,16);}
       AUTO_MAIN.push({
+        xlRow:ri_+2,   // Excel row number in the Auto Main sheet (row 1 = headings)
         no:row[0]?String(row[0]):'',
         ref:cv(row[1]),
         orderId:cv(row[6]),
@@ -6961,6 +6962,7 @@ function onBcrsSearchInput(){
   renderBcrsPortal();
 }
 function _bcrsRowKey(r,type){
+  if(type==='xlRow')return String(r.xlRow||'');
   if(type==='company')return _normCo(r.company);
   return _aygKey(type==='orderId'?r.orderId:r.ref);
 }
@@ -6983,8 +6985,36 @@ function _bcrsPick(list,ref,orderRef,company){
   }
   return null;
 }
-function jumpToBcrs(ref,orderRef,company){
+function _cpBtnHtml(val){var v=String(val||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return '<button onclick="event.stopPropagation();copyCellText(event,\''+v+'\')" title="Copy" style="background:var(--s2);border:1px solid var(--b2);border-radius:4px;padding:0 5px;font-size:11px;line-height:16px;color:var(--m);cursor:pointer;margin-left:4px">\u29c9</button>';}
+function _amDesc(r,zh){return (zh?'Excel 第 ':'Excel row ')+r.xlRow+(zh?' 行':'')+' \u00b7 No. '+(r.no||'\u2014')+' \u00b7 '+(r.company||'\u2014')+(r.date?' \u00b7 '+r.date:'');}
+// "No email" orders have NO Auto Main row, so there is nothing to land on. Instead: show the Order
+// ID to copy, the next empty Excel row (where the F3 check / a manual paste puts it) and the row it
+// follows by created date — and flash that neighbour row.
+function jumpMissingBcrs(orderRef,company,createdKey){
   var zh=(lang==='zh');
+  var esc=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+  var am=(AUTO_MAIN||[]).filter(function(r){return r.xlRow;});
+  var last=am.reduce(function(m,r){return r.xlRow>m?r.xlRow:m;},1);
+  var prev=null;
+  if(createdKey)am.forEach(function(r){if(r.dateKey&&r.dateKey<=createdKey&&(!prev||r.dateKey>prev.dateKey||(r.dateKey===prev.dateKey&&r.xlRow>prev.xlRow)))prev=r;});
+  BCRS_JUMP=prev?{type:'xlRow',key:String(prev.xlRow),q:''}:null;
+  var qEl=document.getElementById('bcrsportal-q');if(qEl)qEl.value='';
+  var btn=document.querySelector('[data-tab=bcrsportal]');
+  if(btn)goTab('bcrsportal',btn); else renderBcrsPortal();
+  var note=document.getElementById('bcrsportal-jumpnote');if(!note)return;
+  note.style.display='';
+  note.innerHTML='<b style="color:#ef4444">'+(zh?'没有邮件 — 此订单不在 Auto Main':'No email — this order is not in Auto Main')+'</b> \u00b7 '+esc(company||'')
+    +'<div style="margin-top:4px">'+(zh?'订单 ID（G 列）：':'Order ID (column G): ')+'<span style="font-family:\'JetBrains Mono\',monospace;color:var(--t);user-select:all">'+esc(orderRef)+'</span>'+_cpBtnHtml(orderRef)+'</div>'
+    +'<div style="margin-top:3px">'+(zh?'应加入：Auto Main <b>Excel 第 '+(last+1)+' 行</b>（下一空行 — F3 后的检查会加在这里）':'Goes in: Auto Main <b>Excel row '+(last+1)+'</b> (next empty line \u2014 the check after F3 adds it there)')+'</div>'
+    +(prev?'<div style="margin-top:3px">'+(zh?'按日期排在这行之后：':'By date it comes right after: ')+esc(_amDesc(prev,zh))
+      +' <span onclick="var t=document.querySelector(\'#bcrsportal-tbody tr.xero-flash\');if(t)t.scrollIntoView({behavior:\'smooth\',block:\'center\'})" style="cursor:pointer;color:var(--tel);text-decoration:underline dotted">'+(zh?'查看该行 \u2193':'show that row \u2193')+'</span></div>':'');
+  setTimeout(function(){try{note.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}},60);
+}
+function jumpToBcrs(ref,orderRef,company,mode){
+  var zh=(lang==='zh');
+  if(mode==='noemail'){var ck=0;(PORTAL_STATUS||[]).some(function(r){if(_aygKey(r.orderRef)===_aygKey(orderRef)){ck=r.createdKey||0;return true;}return false;});
+    if(!_bcrsFind(AUTO_MAIN||[],'orderId',orderRef)){jumpMissingBcrs(orderRef,company,ck);return;}}
   var pick=_bcrsPick(AUTO_MAIN||[],ref,orderRef,company);
   var oldPick=pick?null:_bcrsPick(OLD_AUTO_MAIN||[],ref,orderRef,company);
   BCRS_JUMP=pick;
@@ -7006,9 +7036,11 @@ function jumpToBcrs(ref,orderRef,company){
   }
   var note=document.getElementById('bcrsportal-jumpnote');
   if(note){
-    if(pick){note.style.display='none';}
+    if(pick){var _hit=_bcrsFind(AUTO_MAIN||[],pick.type,pick.type==='company'?company:(pick.type==='orderId'?orderRef:ref));
+      if(_hit&&_hit.xlRow){note.style.display='';note.style.color='var(--tel)';note.innerHTML=(zh?'已定位：Auto Main ':'Found: Auto Main ')+_amDesc(_hit,zh).replace(/^(Excel[^\u00b7]*)/,'<b>$1</b>')+(pick.type==='company'?(zh?'（按公司匹配，非精确订单）':' (matched by company, not the exact order)'):'');}
+      else note.style.display='none';}
     else{
-      note.style.display='';
+      note.style.display='';note.style.color='';
       note.textContent=oldPick
         ? (zh?'此订单不在当前拉取中 — 已在下方「旧订单记录」中定位。':'Not in the current pull — found and highlighted in Old Order History below.')
         : ((OLD_AUTO_MAIN&&OLD_AUTO_MAIN.length)
@@ -9167,24 +9199,26 @@ function renderChecks(){
     //   NO AUTO MAIN → no Auto Main row at all = the order email never arrived
     //   NO AYG REF   → Auto Main row exists but its AYG Reference (col B) is blank
     var _amRef={};(AUTO_MAIN||[]).concat(OLD_AUTO_MAIN||[]).forEach(function(a){var k=String(a.orderId||'').trim().toLowerCase();if(k)_amRef[k]=(_amRef[k]||'')||String(a.ref||'').trim();});
-    var _noEmail=[],_noRef=[];
+    var _noEmail=[],_noRef=[],_lateX=[];
     PORTAL_STATUS.forEach(function(r){
       if(!/NO AUTO MAIN|NO AYG REF/i.test(r.match))return;
       var k=String(r.orderRef||'').trim().toLowerCase(),inAM=Object.prototype.hasOwnProperty.call(_amRef,k);
       if(inAM&&_amRef[k]&&_amRef[k].toUpperCase()!=='X')return;          // fixed since the sheet was written
+      if(inAM&&_amRef[k].toUpperCase()==='X'){_lateX.push(Object.assign({},r,{aygRef:'X'}));return;}   // marked X since → Rejected (same as Ctrl+F10)
       if(/NO AYG REF/i.test(r.match)||inAM)_noRef.push(r);else _noEmail.push(r);
     });
-    var _reject=PORTAL_STATUS.filter(function(r){return /REJECT/i.test(r.match);});
+    var _reject=PORTAL_STATUS.filter(function(r){return /REJECT/i.test(r.match);}).concat(_lateX);
     // Escapes a value for use inside a single-quoted JS string in an onclick attribute.
     function _ja(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;').replace(/</g,'&lt;');}
-    function aygRow(x,detailHtml,noteHtml){
+    function aygRow(x,detailHtml,noteHtml,mode){
       var co=(x.company||'—');
+      var oid=x.orderRef?'<div style="font-size:10px;color:var(--m);display:flex;align-items:center;gap:2px;margin-top:1px" onclick="event.stopPropagation()"><span style="color:var(--dim)">'+(zh?'订单 ID ':'Order ID ')+'</span><span style="font-family:\'JetBrains Mono\',monospace;user-select:all;cursor:text;word-break:break-all">'+x.orderRef+'</span>'+_cpBtnHtml(x.orderRef)+'</div>':'';
       var prod=x.product?'<div style="font-size:10px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px">'+x.product+'</div>':'';
       // Jump straight to this order's line in the portal pull — portal Order ID first, then the AYG
       // ref, then the company, so rows with a blank or 'X' reference still land somewhere.
-      var jump='jumpToBcrs(\''+_ja(x.aygRef)+'\',\''+_ja(x.orderRef)+'\',\''+_ja(x.company)+'\')';
+      var jump='jumpToBcrs(\''+_ja(x.aygRef)+'\',\''+_ja(x.orderRef)+'\',\''+_ja(x.company)+'\''+(mode?',\''+mode+'\'':'')+')';
       return '<div style="display:flex;align-items:'+(noteHtml?'flex-start':'center')+';justify-content:space-between;gap:8px;padding:5px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="'+jump+'">'
-        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+co+'</span>'+prod+(noteHtml||'')+'</span>'
+        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+co+'</span>'+prod+oid+(noteHtml||'')+'</span>'
         +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right;display:flex;align-items:center;gap:5px;justify-content:flex-end">'+detailHtml+'</span>'
       +'</div>';
     }
@@ -9209,7 +9243,7 @@ function renderChecks(){
       return aygRow(x,detail,note);
     }).join('');
     var noRefRows=_noRef.map(function(x){return aygRow(x,'<span style="color:#f59e0b">'+(TX.ccAygNoRefTag||'no AYG ref')+'</span>');}).join('');
-    var noEmailRows=_noEmail.map(function(x){return aygRow(x,'<span style="color:#ef4444">'+(zh?'没有邮件':'no email')+'</span>');}).join('');
+    var noEmailRows=_noEmail.map(function(x){return aygRow(x,'<span style="color:#ef4444">'+(zh?'没有邮件':'no email')+'</span>',null,'noemail');}).join('');
     var rejectRows=_reject.map(function(x){
       var why=(x.aygRef==='X')?(TX.ccAygRejMarkTag||'marked X'):(x.portal||'—');
       return aygRow(x,'<span style="color:var(--m)">'+why+'</span>');
