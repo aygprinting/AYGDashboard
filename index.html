@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261020-QTY1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261022-WL2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -1864,8 +1864,8 @@ var TX=TX_EN;
     wlExposureClear:'No flagged company has money or production at stake',
     wlExposureDesc:"How it's derived: takes every Watchlist row with Active = Y, then totals its unpaid Xero invoices and any order still Pending / In Production / Out for Delivery. Listed when a flagged company has live exposure.",
     wlSuggestHd:'Suggested for the watchlist',
-    wlSuggestClear:'No badly overdue company is missing from the watchlist',
-    wlSuggestDesc:"How it's derived: companies NOT on the Watchlist whose oldest unpaid Xero invoice is more than 45 days overdue. Purely evidence \u2014 nothing is auto-flagged; this is the shortlist for a person to decide on.",
+    wlSuggestClear:'No badly overdue or complaining company is missing from the watchlist',
+    wlSuggestDesc:"How it's derived: companies NOT on the Watchlist whose oldest unpaid Xero invoice is more than 45 days overdue, and/or with complaint wording (complaint, damaged, peeling, wrong barcode, cannot scan, refund, \u6295\u8bc9\u2026) in Client Updates, the client summary/history, CRM comments or order comments. Purely evidence \u2014 nothing is auto-flagged; this is the shortlist for a person to decide on.",
     wlNotLoaded:'Watchlist sheet not found in the AYG Operations workbook.',
     wlUnpaid:'unpaid',wlLive:'live order',wlLiveN:'live orders',wlPortal:'portal rows',
     wlOverdueSuffix:'d overdue',wlInvoices:'invoices',wlInvoice:'invoice',
@@ -1887,7 +1887,7 @@ var TX=TX_EN;
     wlExposureDesc:'\u6765\u6e90\uff1a\u53d6 Active = Y \u7684\u6bcf\u4e00\u884c\uff0c\u6c47\u603b\u5176 Xero \u672a\u4ed8\u53d1\u7968\uff0c\u4ee5\u53ca\u4ecd\u5728\u5f85\u5904\u7406\uff0f\u751f\u4ea7\u4e2d\uff0f\u914d\u9001\u4e2d\u7684\u8ba2\u5355\u3002\u6709\u5728\u98ce\u9669\u91d1\u989d\u65f6\u5217\u51fa\u3002',
     wlSuggestHd:'\u5efa\u8bae\u52a0\u5165\u89c2\u5bdf\u540d\u5355',
     wlSuggestClear:'\u6ca1\u6709\u4e25\u91cd\u903e\u671f\u4f46\u672a\u5217\u5165\u540d\u5355\u7684\u516c\u53f8',
-    wlSuggestDesc:'\u6765\u6e90\uff1a\u5c1a\u672a\u5217\u5165\u540d\u5355\uff0c\u4f46 Xero \u663e\u793a\u6700\u65e9\u672a\u4ed8\u53d1\u7968\u903e\u671f\u8d85\u8fc7 45 \u5929\u7684\u516c\u53f8\u3002\u4ec5\u4e3a\u4f9d\u636e \u2014 \u4e0d\u4f1a\u81ea\u52a8\u6807\u8bb0\uff0c\u7531\u4eba\u5de5\u51b3\u5b9a\u3002',
+    wlSuggestDesc:'来源：尚未列入名单，但 Xero 显示最早未付发票逾期超过 45 天，和／或在客户更新、客户摘要／历史、CRM 备注或订单备注中出现投诉字眼（投诉、破损、脱落、印错、扫不出、退款、complaint…）的公司。仅为依据 — 不会自动标记，由人工决定。',
     wlNotLoaded:'\u5728 AYG Operations \u5de5\u4f5c\u7c3f\u4e2d\u672a\u627e\u5230 Watchlist \u5de5\u4f5c\u8868\u3002',
     wlUnpaid:'\u672a\u4ed8',wlLive:'\u4e2a\u8fdb\u884c\u4e2d\u8ba2\u5355',wlLiveN:'\u4e2a\u8fdb\u884c\u4e2d\u8ba2\u5355',wlPortal:'\u6761\u95e8\u6237\u8bb0\u5f55',
     wlOverdueSuffix:'\u5929\u903e\u671f',wlInvoices:'\u5f20\u53d1\u7968',wlInvoice:'\u5f20\u53d1\u7968',
@@ -8090,6 +8090,53 @@ function wlRowCls(name){var f=coFlag(name);if(f)return ' class="wl-row-'+(WL_LEV
 // Overdue money per company, straight from the Xero pull. Cached per invoice-list length so a
 // table can call it per row without rebuilding the map each time.
 var _wlOd={n:-1,map:null};
+// ── Complaint signals for the watchlist shortlist ────────────────────────────
+// Scans Client Updates (daily email/WhatsApp updates + each client's summary/history), CRM
+// comments and order comments for complaint wording. Evidence only — a person decides.
+var WL_COMPLAINT_RE=new RegExp([
+  '\\bcomplain(?:t|ts|ed|ing|s)?\\b','\\bunhappy\\b','\\bdissatisf\\w*','\\bnot (?:happy|satisfied)\\b','\\bdisappoint\\w*',
+  '\\bdefect(?:s|ive)?\\b','\\bdamaged?\\b','\\bsmudg\\w*','\\bpeel(?:s|ed|ing)? off\\b','\\bpeeling\\b','\\b(?:not|won.?t|didn.?t|doesn.?t|don.?t|cannot|can.?t) stick\\w*',
+  '\\bfall(?:s|ing)? off\\b','\\bfell off\\b','\\brefund\\w*','\\bmisprint\\w*','\\bfaulty\\b','\\bpoor quality\\b',
+  '\\bquality (?:issue|problem|complaint)s?\\b','\\bwrong (?:barcode|size|label|labels|sticker|stickers|qty|quantity|address|colou?r|item|items|print|printing|delivery)s?\\b',
+  '\\b(?:cannot|can.?t|cant|unable to|could not|couldn.?t|not able to) (?:be )?scan\\w*','\\bscan(?:ning)? (?:issue|problem|error|fail\\w*)s?\\b','\\bescalat\\w*',
+  '投诉','不满','抱怨','质量问题','印错','错印','退款','扫不出','扫不了','无法扫描','脱落','不粘','破损','客诉'
+].join('|'),'gi');
+var WL_COMPLAINT_NEG=/\b(?:no|without|zero|any|never had)\s+(?:\w+\s+){0,2}$/i;
+function _wlComplaintHits(text){
+  text=String(text||'');var out=[],m;WL_COMPLAINT_RE.lastIndex=0;
+  while((m=WL_COMPLAINT_RE.exec(text))){
+    var before=text.slice(Math.max(0,m.index-25),m.index);
+    if(!/^[一-鿿]/.test(m[0])&&WL_COMPLAINT_NEG.test(before))continue;   // "no complaints", "without any issue"
+    out.push({kw:m[0],at:m.index});
+  }
+  return out;
+}
+function _wlSnippet(text,at,len){text=String(text||'').replace(/\s+/g,' ');var a=Math.max(0,at-60),b=Math.min(text.length,at+(len||0)+80);
+  return (a>0?'…':'')+text.slice(a,b).trim()+(b<text.length?'…':'');}
+var _wlCmp={k:'',map:null};
+function wlComplaintsAll(){
+  var sig=(CLIENTS_DAILY||[]).length+'|'+(CLIENTS_PIPE||[]).length+'|'+(CLIENTS||[]).length+'|'+(ORDERS||[]).length;
+  if(_wlCmp.map&&_wlCmp.k===sig)return _wlCmp.map;
+  var map={},zh=(lang==='zh');
+  var add=function(company,text,src,date){
+    if(!company||!text)return;var hits=_wlComplaintHits(text);if(!hits.length)return;
+    var ck=_normCo(company);if(!ck)return;
+    if(!map[ck])map[ck]={company:company,items:[],last:null};
+    var e=map[ck];
+    e.items.push({src:src,date:date||null,kw:hits[0].kw,snip:_wlSnippet(text,hits[0].at,hits[0].kw.length)});
+    if(date&&(!e.last||date>e.last))e.last=date;
+  };
+  (CLIENTS_DAILY||[]).forEach(function(day){(day.items||[]).forEach(function(it){if(it.none)return;
+    var t=it.updEn||'',tz=it.updZh||'';var lbl=(zh?'客户更新':'Client update')+(it.source?' · '+it.source:'');
+    if(_wlComplaintHits(t).length)add(it.company,t,lbl,day.date);else add(it.company,tz,lbl,day.date);});});
+  (CLIENTS_PIPE||[]).forEach(function(c){var d=null;try{d=parseFlexDate(c.last);}catch(e){}
+    [[c.sumEn,zh?'客户摘要':'Client summary'],[c.histEn,zh?'客户历史':'Client history'],[c.sumZh,zh?'客户摘要':'Client summary'],[c.histZh,zh?'客户历史':'Client history']].some(function(x){
+      if(_wlComplaintHits(x[0]).length){add(c.company,x[0],x[1],d);return true;}return false;});});
+  (CLIENTS||[]).forEach(function(c){add(c.name,c.comment,zh?'CRM 备注':'CRM comment',null);});
+  (ORDERS||[]).forEach(function(o){var d=null;try{d=parseFlexDate(o.received);}catch(e){}add(o.name,o.comment,(zh?'订单备注':'Order comment')+(o.invoice?' · '+o.invoice:''),d);});
+  _wlCmp={k:sig,map:map};return map;
+}
+function wlCmpToggle(el){var b=el.parentNode.parentNode.querySelector('.wl-cmp-list');if(b){var on=b.style.display==='none';b.style.display=on?'':'none';}}
 function wlOverdueAll(){
   var n=(INVOICES||[]).length;
   if(_wlOd.map&&_wlOd.n===n)return _wlOd.map;
@@ -9151,20 +9198,32 @@ function renderChecks(){
         +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right">'+right.join(' <span style="color:var(--dim)">\u00b7</span> ')+'</span>'
       +'</div>';
     }).join('');
-    // Evidence, not judgement: badly overdue companies that nobody has put on the list.
-    var _odm=wlOverdueAll(),_sug=[];
-    Object.keys(_odm).forEach(function(k){var o=_odm[k];if(o.days>=WL_SUGGEST_DAYS&&!coFlag(o.company))_sug.push(o);});
-    _sug.sort(function(a,b){return b.days-a.days;});
-    var _sugShown=_sug.slice(0,12);
-    var wlSugRows=_sugShown.map(function(o){
-      return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="wlOpenXero(\''+String(o.company).replace(/'/g,"\\'")+'\')">'
-        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+wlEsc(o.company)+'</span>'
-        +' <span class="wl-chip wl-derived">'+o.days+wlTx('wlOverdueSuffix','d overdue')+' · Xero</span></span>'
-        +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;color:var(--amb)">'+(TX.xeroCur||'S$')+' '+fmtMoney(o.due)+' · '+o.n+' '+wlTx(o.n===1?'wlInvoice':'wlInvoices','invoices')+'</span>'
+    // Evidence, not judgement: companies NOT on the list that are badly overdue (Xero) and/or
+    // have complaint wording in Client Updates / CRM / order comments.
+    var _odm=wlOverdueAll(),_cmp={},_sugM={};
+    try{_cmp=wlComplaintsAll();}catch(e){}
+    Object.keys(_odm).forEach(function(k){var o=_odm[k];if(o.days>=WL_SUGGEST_DAYS&&!coFlag(o.company))_sugM[k]={company:o.company,od:o};});
+    Object.keys(_cmp).forEach(function(k){var c=_cmp[k];if(coFlag(c.company))return;(_sugM[k]=_sugM[k]||{company:c.company}).cmp=c;});
+    var _sug=Object.keys(_sugM).map(function(k){return _sugM[k];});
+    _sug.sort(function(a,b){var sa=(a.od?a.od.days:0)+(a.cmp?60+a.cmp.items.length*5:0),sb=(b.od?b.od.days:0)+(b.cmp?60+b.cmp.items.length*5:0);return sb-sa;});
+    var _sugShown=_sug.slice(0,15),_zh=(lang==='zh');
+    var wlSugRows=_sugShown.map(function(x){
+      var o=x.od,c=x.cmp,q=String(x.company).replace(/'/g,"\\'");
+      var chips=(o?' <span class="wl-chip wl-derived">'+o.days+wlTx('wlOverdueSuffix','d overdue')+' · Xero</span>':'')
+        +(c?' <span class="wl-chip" style="color:#f87171;border-color:rgba(248,113,113,.5)">'+(_zh?'投诉 ':'complaint')+(c.items.length>1?' ×'+c.items.length:'')+'</span>':'');
+      var right=o?'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;color:var(--amb)">'+(TX.xeroCur||'S$')+' '+fmtMoney(o.due)+' · '+o.n+' '+wlTx(o.n===1?'wlInvoice':'wlInvoices','invoices')+'</span>':'';
+      var cm=c?c.items.slice().sort(function(a,b){return (b.date?b.date.getTime():0)-(a.date?a.date.getTime():0);}):[];
+      var first=cm[0];
+      return '<div style="padding:6px 2px;border-top:1px solid var(--b)">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer" onclick="'+(o?'wlOpenXero(\''+q+'\')':'wlCmpToggle(this.firstChild)')+'">'
+          +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+wlEsc(x.company)+'</span>'+chips+'</span>'+right+'</div>'
+        +(first?'<div style="font-size:10.5px;color:var(--m);line-height:1.5;margin-top:3px"><span style="color:var(--dim)">'+wlEsc(first.src)+(first.date?' · '+wlFmtDate(first.date):'')+':</span> <i>'+wlEsc(first.snip).replace(new RegExp(first.kw.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'),function(m){return '<b style="color:#f87171;font-style:normal">'+m+'</b>';})+'</i>'
+          +(cm.length>1?' <span onclick="wlCmpToggle(this)" style="cursor:pointer;color:var(--tel);text-decoration:underline dotted;font-style:normal">▸ '+(cm.length-1)+(_zh?' 条更多':' more')+'</span>':'')+'</div>'
+          +(cm.length>1?'<div class="wl-cmp-list" style="display:none">'+cm.slice(1).map(function(it){return '<div style="font-size:10.5px;color:var(--m);line-height:1.5;margin-top:3px;padding-left:8px;border-left:2px solid var(--b)"><span style="color:var(--dim)">'+wlEsc(it.src)+(it.date?' · '+wlFmtDate(it.date):'')+':</span> <i>'+wlEsc(it.snip)+'</i></div>';}).join('')+'</div>':''):'')
       +'</div>';
     }).join('')+(_sug.length>_sugShown.length?'<div style="font-size:10px;color:var(--dim);padding:6px 2px">+ '+(_sug.length-_sugShown.length)+' more not shown</div>':'');
     html+=chkSection('wl_exposure',wlTx('wlExposureHd','Watchlist exposure'),'#ef4444',_wlExp.length,wlExpRows,wlTx('wlExposureClear','No flagged company has money or production at stake'),true,wlTx('wlExposureDesc',''))
-        +chkSection('wl_suggest',wlTx('wlSuggestHd','Suggested for the watchlist'),'var(--tel)',_sug.length,wlSugRows,wlTx('wlSuggestClear','No badly overdue company is missing from the watchlist'),invLoaded,wlTx('wlSuggestDesc',''));
+        +chkSection('wl_suggest',wlTx('wlSuggestHd','Suggested for the watchlist'),'var(--tel)',_sug.length,wlSugRows,wlTx('wlSuggestClear','No badly overdue company is missing from the watchlist'),true,wlTx('wlSuggestDesc','')+(invLoaded?'':' '+(lang==='zh'?'（Xero 未同步 — 目前只显示投诉）':'(Xero not synced \u2014 showing complaints only for now)')));
   }else{
     _MSG.watch='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+wlTx('wlNotLoaded','Watchlist sheet not found in the AYG Operations workbook.')+'</div>';
   }
@@ -9893,7 +9952,7 @@ function calcQ(){
   if(rmbPerKg>0&&usualRmb>0)mktIdx=rmbPerKg/usualRmb;
   var histShipSgd=0,histRateSgd=0,histSrc='';
   if(band){histRateSgd=band.rate*mktIdx;histShipSgd=shipKgBilled*histRateSgd;
-    histSrc=band.band+' · '+band.src+' · '+band.n+(lang==='zh'?' 单':' orders')+(band.note?' · '+band.note:'');}
+    histSrc=band.band+' · '+band.src+' · '+band.n+(lang==='zh'?' 单':' orders')+(band.when?' · '+band.when:'')+(band.note?' · '+band.note:'');}
   else{histRateSgd=Q_SHIP_FALLBACK_RMB/SGD_RMB;histShipSgd=shipKgBilled*histRateSgd;histSrc=lang==='zh'?'暂无运费记录 — 使用设定的后备费率':'no shipping history \u2014 fallback rate from Settings';}
   var shipCost=histShipSgd*Q_SHIP_MID_BUF;                     // MID
   var shipHigh=histShipSgd*Q_SHIP_HIGH_BUF;                    // HIGH
@@ -10022,21 +10081,35 @@ function histShipRate(){
 // when it has ≥3 past orders in that band, else all destinations in that band.
 var SHIP_BANDS=[[0,5,'<5 kg'],[5,15,'5–15 kg'],[15,40,'15–40 kg'],[40,1e9,'40 kg+']];
 var Q_SHIP_MID_BUF=0, Q_SHIP_HIGH_BUF=0;   // from Cost Bands → Settings
-function _shipRows(){return (ORDERS||[]).filter(function(o){return o.weight>0&&o.shipping>0;}).map(function(o){return {c:o.loc||'',kg:o.weight,r:o.shipping/o.weight};});}
+// Recency: rates use the LAST 12 MONTHS of orders when that window has ≥3 orders for the
+// band (or for the 15 kg+ "usual rate"); otherwise all dates, so price changes show up sooner.
+var SHIP_RECENT_MONTHS=12, SHIP_MIN_N=3;
+function _shipRows(){return (ORDERS||[]).filter(function(o){return o.weight>0&&o.shipping>0;}).map(function(o){var d=null;try{d=parseFlexDate(o.received);}catch(e){}return {c:o.loc||'',kg:o.weight,r:o.shipping/o.weight,d:d};});}
+function _shipCut(){var n=new Date();return new Date(n.getFullYear(),n.getMonth()-SHIP_RECENT_MONTHS,n.getDate());}
 function _med(a){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):0;}
-function shipBandRate(kg,destCode){
-  var rows=_shipRows();if(!rows.length)return null;
+function _bandPick(rows,kg,destCode){
   var bi=0;for(var i=0;i<SHIP_BANDS.length;i++){if(kg>=SHIP_BANDS[i][0]&&kg<SHIP_BANDS[i][1]){bi=i;break;}}
   var b=SHIP_BANDS[bi],inBand=rows.filter(function(r){return r.kg>=b[0]&&r.kg<b[1];});
   var country=QDEST_TO_COUNTRY[destCode]||'',mine=inBand.filter(function(r){return r.c===country;});
   var zh=(lang==='zh');
-  if(mine.length>=3)return {rate:_med(mine.map(function(r){return r.r;})),n:mine.length,band:b[2],src:country,own:true};
+  if(mine.length>=SHIP_MIN_N)return {rate:_med(mine.map(function(r){return r.r;})),n:mine.length,band:b[2],src:country,own:true};
   if(inBand.length)return {rate:_med(inBand.map(function(r){return r.r;})),n:inBand.length,band:b[2],src:(zh?'全部目的地':'all destinations'),own:false,
-    note:country?(zh?country+' 在此重量段不足 3 单':country+' has <3 orders in this band'):''};
-  return {rate:_med(rows.map(function(r){return r.r;})),n:rows.length,band:zh?'全部重量':'all weights',src:(zh?'全部目的地':'all destinations'),own:false};
+    note:country?(zh?country+' 在此重量段不足 '+SHIP_MIN_N+' 单':country+' has <'+SHIP_MIN_N+' orders in this band'):''};
+  if(!rows.length)return null;
+  return {rate:_med(rows.map(function(r){return r.r;})),n:rows.length,band:zh?'全部重量':'all weights',src:(zh?'全部目的地':'all destinations'),own:false,anyW:true};
+}
+function shipBandRate(kg,destCode){
+  var rows=_shipRows();if(!rows.length)return null;
+  var zh=(lang==='zh'),cut=_shipCut();
+  var recent=rows.filter(function(r){return r.d&&r.d>=cut;});
+  var rr=_bandPick(recent,kg,destCode);
+  if(rr&&!rr.anyW&&rr.n>=SHIP_MIN_N){rr.when=zh?'近 '+SHIP_RECENT_MONTHS+' 个月':'last '+SHIP_RECENT_MONTHS+' months';return rr;}
+  var ra=_bandPick(rows,kg,destCode);if(ra)ra.when=zh?'不限日期':'all dates';
+  return ra;
 }
 // "Usual" shipper rate = median ¥/kg on 15 kg+ shipments (where the contract rate shows cleanly).
-function shipUsualRmb(){var big=_shipRows().filter(function(r){return r.kg>=15;});return big.length?_med(big.map(function(r){return r.r;}))*FX_SGD_RMB:0;}
+function shipUsualRmb(){var big=_shipRows().filter(function(r){return r.kg>=15;}),cut=_shipCut(),rec=big.filter(function(r){return r.d&&r.d>=cut;});
+  var use=rec.length>=SHIP_MIN_N?rec:big;return use.length?_med(use.map(function(r){return r.r;}))*FX_SGD_RMB:0;}
 function renderShipHistCard(weightKg,destCode,formShTotal,docCost,SGD_RMB){
   var box=document.getElementById('q-ship-hist');if(!box)return;
   var mn="'JetBrains Mono',monospace";
@@ -10056,7 +10129,7 @@ function renderShipHistCard(weightKg,destCode,formShTotal,docCost,SGD_RMB){
   var srcLabel=useDest?((FLAGS[country]||'\ud83c\udf10')+' '+country+' '+TX.shipHistDest):(TX.shipHistBlended+' '+TX.shipHistDest);
   var srcCount=_bd?_bd.n:data.count;
   var srcKg=null;
-  if(_bd)srcLabel=(useDest?(FLAGS[country]||'\ud83c\udf10')+' '+country:'\ud83c\udf10 '+_bd.src)+' \u00b7 '+_bd.band;
+  if(_bd)srcLabel=(useDest?(FLAGS[country]||'\ud83c\udf10')+' '+country:'\ud83c\udf10 '+_bd.src)+' \u00b7 '+_bd.band+(_bd.when?' \u00b7 '+_bd.when:'');
   weightKg=Math.max(1,weightKg);
 
   var rs='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:2px 6px;padding:5px 0;border-bottom:1px solid var(--b);';
