@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261022-NOTE8'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261022-NOTE9'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6462,15 +6462,15 @@ function _honsenRef(c,elId){
   if(sel&&+sel.dataset.qty===c.qty){var v=parseFloat(sel.value);var hit=rows.filter(function(r){return Math.abs(r.ppp-v)<1e-9;})[0];if(hit&&hit!==row){row=hit;picked=true;}}
   return {size:sz,area:HONSEN_AREAS[sz],tierQty:row.qty||row.pcs||0,p:row.ppp,picked:picked};
 }
-// Priority matching for 4.1 / 4.2: 1) colour (caller filters) 2) area ±10% (4.2 may widen to ±15%)
-// 3) QTY/SKU 4) total quantity. Tiers are tried in order; the first that finds jobs wins.
+// Priority matching for 4.1 / 4.2 / 4.3: 1) colour (caller filters) 2) area ±10% (4.2/4.3 may widen to ±15%)
+// 3) total quantity 4) QTY/SKU. Tiers are tried in order; the first that finds jobs wins.
 function _noteGap(a,b){return b>0?Math.abs(a-b)/b:9;}
 function _notePrio(list,c,areaTols,lostMode){
   var zh=(lang==='zh');
-  // quantity in the QTY/SKU-led steps is capped at ±100% (0–2× the quoted total)
-  var QCAP=1.0;
-  var T=lostMode?[[0.10,0.10,''],[0.10,QCAP,zh?'数量 ±100%':'qty \u00b1100%'],[0.20,QCAP,zh?'QTY/SKU ±20%、数量 ±100%':'QTY/SKU \u00b120%, qty \u00b1100%'],[null,0.10,zh?'不限 QTY/SKU':'any QTY/SKU'],[null,0.20,zh?'不限 QTY/SKU、数量 ±20%':'any QTY/SKU, qty \u00b120%']]
-                 :[[0.10,0.10,''],[0.10,QCAP,zh?'数量 ±100%':'qty \u00b1100%'],[null,0.10,zh?'不限 QTY/SKU':'any QTY/SKU']];
+  // Quantity first (it drives price/pc most), QTY/SKU narrows the match when it can:
+  // [QTY/SKU tol, quantity tol, label]
+  var T=[[0.10,0.10,''],[0.20,0.10,zh?'QTY/SKU ±20%':'QTY/SKU ±20%'],[null,0.10,zh?'不限 QTY/SKU':'any QTY/SKU'],
+         [0.20,0.20,zh?'数量 ±20%、QTY/SKU ±20%':'qty ±20%, QTY/SKU ±20%'],[null,0.20,zh?'数量 ±20%、不限 QTY/SKU':'qty ±20%, any QTY/SKU']];
   for(var ai=0;ai<areaTols.length;ai++){var at=areaTols[ai];
     var inArea=list.filter(function(r){return _noteGap(r.area,c.area)<=at+1e-9;});
     for(var i=0;i<T.length;i++){var t=T[i];
@@ -6479,8 +6479,10 @@ function _notePrio(list,c,areaTols,lostMode){
   }
   return null;
 }
-// closest by priority: area gap, then QTY/SKU gap, then quantity gap
-function _notePrioSort(a,b,c){return (_noteGap(a.area,c.area)-_noteGap(b.area,c.area))||(_noteGap(a.qps,c.qps)-_noteGap(b.qps,c.qps))||(_noteGap(a.qty,c.qty)-_noteGap(b.qty,c.qty));}
+// closest by priority: area gap, then quantity gap, then QTY/SKU gap
+function _notePrioSort(a,b,c){return (_noteGap(a.area,c.area)-_noteGap(b.area,c.area))||(_noteGap(a.qty,c.qty)-_noteGap(b.qty,c.qty))||(_noteGap(a.qps,c.qps)-_noteGap(b.qps,c.qps));}
+// nearest-3 (area already within ±15%): quantity gap, then QTY/SKU gap, then area
+function _noteNearSort(a,b,c){return (_noteGap(a.qty,c.qty)-_noteGap(b.qty,c.qty))||(_noteGap(a.qps,c.qps)-_noteGap(b.qps,c.qps))||(_noteGap(a.area,c.area)-_noteGap(b.area,c.area));}
 function _noteMedian(a){var b=a.slice().sort(function(x,y){return x-y;}),n=b.length;return n?(n%2?b[(n-1)/2]:(b[n/2-1]+b[n/2])/2):0;}
 function _noteState(price,ref){if(!(ref>0))return 'none';var g=price/ref-1;return g<=0.00005?'ok':g<=NOTE_BIG?'warn':'bad';}
 function _notePct(price,ref){var g=(price/ref-1)*100;return (g>0?'+':'')+(Math.abs(g)<10?g.toFixed(1):Math.round(g))+'%';}
@@ -6499,12 +6501,12 @@ function thingsToNoteHtml(c){
     if(!mine.length){items.push({id:'4.1',t:t,st:'none',txt:zh?'没有找到该客户的过往订单':'No past orders found for “'+wlEsc(c.client)+'”'});return;}
     var same=mine.filter(function(r){return r.col===c.col;});
     var byDate=function(a,b){return (b.d?b.d.getTime():0)-(a.d?a.d.getTime():0);};
-    // colour → area ±10% → QTY/SKU ±10% → quantity ±10%
+    // colour → area ±10% → quantity → QTY/SKU
     var pm=_notePrio(same,c,[0.10],false),near=pm?pm.rows:[],ref,how;
     if(near.length){near.sort(byDate);ref=near[0];
       how=pm.how?((zh?'上次类似订单（':'last similar order (')+pm.how+(zh?'）':')')):(zh?'上次类似订单':'last similar order');}
     else{var inA=same.filter(function(r){return _noteGap(r.area,c.area)<=0.10+1e-9;});
-      if(inA.length){ref=inA.slice().sort(function(a,b){return _notePrioSort(a,b,c);})[0];how=zh?'同尺寸中 QTY/SKU 最接近的订单':'closest QTY/SKU at this size';}
+      if(inA.length){ref=inA.slice().sort(function(a,b){return _noteNearSort(a,b,c);})[0];how=zh?'同尺寸中数量最接近的订单':'closest quantity at this size';}
       else{ref=(same.length?same:mine).slice().sort(function(a,b){return _notePrioSort(a,b,c);})[0];how=zh?'最接近的订单（尺寸不同）':'closest order (different size)';}}
     var st=_noteState(c.price,ref.p);
     var txt=st==='ok'?((zh?'不高于':'Not higher than the ')+how+': '+pc(ref.p)+' — '+desc(ref))
@@ -6515,13 +6517,13 @@ function thingsToNoteHtml(c){
   // 4.2 lost-client quotes
   (function(){
     var t=zh?'流失客户的报价':'Lost-client quotes';
-    // colour → area ±10% (then ±15%) → QTY/SKU (±10%, ±20%) → quantity (±10%, ±20%) → 3 nearest
+    // colour → area ±10% (then ±15%) → quantity (±10%, ±20%) with QTY/SKU narrowing → 3 nearest
     var lostC=good(c.lost).filter(function(r){return r.col===c.col;});
     var w=_notePrio(lostC,c,[0.10,0.15],true);
-    if(!w){var pool=lostC.filter(function(r){return _noteGap(r.area,c.area)<=0.15+1e-9&&(_noteGap(r.qps,c.qps)<=0.30+1e-9||_noteGap(r.qty,c.qty)<=0.30+1e-9);})
-        .sort(function(a,b){return _notePrioSort(a,b,c);}).slice(0,3);
-      if(pool.length)w={rows:pool,how:(zh?'最接近的 '+pool.length+' 个（QTY/SKU 或数量 30% 内，面积 ±15% 内）':pool.length+' nearest (QTY/SKU or qty within 30%, area within \u00b115%)')};}
-    if(!w){items.push({id:'4.2',t:t,st:'none',txt:zh?'没有类似的流失报价（面积 15% 内，QTY/SKU 或数量 30% 内）':'No similar quote to a lost client (area within 15%, QTY/SKU or qty within 30%)'});return;}
+    if(!w){var pool=lostC.filter(function(r){return _noteGap(r.area,c.area)<=0.15+1e-9&&_noteGap(r.qty,c.qty)<=0.30+1e-9;})
+        .sort(function(a,b){return _noteNearSort(a,b,c);}).slice(0,3);
+      if(pool.length)w={rows:pool,how:(zh?'数量最接近的 '+pool.length+' 个（数量 30% 内，面积 ±15% 内）':pool.length+' nearest on qty (within 30%, area within \u00b115%)')};}
+    if(!w){items.push({id:'4.2',t:t,st:'none',txt:zh?'没有类似的流失报价（面积 15% 内，数量 30% 内）':'No similar quote to a lost client (area within 15%, qty within 30%)'});return;}
     var near=w.rows,wh=w.how?' <span style="color:var(--amb)">['+(zh?'放宽：':'widened: ')+w.how+']</span>':'';
     var lowest=near.slice().sort(function(a,b){return a.p-b.p;})[0];
     var above=near.filter(function(r){return c.price>r.p+0.000005;}).length;
@@ -6531,21 +6533,21 @@ function thingsToNoteHtml(c){
       +(zh?'最低流失报价 ':'Lowest lost quote ')+pc(lowest.p)+(st!=='ok'?' (<b style="color:var(--t)">'+_notePct(c.price,lowest.p)+'</b>)':'')+' — '+desc(lowest)+wh;
     items.push({id:'4.2',t:t,st:st,txt:txt,rows:near,lbl:near.length+(zh?' 个报价':' lost quote'+(near.length>1?'s':''))});
   })();
-  // 4.3 other clients' orders — colour → area → QTY/SKU → quantity, same destination first
+  // 4.3 other clients' orders — colour → area → quantity → QTY/SKU, same destination first
   (function(){
     var t=zh?'其他客户的订单':'Other clients’ orders';
     var others=good(c.orders).filter(function(r){return !(c.client&&_noteIsClient(c.client,r))&&r.col===c.col;});
-    // Same priority as 4.1 / 4.2: colour → area ±10% (then ±15%) → QTY/SKU → quantity (capped ±100%)
+    // Same priority as 4.1 / 4.2: colour → area ±10% (then ±15%) → quantity → QTY/SKU
     // → 3 nearest. Same destination is tried first at every step, then all destinations.
     var destOk=function(r){return r.dest===c.dest;},m=[],relax='',wh='';
     var dn=(typeof _DEST_NAME!=='undefined'&&_DEST_NAME[c.dest])||c.dest||'';
     var pools=[[others.filter(destOk),dn?' · '+dn:''],[others,zh?'（所有目的地）':' (all destinations)']];
     for(var i=0;i<pools.length&&!m.length;i++){var w=_notePrio(pools[i][0],c,[0.10,0.15],true);if(w){m=w.rows;wh=w.how;relax=pools[i][1];}}
     if(!m.length){for(i=0;i<pools.length&&!m.length;i++){
-      var near3=pools[i][0].filter(function(r){return _noteGap(r.area,c.area)<=0.15+1e-9&&(_noteGap(r.qps,c.qps)<=0.30+1e-9||_noteGap(r.qty,c.qty)<=0.30+1e-9);})
-        .sort(function(x,y){return _notePrioSort(x,y,c);}).slice(0,3);
-      if(near3.length){m=near3;relax=pools[i][1];wh=zh?'最接近的 '+near3.length+' 个（QTY/SKU 或数量 30% 内，面积 ±15% 内）':near3.length+' nearest (QTY/SKU or qty within 30%, area within ±15%)';}}}
-    if(!m.length){items.push({id:'4.3',t:t,st:'none',txt:zh?'没有其他客户的类似订单（面积 15% 内，QTY/SKU 或数量 30% 内）':'No similar order from other clients (area within 15%, QTY/SKU or qty within 30%)'});return;}
+      var near3=pools[i][0].filter(function(r){return _noteGap(r.area,c.area)<=0.15+1e-9&&_noteGap(r.qty,c.qty)<=0.30+1e-9;})
+        .sort(function(x,y){return _noteNearSort(x,y,c);}).slice(0,3);
+      if(near3.length){m=near3;relax=pools[i][1];wh=zh?'数量最接近的 '+near3.length+' 个（数量 30% 内，面积 ±15% 内）':near3.length+' nearest on qty (within 30%, area within ±15%)';}}}
+    if(!m.length){items.push({id:'4.3',t:t,st:'none',txt:zh?'没有其他客户的类似订单（面积 15% 内，数量 30% 内）':'No similar order from other clients (area within 15%, qty within 30%)'});return;}
     var ps=m.map(function(r){return r.p;}),med=_noteMedian(ps),lo=Math.min.apply(null,ps),hi=Math.max.apply(null,ps);
     var above=m.filter(function(r){return c.price>r.p+0.000005;}).length,st=_noteState(c.price,med);
     var txt=m.length+' '+(zh?'个类似订单':'similar order'+(m.length>1?'s':''))+relax+': '
@@ -6588,7 +6590,7 @@ function thingsToNoteHtml(c){
     +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="flex-shrink:0;width:20px;height:20px;border-radius:50%;background:#f59e0b;color:#0c0c0e;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">4</span>'
     +'<span style="flex:1;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#f59e0b">'+(zh?'注意事项':'Things to Note')+'</span>'+head+'</div>'
     +'<div style="font-size:10.5px;color:var(--dim)">'+(zh?'你的价格：':'Your price: ')+'<b style="'+mn+';color:var(--t)">S$'+c.price.toFixed(4)+'/pc</b> (S$'+Math.round(c.price*c.qty).toLocaleString()+')'
-    +(zh?' · 匹配顺序：颜色 → 面积 ±10% → QTY/SKU → 数量':' \u00b7 matched by: colour \u2192 area \u00b110% \u2192 QTY/SKU \u2192 quantity')+'</div>'
+    +(zh?' · 匹配顺序：颜色 → 面积 ±10% → 数量 → QTY/SKU':' \u00b7 matched by: colour \u2192 area \u00b110% \u2192 quantity \u2192 QTY/SKU')+'</div>'
     +items.map(function(x){var k=C[x.st];
       return '<div style="border:1px solid var(--b);border-radius:8px;padding:7px 9px;margin-top:6px;background:'+k[1]+'">'
         +'<div style="display:flex;gap:8px;align-items:center"><b style="color:var(--m);font-size:11px">'+x.id+'</b><span style="flex:1;font-size:11.5px;font-weight:600;color:var(--t)">'+x.t+'</span>'
