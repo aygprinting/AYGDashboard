@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261022-QPS1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261022-QPS2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6648,7 +6648,13 @@ function _staffHistCore(qty,area,col,dest,qps){
     if(t.length<3&&tiers[i][1].length){t=t.concat(tiers[i][1]);src='mixed';}   // thin on orders → add quotes
     var nq=_qpsNarrow(t,qps);t=nq.rows;                                          // QTY/SKU narrows when it can
     var m0=pct(t.map(function(r){return r.p;}),0.5),kept=t.filter(function(r){return r.p<=m0*2&&r.p>=m0/2;});if(!kept.length)continue;
-    return {rate:pct(kept.map(function(r){return r.p;}),0.75),rows:kept,src:src,recent:tiers[i][3],dropped:t.length-kept.length,qpsLvl:nq.lvl};}
+    var topped=0;                                                              // top up to 3 with the next-nearest jobs
+    if(kept.length<3){var have={};kept.forEach(function(r){have[r.company+'|'+r.qty+'|'+r.area+'|'+r.p]=1;});
+      var qg=function(r){return qps>0?Math.abs((r.qty/(+r.sku||1))-qps)/qps:0;};
+      var cand=O.concat(Q).filter(function(r){return !have[r.company+'|'+r.qty+'|'+r.area+'|'+r.p]&&r.off<=0.5;})
+        .sort(function(a,b){return (a.dist-b.dist)||(qg(a)-qg(b))||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));});
+      var add=cand.slice(0,3-kept.length);topped=add.length;kept=kept.concat(add);}
+    return {rate:pct(kept.map(function(r){return r.p;}),0.75),rows:kept,src:src,recent:tiers[i][3],dropped:t.length-(kept.length-topped),qpsLvl:nq.lvl,topped:topped};}
   var near=function(list,src){list=list.filter(function(r){return r.off<=0.5;});if(!list.length)return null;  // too far off → formula
     var pick=list.slice().sort(function(a,b){return (a.dist-b.dist)||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));}).slice(0,3);
     return {rate:pct(pick.map(function(r){return r.p;}),0.75),rows:pick,src:src,nearest:true,off:Math.max.apply(null,pick.map(function(r){return r.off;}))};};
@@ -6702,7 +6708,7 @@ function calcStaffQ(){
   var zhS=(lang==='zh');
   var basis=sh?(sh.nearest
       ?(zhS?'依据：±10% 内无匹配，取最接近的 ':'Based on: nothing within ±10% — nearest ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):(zhS?'过往报价':'past quotes'))+(zhS?'（中位数，最大相差约 ':' (up to about ')+Math.round(sh.off*100)+'%'+(zhS?'）':' away)')
-      :(zhS?'依据：':'Based on: ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):sh.src==='mixed'?(zhS?'过往订单 + 报价':'past orders + quotes'):(zhS?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
+      :(zhS?'依据：':'Based on: ')+(sh.topped?(sh.rows.length-sh.topped)+(zhS?' + '+sh.topped+' 条最接近的 ':' + '+sh.topped+' nearest '):sh.rows.length+' ')+(sh.src==='orders'?(zhS?'过往订单':'past orders'):sh.src==='mixed'?(zhS?'过往订单 + 报价':'past orders + quotes'):(zhS?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
         +' \u00b7 '+(sh.recent?(zhS?'近12个月':'last 12 months'):(zhS?'不限日期':'any date'))+_qpsLvlTxt(sh.qpsLvl)+(zhS?' · 偏高位':' \u00b7 upper-middle'))
       +' \u00b7 '+((sh.floor||sh.anyDest)?(zhS?'所有目的地':'all destinations'):(_DEST_NAME[_sqd]||_sqd))
     :'';
@@ -9798,7 +9804,15 @@ function histPrintRate(qty,area,col,kind,qps){
     var m0=median(tr.map(function(r){return r.p;}));
     var kept=tr.filter(function(r){return r.p<=m0*2&&r.p>=m0/2;});   // outliers ignored
     if(!kept.length)continue;
-    return {rate:median(kept.map(function(r){return r.p;})),n:kept.length,dropped:tr.length-kept.length,src:t.src,recent:t.recent,rows:kept,qpsLvl:nq.lvl};
+    // Top up to at least 3 jobs with the next-nearest (orders first, then quotes) so one job never sets the price alone
+    var topped=0;
+    if(kept.length<3){var have={};kept.forEach(function(r){have[r.company+'|'+r.qty+'|'+r.area+'|'+r.p]=1;});
+      var qg=function(r){return qps>0?Math.abs((r.qty/(+r.sku||1))-qps)/qps:0;};
+      var cand=(t.src==='orders'?allOrders.concat(allQuotes):allQuotes).filter(function(r){return !have[r.company+'|'+r.qty+'|'+r.area+'|'+r.p];})
+        .sort(function(a,b){return (a.dist-b.dist)||(qg(a)-qg(b))||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));});
+      var add=cand.slice(0,3-kept.length).map(function(r){var o=Object.assign({},r);o.topup=true;return o;});topped=add.length;kept=kept.concat(add);}
+    return {rate:median(kept.map(function(r){return r.p;})),n:kept.length,topped:topped,dropped:tr.length-(kept.length-topped),src:t.src,recent:t.recent,rows:kept,qpsLvl:nq.lvl,
+            off:topped?Math.max.apply(null,kept.map(function(r){return r.off;})):0};
   }
   // Nothing within ±10% → nearest match: the 3 same-colour jobs closest on quantity AND area
   // together (% gap on each, weighted equally; newer job wins a tie). Orders first, then quotes.
@@ -9822,7 +9836,7 @@ function _qJobsHtml(h,pc){
       +'<div class="qpj-list" style="display:none;margin-top:3px;border:1px solid var(--b);border-radius:6px;overflow:hidden">'
       +rs.map(function(r,i){return '<div style="display:flex;gap:8px;justify-content:space-between;padding:3px 7px;'+(i?'border-top:1px solid var(--b);':'')+'">'
         +'<span style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t)">'+wlEsc(r.company)+'</span>'
-        +'<span style="flex-shrink:0;color:var(--dim)">'+r.qty.toLocaleString()+' \u00b7 '+skuTxt(r.qty,r.sku)+' \u00b7 '+wlEsc(r.size||(r.area+'mm\u00b2'))+' \u00b7 '+(r.d?wlFmtDate(r.d):'—')+(r.src==='quotes'?' \u00b7 '+(zh?'报价':'quote'):'')+'</span>'
+        +'<span style="flex-shrink:0;color:var(--dim)">'+r.qty.toLocaleString()+' \u00b7 '+skuTxt(r.qty,r.sku)+' \u00b7 '+wlEsc(r.size||(r.area+'mm\u00b2'))+' \u00b7 '+(r.d?wlFmtDate(r.d):'—')+(r.src==='quotes'?' \u00b7 '+(zh?'报价':'quote'):'')+(r.topup?' \u00b7 <span style="color:var(--amb)">'+(zh?'补充·最接近':'nearest top-up')+'</span>':'')+'</span>'
         +'<b style="flex-shrink:0;font-family:'+mn+';color:var(--tel)">'+pc(r.p)+'</b></div>';}).join('')
       +'</div></div>';
   }
@@ -9868,7 +9882,7 @@ function qSellEstRows(o){
       +(h.off>0.5?' <b style="color:var(--amb)">'+(zh?'· 相差较大，仅供参考':'· far from this job — treat with care')+'</b>':'');
   }else if(h){
     srcTxt=(h.src==='orders'?(zh?'过往订单':'past orders'):(zh?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
-      +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期':'any date'))+_qpsLvlTxt(h.qpsLvl)+' \u00b7 '+h.n+(zh?' 条，中位数':' matched, median')
+      +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期':'any date'))+_qpsLvlTxt(h.qpsLvl)+' \u00b7 '+(h.topped?((h.n-h.topped)+(zh?' 条 ±10% 内 + ':' within \u00b110% + ')+h.topped+(zh?' 条最接近':' nearest')+(zh?'，中位数':', median')+(h.off>0.5?' <b style="color:var(--amb)">'+(zh?'· 部分相差较大':'· some far from this job')+'</b>':'')):(h.n+(zh?' 条，中位数':' matched, median')))
       +(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
   }else{
     srcTxt=(zh?'无匹配记录 — 改用 总成本 ×'+Q_SELL_FALLBACK:'No matching history \u2014 using total cost \u00d7'+Q_SELL_FALLBACK);
@@ -9916,7 +9930,7 @@ function qPrintEstRows(o){
   }else if(h){
     srcTxt=(h.src==='orders'?(zh?'过往订单':'past orders'):(zh?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
       +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期（近12个月无匹配）':'any date (none in last 12 months)'))
-      +_qpsLvlTxt(h.qpsLvl)+' \u00b7 '+h.n+(zh?' 条，取中位数':' matched, median')+(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
+      +_qpsLvlTxt(h.qpsLvl)+' \u00b7 '+(h.topped?((h.n-h.topped)+(zh?' 条 ±10% 内 + ':' within \u00b110% + ')+h.topped+(zh?' 条最接近，取中位数':' nearest, median')+(h.off>0.5?' <b style="color:var(--amb)">'+(zh?'· 部分相差较大':'· some far from this job')+'</b>':'')):(h.n+(zh?' 条，取中位数':' matched, median')))+(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
   }else{
     srcTxt=(zh?'无匹配记录 — 改用公式：':'No matching history — using the formula: ')+o.formulaTxt;
   }
