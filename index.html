@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261022-NOTE10'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261022-QPS1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -6631,7 +6631,7 @@ function renderSqNotes(){
 // Price = 75th percentile (upper-middle) of the matched jobs, so staff err on the high side.
 // Safeguards: (1) never below the same figure for all destinations combined; (2) if the
 // destination has nothing within ±10%, use the all-destination match before "nearest 3".
-function _staffHistCore(qty,area,col,dest){
+function _staffHistCore(qty,area,col,dest,qps){
   var now=new Date(),yearAgo=new Date(now.getFullYear()-1,now.getMonth(),now.getDate());
   function base(list){return list.filter(function(r){
     if(/样品|sample/i.test(r.company))return false;
@@ -6646,15 +6646,16 @@ function _staffHistCore(qty,area,col,dest){
   var tiers=[[oR,qR,'orders',true],[oA,qA,'orders',false],[qR,[],'quotes',true],[qA,[],'quotes',false]];
   for(var i=0;i<tiers.length;i++){var t=tiers[i][0],src=tiers[i][2];if(!t.length)continue;
     if(t.length<3&&tiers[i][1].length){t=t.concat(tiers[i][1]);src='mixed';}   // thin on orders → add quotes
+    var nq=_qpsNarrow(t,qps);t=nq.rows;                                          // QTY/SKU narrows when it can
     var m0=pct(t.map(function(r){return r.p;}),0.5),kept=t.filter(function(r){return r.p<=m0*2&&r.p>=m0/2;});if(!kept.length)continue;
-    return {rate:pct(kept.map(function(r){return r.p;}),0.75),rows:kept,src:src,recent:tiers[i][3],dropped:t.length-kept.length};}
+    return {rate:pct(kept.map(function(r){return r.p;}),0.75),rows:kept,src:src,recent:tiers[i][3],dropped:t.length-kept.length,qpsLvl:nq.lvl};}
   var near=function(list,src){list=list.filter(function(r){return r.off<=0.5;});if(!list.length)return null;  // too far off → formula
     var pick=list.slice().sort(function(a,b){return (a.dist-b.dist)||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));}).slice(0,3);
     return {rate:pct(pick.map(function(r){return r.p;}),0.75),rows:pick,src:src,nearest:true,off:Math.max.apply(null,pick.map(function(r){return r.off;}))};};
   return near(O,'orders')||near(Q,'quotes');
 }
-function staffHistPrice(qty,area,col,dest){
-  var d=_staffHistCore(qty,area,col,dest),all=_staffHistCore(qty,area,col,'*');
+function staffHistPrice(qty,area,col,dest,qps){
+  var d=_staffHistCore(qty,area,col,dest,qps),all=_staffHistCore(qty,area,col,'*',qps);
   if(d&&!d.nearest){
     if(all&&!all.nearest&&all.rate>d.rate){all.floor=true;return all;}   // destination price below the overall → use overall
     return d;}
@@ -6695,14 +6696,14 @@ function calcStaffQ(){
   var _sqd=(document.getElementById('sq-dest')||{}).value||'sg';
   // Staff price comes ONLY from AYG Operations price history (Orders, then Quotations).
   // No similar past job → no price; staff check with management.
-  var sh=null;try{sh=staffHistPrice(totalQty,area,col==='c'?'c':'b',_sqd);}catch(e){}
+  var sh=null;try{sh=staffHistPrice(totalQty,area,col==='c'?'c':'b',_sqd,totalQty/(sku||1));}catch(e){}
   var sell=sh?sh.rate*totalQty:0;
   var ppp=totalQty>0?sell/totalQty:0;
   var zhS=(lang==='zh');
   var basis=sh?(sh.nearest
       ?(zhS?'依据：±10% 内无匹配，取最接近的 ':'Based on: nothing within ±10% — nearest ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):(zhS?'过往报价':'past quotes'))+(zhS?'（中位数，最大相差约 ':' (up to about ')+Math.round(sh.off*100)+'%'+(zhS?'）':' away)')
       :(zhS?'依据：':'Based on: ')+sh.rows.length+' '+(sh.src==='orders'?(zhS?'过往订单':'past orders'):sh.src==='mixed'?(zhS?'过往订单 + 报价':'past orders + quotes'):(zhS?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
-        +' \u00b7 '+(sh.recent?(zhS?'近12个月':'last 12 months'):(zhS?'不限日期':'any date'))+(zhS?' · 偏高位':' \u00b7 upper-middle'))
+        +' \u00b7 '+(sh.recent?(zhS?'近12个月':'last 12 months'):(zhS?'不限日期':'any date'))+_qpsLvlTxt(sh.qpsLvl)+(zhS?' · 偏高位':' \u00b7 upper-middle'))
       +' \u00b7 '+((sh.floor||sh.anyDest)?(zhS?'所有目的地':'all destinations'):(_DEST_NAME[_sqd]||_sqd))
     :'';
   var qtyPerSku=sku>0?Math.round(totalQty/sku):totalQty;
@@ -9488,7 +9489,8 @@ function applyHF(){
   var totalQty=parseInt(document.getElementById('q-qty').value)||0;
   var zh=(lang==='zh'),mn="font-family:'JetBrains Mono',monospace";
   var key=function(r){return r.src+'|'+String(r.company||'').toLowerCase()+'|'+r.qty+'|'+Math.round(r.area);};
-  var used=null;if(totalQty>0){try{used=histPrintRate(totalQty,histArea,histCol,'sell');}catch(e){}}
+  var _hsku=parseInt((document.getElementById('q-sku')||{}).value)||1;
+  var used=null;if(totalQty>0){try{used=histPrintRate(totalQty,histArea,histCol,'sell',totalQty/_hsku);}catch(e){}}
   var usedRows=used?used.rows.map(function(r){return {company:r.company,size:r.size,area:r.area,qty:r.qty,sku:r.sku||1,colour:r.colour,p:r.p,d:r.d,src:r.src,used:true};}):[];
   var usedKeys={};usedRows.forEach(function(r){usedKeys[key(r)]=1;});
   var pool=[];
@@ -9749,7 +9751,19 @@ function _qColClass(s){
   if(/black|1c|黑/.test(s))return 'b';
   return 'other';
 }
-function histPrintRate(qty,area,col,kind){
+// QTY/SKU narrowing used by every history match: within a set of quantity/area matches, keep the
+// jobs whose QTY/SKU is within ±10% of this quote; else ±20%; else all of them (lvl tells which).
+var QPS_MIN=3;
+function _qpsNarrow(rows,qps){
+  if(!(qps>0)||!rows.length)return {rows:rows,lvl:''};
+  var g=function(r){var s=+r.sku||1;return Math.abs((r.qty/s)-qps)/qps;};
+  // only narrow when at least QPS_MIN jobs remain — one or two jobs make the price too jumpy
+  var r10=rows.filter(function(r){return g(r)<=0.10+1e-9;});if(r10.length>=QPS_MIN)return {rows:r10,lvl:'10'};
+  var r20=rows.filter(function(r){return g(r)<=0.20+1e-9;});if(r20.length>=QPS_MIN)return {rows:r20,lvl:'20'};
+  return {rows:rows,lvl:'any'};
+}
+function _qpsLvlTxt(l){var zh=(typeof lang!=='undefined'&&lang==='zh');return l==='10'?' \u00b7 QTY/SKU \u00b110%':l==='20'?' \u00b7 QTY/SKU \u00b120%':l==='any'?(zh?' \u00b7 不限 QTY/SKU':' \u00b7 any QTY/SKU'):'';}
+function histPrintRate(qty,area,col,kind,qps){
   // kind 'sell' → selling price per piece (S$); default → factory print cost per piece (RMB)
   var now=new Date(),yearAgo=new Date(now.getFullYear()-1,now.getMonth(),now.getDate());
   function pool(list,priceKey,dateKey){
@@ -9780,16 +9794,18 @@ function histPrintRate(qty,area,col,kind){
   ];
   for(var i=0;i<tiers.length;i++){
     var t=tiers[i];if(!t.rows.length)continue;
-    var m0=median(t.rows.map(function(r){return r.p;}));
-    var kept=t.rows.filter(function(r){return r.p<=m0*2&&r.p>=m0/2;});   // outliers ignored
+    var nq=_qpsNarrow(t.rows,qps),tr=nq.rows;                           // QTY/SKU narrows the match when it can
+    var m0=median(tr.map(function(r){return r.p;}));
+    var kept=tr.filter(function(r){return r.p<=m0*2&&r.p>=m0/2;});   // outliers ignored
     if(!kept.length)continue;
-    return {rate:median(kept.map(function(r){return r.p;})),n:kept.length,dropped:t.rows.length-kept.length,src:t.src,recent:t.recent,rows:kept};
+    return {rate:median(kept.map(function(r){return r.p;})),n:kept.length,dropped:tr.length-kept.length,src:t.src,recent:t.recent,rows:kept,qpsLvl:nq.lvl};
   }
   // Nothing within ±10% → nearest match: the 3 same-colour jobs closest on quantity AND area
   // together (% gap on each, weighted equally; newer job wins a tie). Orders first, then quotes.
   var near=function(list,src){
     if(!list.length)return null;
-    var pick=list.slice().sort(function(a,b){return (a.dist-b.dist)||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));}).slice(0,Q_PRINT_NEAREST);
+    var qg=function(r){return qps>0?Math.abs((r.qty/(+r.sku||1))-qps)/qps:0;};
+    var pick=list.slice().sort(function(a,b){return (a.dist-b.dist)||(qg(a)-qg(b))||((b.d?b.d.getTime():0)-(a.d?a.d.getTime():0));}).slice(0,Q_PRINT_NEAREST);
     return {rate:median(pick.map(function(r){return r.p;})),n:pick.length,dropped:0,src:src,recent:false,nearest:true,
             off:Math.max.apply(null,pick.map(function(r){return r.off;})),rows:pick};
   };
@@ -9852,7 +9868,7 @@ function qSellEstRows(o){
       +(h.off>0.5?' <b style="color:var(--amb)">'+(zh?'· 相差较大，仅供参考':'· far from this job — treat with care')+'</b>':'');
   }else if(h){
     srcTxt=(h.src==='orders'?(zh?'过往订单':'past orders'):(zh?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
-      +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期':'any date'))+' \u00b7 '+h.n+(zh?' 条，中位数':' matched, median')
+      +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期':'any date'))+_qpsLvlTxt(h.qpsLvl)+' \u00b7 '+h.n+(zh?' 条，中位数':' matched, median')
       +(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
   }else{
     srcTxt=(zh?'无匹配记录 — 改用 总成本 ×'+Q_SELL_FALLBACK:'No matching history \u2014 using total cost \u00d7'+Q_SELL_FALLBACK);
@@ -9900,7 +9916,7 @@ function qPrintEstRows(o){
   }else if(h){
     srcTxt=(h.src==='orders'?(zh?'过往订单':'past orders'):(zh?'过往报价（无匹配订单）':'past quotes (no matching orders)'))
       +' \u00b7 '+(h.recent?(zh?'近12个月':'last 12 months'):(zh?'不限日期（近12个月无匹配）':'any date (none in last 12 months)'))
-      +' \u00b7 '+h.n+(zh?' 条，取中位数':' matched, median')+(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
+      +_qpsLvlTxt(h.qpsLvl)+' \u00b7 '+h.n+(zh?' 条，取中位数':' matched, median')+(h.dropped?(' \u00b7 '+h.dropped+(zh?' 条异常值已排除':' outlier(s) ignored')):'');
   }else{
     srcTxt=(zh?'无匹配记录 — 改用公式：':'No matching history — using the formula: ')+o.formulaTxt;
   }
@@ -9964,7 +9980,7 @@ function calcQ(){
   var rpcFormula=_bd?_bd.rpc:0;
   var formulaTxt=_bd?('¥'+_bd.base.toFixed(4)+(_bd.colMult>1?' ×'+_bd.colMult:'')+(_bd.areaMult>1?' ×'+_bd.areaMult:'')+' = ¥'+rpcFormula.toFixed(4))
     :(lang==='zh'?'未找到「Cost Bands」表 — 请在管理文件中添加':'No “Cost Bands” sheet in the management file');
-  var printHist=null;try{printHist=histPrintRate(totalQty,area,col==='c'?'c':'b');}catch(e){}
+  var printHist=null;try{printHist=histPrintRate(totalQty,area,col==='c'?'c':'b',undefined,totalQty/(sku||1));}catch(e){}
   var printBase=printHist?printHist.rate:rpcFormula;
   if(!_qShipKeep)Q_PRINT_PICK='mid';   // every new calculation starts on Mid
   rpc=printBase*(Q_PRINT_PICK==='low'?1:Q_PRINT_PICK==='high'?Q_PRINT_HIGH_FACTOR:Q_PRINT_MID_FACTOR);
@@ -9996,7 +10012,7 @@ function calcQ(){
   var totCost=printCost+shTotal+gstAmt;
   // Selling price: Low = Settings 'Low margin' on total cost · Mid = historical S$/pc of similar past jobs
   // (same matching as print cost; no history → total cost × Settings 'Selling fallback') · Custom = typed margin or S$/pc.
-  var sellHist=null;try{sellHist=histPrintRate(totalQty,area,col==='c'?'c':'b','sell');}catch(e){}
+  var sellHist=null;try{sellHist=histPrintRate(totalQty,area,col==='c'?'c':'b','sell',totalQty/(sku||1));}catch(e){}
   var sellBasePc=sellHist?sellHist.rate:(totCost*Q_SELL_FALLBACK/totalQty);
   if(!_qShipKeep)Q_SELL_PICK='mid';
   if(Q_SELL_PICK==='high')Q_SELL_PICK='mid';
