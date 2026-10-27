@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261023-OID1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261027-DUP1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9256,6 +9256,33 @@ function renderChecks(){
   }else{
     _MSG.portal='<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccAygNeedsSync||'Log in / main sync required to load the AYG portal status.')+'</div>';
   }
+  // ── Duplicate Order ID in Auto Main: the same portal order on more than one row (e.g. F1 run on
+  // two computers before the workbook synced). Uses the live Auto Main sheet only. ──
+  (function(){
+    var byId={},dupG=[];
+    (AUTO_MAIN||[]).forEach(function(r){var k=String(r.orderId||'').trim().toLowerCase();if(k)(byId[k]=byId[k]||[]).push(r);});
+    Object.keys(byId).forEach(function(k){if(byId[k].length>1)dupG.push(byId[k]);});
+    dupG.sort(function(a,b){return (b[0].xlRow||0)-(a[0].xlRow||0);});
+    var esc=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;');};
+    var rowsHtml=dupG.map(function(g){
+      var r0=g[0],oid=r0.orderId,q=String(oid).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      var refs=g.map(function(r){return (r.ref||'').trim().toUpperCase();}),diffRef=refs.filter(function(x,i){return x&&refs.indexOf(x)===i;}).length>1;
+      var list=g.map(function(r){return '<div style="font-size:10px;color:var(--m)">'+(zh?'Excel 第 ':'Excel row ')+'<b style="color:var(--t)">'+r.xlRow+'</b>'+(zh?' 行':'')
+        +' · No. '+esc(r.no||'—')+' · '+(zh?'AYG 参考：':'AYG Ref: ')+(r.ref?esc(r.ref):'<i style="color:var(--dim)">'+(zh?'空白':'blank')+'</i>')+(r.status?' · '+esc(r.status):'')+'</div>';}).join('');
+      var hint=diffRef?'<span style="color:#ef4444">'+(zh?'AYG 参考不同 — 请确认保留哪一行':'different AYG Refs — check which to keep')+'</span>'
+                      :'<span style="color:#f59e0b">'+(zh?'重复行 — 删除多余的一行':'copy — delete the extra row')+'</span>';
+      return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;padding:6px 2px;border-top:1px solid var(--b);cursor:pointer" onclick="jumpToBcrs(\'\',\''+q+'\',\'\')">'
+        +'<span style="min-width:0;flex:1"><span style="font-size:12px;color:var(--t);font-weight:600">'+esc(r0.company||'—')+'</span>'
+        +(r0.productName?'<div style="font-size:10px;color:var(--dim)">'+esc(r0.productName)+(r0.qty?' · '+esc(r0.qty):'')+'</div>':'')
+        +'<div style="font-size:10px;color:var(--m);display:flex;align-items:center;gap:2px;margin:1px 0 2px" onclick="event.stopPropagation()"><span style="color:var(--dim)">'+(zh?'订单 ID ':'Order ID ')+'</span><span style="font-family:\'JetBrains Mono\',monospace;user-select:all;cursor:text;word-break:break-all">'+esc(oid)+'</span>'+_cpBtnHtml(oid)+'</div>'
+        +list+'</span>'
+        +'<span style="font-size:10px;flex-shrink:0;white-space:nowrap;text-align:right">'+g.length+(zh?' 行':' rows')+'<div>'+hint+'</div></span></div>';
+    }).join('');
+    html+=chkSection('ayg_dupid',(zh?'Auto Main 中重复的订单 ID':'Duplicate Order ID in Auto Main'),'#ef4444',dupG.length,rowsHtml,
+      (zh?'Auto Main 中没有重复的订单 ID':'No Order ID appears twice in Auto Main'),!!(AUTO_MAIN&&AUTO_MAIN.length),
+      (zh?'来源：Auto Main G 列（订单 ID）中出现多于一次的订单 — 同一张门户订单被录入了多行（例如两台电脑在工作簿同步前都按了 F1）。点击可在 BCRS Order Portal Pull 中同时显示这几行。删除多余的一行即可清除。'
+         :"How it's derived: Order IDs (Auto Main column G) that appear on more than one row — the same portal order entered twice (e.g. F1 run on two computers before the workbook synced). Click to show those rows together in BCRS Order Portal Pull. Delete the extra row to clear it."));
+  })();
   // ── Group 3: Orders — Paid status (Xero vs CRM) + AYG Operations vs Management Orders ──
   try{html+=rcChecksHtml(zh,chkSection,invLoaded);}catch(e){console.error('orders recon render',e);}
   // ── Group 4: Watchlist — flagged companies ──
@@ -9350,7 +9377,7 @@ function renderChecks(){
   var GROUPS=[
     {id:'orders',title:_mgmtRecon?(zh?'订单 — 付款与工作簿对账':'Orders — Payment & Workbook Reconciliation'):(zh?'订单 — 付款对账':'Orders — Payment Reconciliation'),
       secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
-    {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_mismatch','ayg_nottally','ayg_noemail','ayg_noref','ayg_reject']},
+    {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_dupid','ayg_mismatch','ayg_nottally','ayg_noemail','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']},
     {id:'vip',title:'<span style="color:#ca8a04">\u2605</span> '+wlTx('vipGrpHd','VIP clients'),secs:['vip_follow']}
