@@ -9081,6 +9081,90 @@ function rcChecksHtml(zh,chkSection,invLoaded){
         :'How it’s derived: compares the shared columns of the AYG Operations and BCRS Scheme Management Orders tabs row by row (columns found by their English header: Size, SKU, Colour, Total Order, Company, Location, Selling Price, Status, Order / Delivery / Invoice dates, Tracking, Address, Name, Contact, Invoice / Ref No., Payment, Comment). Rows are aligned by company name, so an inserted or deleted row shows as “only in” one file instead of shifting everything below it. Formatting-only differences are ignored: case, spacing, date typed as text vs a real date, 75x30 vs 75*30, 1C Black vs 1CBlack, carrier prefixes (UPS:) and so on. Purple = key field (money, quantity or reconciliation), amber = detail field, grey = minor (W×H written in reverse, Excel-rounded numbers). Tap a field chip to filter.'));
   return html;
 }
+// ── Estimated Artwork Confirmed ───────────────────────────────────────────
+// Scans the pipeline history text already loaded into CLIENTS_PIPE / SUPPLIERS_PIPE
+// (the Customers / Suppliers sheets' History columns — same data the Clients Update
+// tab reads) for customer-side artwork/printwork approvals. No email is re-fetched;
+// it parses the dated history string the workbook already carries. "Estimated"
+// because it's inferred from free text, not a dedicated field.
+var ART_STATE={q:'',sort:'new'};
+function _artEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function _artIsConfirm(t){
+  t=String(t||'');
+  // Hard excludes — approvals that are NOT the customer confirming our printwork:
+  // BCRS-side approvals, and AYG sharing/sending already-approved artwork.
+  if(/approved by bcrs|bcrs[\s-]?approved|(ayg|we)\b[^.]{0,40}(shares?|sends?|sent)[^.]*approved artwork|(shares?|sends?|sent)\b[^.]{0,30}(producer|bcrs)[\s-]?approved/i.test(t))return false;
+  var approve=/(artwork|printwork|print ?work|proof)\s*(is\s*)?(approved|confirmed|correct)|approved\s*(the\s*)?(finalised\s*)?(print ?work|artwork|proof)|please proceed|kindly proceed|can proceed|proceed with print|proceed above quote|all correct|looks good|confirmed proceed/i;
+  var zhApprove=/(稿件|排版)[^。]*?(批准|确认|无误)|确认[^。]*?(开印|印刷|无误)|开印|确认开始/;
+  if(!(approve.test(t)||zhApprove.test(t)))return false;
+  var pending=/(ayg (sent|requested|chas|remind)|sent (the )?(finalised |final )?(print ?work|artwork)|sent for (approval|confirmation|review)|for (your|their|review|approval|confirmation)|awaiting|chasing|reminder|requested (approval|artwork)|bcrs (approv|register|rejected|re-?approval)|rejected|approved by bcrs|bcrs[\s-]?approved|producer-approved|(shares?|sends?) [^.]*approved artwork)/i;
+  var strong=/(approved|all correct|looks good|please proceed|can proceed|proceed with print|proceed above quote|customer confirm|confirms? (the )?(artwork|printwork|print ?work|proof|design|order)|批准|开印|确认无误|确认开始)/i;
+  if(pending.test(t)&&!strong.test(t))return false;
+  return true;
+}
+function _artSplit(h){
+  var out=[];String(h||'').split(' → ').forEach(function(p){
+    p=p.trim();if(!p)return;
+    var m=p.match(/^(\d{1,2}\/\d{1,2}\/\d{2})\s*[:：]\s*([\s\S]*)$/);
+    if(m)out.push({dmy:m[1],text:m[2].trim()});
+  });
+  return out;
+}
+function _artIso(dmy){var a=dmy.split('/');return a.length===3?('20'+a[2]+'-'+('0'+a[1]).slice(-2)+'-'+('0'+a[0]).slice(-2)):'';}
+function getArtEvents(){
+  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[];
+  src.forEach(function(r){
+    if(!r||!r.company)return;
+    var en=_artSplit(r.histEn),zh=_artSplit(r.histZh);
+    en.forEach(function(e,i){
+      if(!_artIsConfirm(e.text))return;
+      var ztxt=(zh[i]&&zh[i].dmy===e.dmy)?zh[i].text:((zh.filter(function(z){return z.dmy===e.dmy;})[0]||{}).text||'');
+      out.push({company:r.company,dmy:e.dmy,iso:_artIso(e.dmy),en:e.text,zh:ztxt||e.text,wa:/💬/.test(e.text)});
+    });
+  });
+  return out;
+}
+function _artFilter(evs){var q=(ART_STATE.q||'').toLowerCase().trim();return q?evs.filter(function(e){return (e.company+' '+e.en+' '+e.zh+' '+e.dmy).toLowerCase().indexOf(q)>-1;}):evs;}
+function artRowsHtml(zh){
+  var evs=_artFilter(getArtEvents());
+  if(!evs.length)return '<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(zh?'无匹配':'No matches')+'</div>';
+  var g={},order=[];
+  evs.forEach(function(e){if(!g[e.company]){g[e.company]=[];order.push(e.company);}g[e.company].push(e);});
+  var sort=ART_STATE.sort||'new';
+  function latest(c){return g[c].reduce(function(m,e){return e.iso>m?e.iso:m;},'');}
+  function earliest(c){return g[c].reduce(function(m,e){return (!m||e.iso<m)?e.iso:m;},'9999');}
+  order.sort(function(a,b){if(sort==='az')return a.localeCompare(b);if(sort==='old')return earliest(a).localeCompare(earliest(b));return latest(b).localeCompare(latest(a));});
+  var html='';
+  order.forEach(function(c){
+    var rows=g[c].slice();rows.sort(function(x,y){return sort==='old'?x.iso.localeCompare(y.iso):y.iso.localeCompare(x.iso);});
+    var cc=c.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    html+='<div style="margin-top:9px;border-top:1px solid var(--b2)">'
+      +'<div onclick="selectClient(\''+cc+'\')" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 2px;cursor:pointer">'
+        +'<span style="font-size:12px;font-weight:700;color:var(--t)">'+_artEsc(c)+'</span>'
+        +'<span style="font-size:10px;color:var(--pur);white-space:nowrap">'+rows.length+(zh?' 次':(rows.length===1?' confirmation':' confirmations'))+'</span>'
+      +'</div>';
+    rows.forEach(function(e){
+      html+='<div style="display:flex;gap:10px;padding:4px 2px 4px 12px;border-top:1px solid var(--b);align-items:flex-start">'
+        +'<span style="font-family:monospace;font-size:10.5px;color:var(--tel);white-space:nowrap;flex-shrink:0;min-width:52px">'+_artEsc(e.dmy)+'</span>'
+        +'<span style="font-size:11px;color:var(--t);flex:1;min-width:0;line-height:1.5">'+_artEsc(zh?(e.zh||e.en):e.en)+'</span>'
+        +'<span style="font-size:10px;white-space:nowrap;flex-shrink:0" title="'+(e.wa?'WhatsApp':'Email')+'">'+(e.wa?'💬':'📧')+'</span>'
+      +'</div>';
+    });
+    html+='</div>';
+  });
+  return html;
+}
+function fillArtRows(){try{var n=document.getElementById('art-rows');if(n)n.innerHTML=artRowsHtml(lang==='zh');}catch(e){}}
+function artSearch(v){ART_STATE.q=v;fillArtRows();}
+function artSort(v){ART_STATE.sort=v;fillArtRows();}
+function artCopyList(){
+  var zh=lang==='zh',evs=_artFilter(getArtEvents());
+  evs.sort(function(x,y){return ART_STATE.sort==='old'?x.iso.localeCompare(y.iso):(ART_STATE.sort==='az'?(x.company.localeCompare(y.company)||y.iso.localeCompare(x.iso)):y.iso.localeCompare(x.iso));});
+  var rows=[['Company','Confirmed','Source','What was confirmed']].concat(evs.map(function(e){return [e.company,e.dmy,(e.wa?'WhatsApp':'Email'),(zh?(e.zh||e.en):e.en).replace(/[\t\r\n]+/g,' ')];}));
+  var tsv=rows.map(function(r){return r.join('\t');}).join('\n');
+  try{navigator.clipboard.writeText(tsv);}catch(e){var ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(ta);}
+}
+
 function renderChecks(){
   var el=document.getElementById('chk-body');if(!el)return;
   var zh=lang==='zh';
@@ -9188,6 +9272,20 @@ function renderChecks(){
   }else{
     _MSG.crm=('<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccNeedsCrm||'Log in / main sync required to compare CRM contact dates.')+'</div>');
   }
+  // ── Estimated Artwork Confirmed (parsed from already-loaded pipeline history) ──
+  (function(){
+    var zhA=zh;
+    var ctrl='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 2px 8px">'
+      +'<input id="art-q" oninput="artSearch(this.value)" value="'+_artEsc(ART_STATE.q||'')+'" placeholder="'+(zhA?'搜索公司 / 日期 / 内容…':'Search company / date / text…')+'" style="flex:1;min-width:160px;font-size:11px;padding:6px 10px;border-radius:9px;border:1px solid var(--b2);background:var(--s2);color:var(--t)">'
+      +'<select id="art-sort" onchange="artSort(this.value)" style="font-size:11px;padding:6px 8px;border-radius:9px;border:1px solid var(--b2);background:var(--s2);color:var(--t)">'
+        +'<option value="new"'+(ART_STATE.sort==='new'?' selected':'')+'>'+(zhA?'最新优先':'Newest first')+'</option>'
+        +'<option value="old"'+(ART_STATE.sort==='old'?' selected':'')+'>'+(zhA?'最早优先':'Oldest first')+'</option>'
+        +'<option value="az"'+(ART_STATE.sort==='az'?' selected':'')+'>'+(zhA?'公司 A–Z':'Company A–Z')+'</option>'
+      +'</select>'
+      +'<button class="rc-cplist" onclick="artCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
+    +'</div>';
+    chkSection('art_confirmed',(zhA?'已确认稿件（估计）':'Confirmed by customer'),'#a78bfa',getArtEvents().length,ctrl+'<div id="art-rows"></div>',(zhA?'尚未发现稿件确认':'No artwork confirmations found yet'),pipeLoaded,(zhA?'来源：扫描 Customers / Suppliers 表「历史」列中客户确认稿件／印件的措辞（artwork/printwork approved、please proceed、proceed with print、稿件批准、开印、all correct…），与「客户更新」同源。每条确认单独列出，按公司分组。仅为估计 — 电话确认邮件看不到；已排除 BCRS 侧批准及 AYG 自己「送审」的记录。':"How it's derived: scans the Customers / Suppliers sheet History column (same data as Clients Update) for customer-side artwork/printwork approvals — \"artwork/printwork approved\", \"please proceed\", \"proceed with print\", 稿件批准, 开印, all correct. Each confirmation is listed, grouped by company. Estimate only — a phone confirmation the emails can't see won't show; BCRS-side approvals and AYG's own \"sent for approval\" are excluded."));
+  })();
   // ── Group 2: AYG Portal — Reference Check ──
   _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
   if(PORTAL_STATUS&&PORTAL_STATUS.length){
@@ -9379,6 +9477,7 @@ function renderChecks(){
       secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
     {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_dupid','ayg_mismatch','ayg_nottally','ayg_noemail','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
+    {id:'artwork',info:true,title:(zh?'估计已确认稿件':'Estimated Artwork Confirmed'),secs:['art_confirmed']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']},
     {id:'vip',title:'<span style="color:#ca8a04">\u2605</span> '+wlTx('vipGrpHd','VIP clients'),secs:['vip_follow']}
   ];
@@ -9400,9 +9499,13 @@ function renderChecks(){
     var pill=function(txt,col,bg){return '<span style="font-size:10px;font-weight:700;color:'+col+';background:'+bg+';padding:1px 8px;border-radius:9px;font-family:\'JetBrains Mono\',monospace;white-space:nowrap">'+txt+'</span>';};
     // Red count when anything is flagged; green ✓ only when every check has data and found nothing;
     // amber "not synced" when some checks have no data yet (so a blank can't pass for all-clear).
-    var cnt=(n?pill(n+(zh?' 项':(n===1?' flag':' flags')),'#ef4444','rgba(239,68,68,.12)'):'')
-      +(nUn?pill(nUn+(zh?' 项未同步':' not synced'),'var(--amb)','rgba(245,158,11,.12)'):'')
-      +(!n&&!nUn&&have.length?pill('✓','var(--grn)','rgba(110,231,183,.12)'):'');
+    var cnt=g.info
+      ?((n?pill(n+(zh?' 条':' entries'),'var(--pur)','rgba(167,139,250,.14)'):'')
+        +(nUn?pill(nUn+(zh?' 项未同步':' not synced'),'var(--amb)','rgba(245,158,11,.12)'):'')
+        +(!n&&!nUn&&have.length?pill(zh?'无':'none','var(--m)','rgba(122,122,133,.12)'):''))
+      :((n?pill(n+(zh?' 项':(n===1?' flag':' flags')),'#ef4444','rgba(239,68,68,.12)'):'')
+        +(nUn?pill(nUn+(zh?' 项未同步':' not synced'),'var(--amb)','rgba(245,158,11,.12)'):'')
+        +(!n&&!nUn&&have.length?pill('✓','var(--grn)','rgba(110,231,183,.12)'):''));
     var gid='grp_'+g.id,col=chkState[gid]?' collapsed':'';
     out+='<div class="ord-section chk-grp'+col+'" id="chk-sec-'+gid+'" style="margin-bottom:14px">'
       +'<div class="ord-sec-head" onclick="toggleChkSec(\''+gid+'\')">'
@@ -9416,6 +9519,7 @@ function renderChecks(){
     +'</div>';
   });
   el.innerHTML=out;
+  try{fillArtRows();}catch(e){}
 }
 function selectClient(name){clientsSel=name||null;clientsSugOpen=false;renderClientsUpdate();}
 function selectSupplier(name){supplierSel=name||null;supplierSugOpen=false;renderClientsUpdate();}
