@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261028-ART4'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261028-ART5'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9196,23 +9196,37 @@ function _awIsSend(t){
   return true;
 }
 function _awCoKey(n){return String(n||'').toLowerCase().replace(/\b(pte|ltd|llp|co|company|inc|sg|singapore|the)\b/g,'').replace(/[^a-z0-9]/g,'');}
-function _awOpenOrderCos(){
-  var set={};try{(window.ORDERS||[]).forEach(function(o){
+var AW_WINDOW_DAYS=31;   // artwork-send must be within this many days of the open order's date
+function _awParseDate(s){
+  s=String(s||'').trim();if(!s||s==='None'||s==='nan')return null;var m,M={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  if(m=s.match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s+(\d{4})/)){var mo=M[m[2].toLowerCase()];if(mo!=null)return new Date(+m[3],mo,+m[1]).getTime();}
+  if(m=s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/))return new Date(+m[1],+m[2]-1,+m[3]).getTime();
+  if(m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/)){var y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1]).getTime();}
+  var t=Date.parse(s);return isNaN(t)?null:t;
+}
+function _awSendIsoToMs(iso){var s=String(iso||'').replace(/\D/g,'');if(s.length<8)return null;return new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)).getTime();}
+// company-key -> array of open (blank/Pending) order dates (ms; null when the order has no parseable date)
+function _awOpenOrders(){
+  var map={};try{(window.ORDERS||[]).forEach(function(o){
     var st=String(o.status||'').trim();
-    if(st===''||/^pending$/i.test(st)){var k=_awCoKey(o.name);if(k)set[k]=1;}
+    if(!(st===''||/^pending$/i.test(st)))return;
+    var k=_awCoKey(o.name);if(!k)return;
+    if(!map[k])map[k]=[];map[k].push(_awParseDate(o.received)||_awParseDate(o.delivery));
   });}catch(e){}
-  return set;
+  return map;
 }
 function _awOrdersLoaded(){try{return !!(window.ORDERS&&window.ORDERS.length);}catch(e){return false;}}
-function _awHasOpenOrder(company,openSet){
+function _awHasRecentOpenOrder(company,map,sendMs){
   var k=_awCoKey(company);if(!k)return false;
-  if(openSet[k])return true;
-  for(var pk in openSet){if(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0))return true;}
-  return false;
+  var dates=[];for(var pk in map){if(pk===k||(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0)))dates=dates.concat(map[pk]);}
+  if(!dates.length)return false;                       // no open order → exclude
+  var WIN=AW_WINDOW_DAYS*86400000,anyDated=false;
+  for(var i=0;i<dates.length;i++){if(dates[i]==null)continue;anyDated=true;if(sendMs!=null&&Math.abs(sendMs-dates[i])<=WIN)return true;}
+  return anyDated?false:true;                          // open order(s) exist but undated → can't rule out, keep
 }
 function _awDays(iso){var s=String(iso||'').replace(/\D/g,'');if(s.length<8)return '';var then=new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)),d=Math.round((new Date()-then)/86400000);return isNaN(d)?'':Math.max(0,d);}
 function getAwaiting(){
-  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],openSet=_awOpenOrderCos();
+  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],openMap=_awOpenOrders();
   src.forEach(function(r){
     if(!r||!r.company)return;
     var en=_artSplit(r.histEn),zh=_artSplit(r.histZh),ls=null,lc=null;
@@ -9223,7 +9237,7 @@ function getAwaiting(){
     });
     if(!ls)return;
     if(lc&&lc>=ls.iso)return;                 // a later approval exists → answered
-    if(!_awHasOpenOrder(r.company,openSet))return;  // require a blank/Pending order row
+    if(!_awHasRecentOpenOrder(r.company,openMap,_awSendIsoToMs(ls.iso)))return;  // blank/Pending order within ~1 month of the send
     out.push({company:r.company,dmy:ls.dmy,iso:ls.iso,en:ls.en,zh:ls.zh,wa:ls.wa,days:_awDays(ls.iso),stage:(typeof normStage==='function'?normStage(r.stageEn||''):(r.stageEn||''))});
   });
   return out;
@@ -9394,7 +9408,7 @@ function renderChecks(){
       +'</select>'
       +'<button class="rc-cplist" onclick="awaitCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
     +'</div>';
-    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认（空白/待处理订单均已确认稿件）':'Nothing awaiting — every blank/Pending order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示在 Orders 表中有「空白」或「Pending」状态订单、且「历史」列中我方最新一次把稿件／印件发给客户待确认、其后没有客户确认的公司。没有订单行、或订单均为「生产中／运输中／已交付」的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an order in the Orders tab with blank or Pending status AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) with no later customer confirmation. Companies with no Orders row, or whose orders are all In Production / Out for Delivery / Delivered, are excluded. Shows days waiting; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
+    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认（空白/待处理订单均已确认稿件）':'Nothing awaiting — every blank/Pending order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示在 Orders 表中有「空白」或「Pending」状态订单、且「历史」列中我方最新一次把稿件／印件发给客户待确认、其后没有客户确认的公司。没有订单行、或订单均为「生产中／运输中／已交付」、或该订单日期与发送稿件相差超过约一个月的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an order in the Orders tab with blank or Pending status AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) with no later customer confirmation. Companies with no Orders row, whose orders are all In Production / Out for Delivery / Delivered, or whose open order's date is more than ~1 month from the artwork send, are excluded. Shows days waiting; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
   })();
   // ── Group 2: AYG Portal — Reference Check ──
   _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
