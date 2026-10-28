@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261027-DUP1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261028-ART1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -7763,11 +7763,19 @@ var CHK_SEC_KEY='aygops-chk-sections';
 function getChkSecState(){try{return JSON.parse(localStorage.getItem(CHK_SEC_KEY))||{};}catch(e){return {};}}
 // Checks & Reconciliation group order (↑↓ on each group header), remembered like Orders / Clients.
 var CHK_GRP_ORDER_KEY='aygops-chk-grp-order';
-var CHK_GRP_DEFAULT=['orders','portal','crm','watch','vip'];
+var CHK_GRP_DEFAULT=['orders','portal','crm','artwork','watch','vip'];
 function getChkGrpOrder(){
   var o=null;try{o=JSON.parse(localStorage.getItem(CHK_GRP_ORDER_KEY));}catch(e){}
   o=(o&&o.length)?o.filter(function(g){return CHK_GRP_DEFAULT.indexOf(g)>-1;}):[];
-  CHK_GRP_DEFAULT.forEach(function(g){if(o.indexOf(g)<0)o.push(g);});
+  // One-time move: Estimated Artwork Confirmation now sits right below CRM and Contacts
+  // (it used to be appended at the bottom, and that position may have been saved).
+  var mk='aygops-chk-art-moved',_mig=false;try{if(!localStorage.getItem(mk)){o=o.filter(function(g){return g!=='artwork';});localStorage.setItem(mk,'1');_mig=true;}}catch(e){}
+  // A group missing from the saved order goes back to its default spot (after the group that
+  // precedes it by default), not to the bottom.
+  CHK_GRP_DEFAULT.forEach(function(g,i){if(o.indexOf(g)>-1)return;
+    var at=-1;for(var j=i-1;j>=0&&at<0;j--){at=o.indexOf(CHK_GRP_DEFAULT[j]);}
+    o.splice(at+1,0,g);});
+  if(_mig){try{if(localStorage.getItem(CHK_GRP_ORDER_KEY))localStorage.setItem(CHK_GRP_ORDER_KEY,JSON.stringify(o));}catch(e){}}
   return o;
 }
 // Order of the checks INSIDE each group: {groupId:[checkId,...]}. Checks only move within their group.
@@ -9081,7 +9089,7 @@ function rcChecksHtml(zh,chkSection,invLoaded){
         :'How it’s derived: compares the shared columns of the AYG Operations and BCRS Scheme Management Orders tabs row by row (columns found by their English header: Size, SKU, Colour, Total Order, Company, Location, Selling Price, Status, Order / Delivery / Invoice dates, Tracking, Address, Name, Contact, Invoice / Ref No., Payment, Comment). Rows are aligned by company name, so an inserted or deleted row shows as “only in” one file instead of shifting everything below it. Formatting-only differences are ignored: case, spacing, date typed as text vs a real date, 75x30 vs 75*30, 1C Black vs 1CBlack, carrier prefixes (UPS:) and so on. Purple = key field (money, quantity or reconciliation), amber = detail field, grey = minor (W×H written in reverse, Excel-rounded numbers). Tap a field chip to filter.'));
   return html;
 }
-// ── Estimated Artwork Confirmed ───────────────────────────────────────────
+// ── Estimated Artwork Confirmation ───────────────────────────────────────────
 // Scans the pipeline history text already loaded into CLIENTS_PIPE / SUPPLIERS_PIPE
 // (the Customers / Suppliers sheets' History columns — same data the Clients Update
 // tab reads) for customer-side artwork/printwork approvals. No email is re-fetched;
@@ -9272,7 +9280,7 @@ function renderChecks(){
   }else{
     _MSG.crm=('<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(TX.ccNeedsCrm||'Log in / main sync required to compare CRM contact dates.')+'</div>');
   }
-  // ── Estimated Artwork Confirmed (parsed from already-loaded pipeline history) ──
+  // ── Estimated Artwork Confirmation (parsed from already-loaded pipeline history) ──
   (function(){
     var zhA=zh;
     var ctrl='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 2px 8px">'
@@ -9477,7 +9485,7 @@ function renderChecks(){
       secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
     {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_dupid','ayg_mismatch','ayg_nottally','ayg_noemail','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
-    {id:'artwork',info:true,title:(zh?'估计已确认稿件':'Estimated Artwork Confirmed'),secs:['art_confirmed']},
+    {id:'artwork',info:true,title:(zh?'估计已确认排版':'Estimated Artwork Confirmation'),secs:['art_confirmed']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']},
     {id:'vip',title:'<span style="color:#ca8a04">\u2605</span> '+wlTx('vipGrpHd','VIP clients'),secs:['vip_follow']}
   ];
