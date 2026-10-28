@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261028-ART2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261028-ART4'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9196,24 +9196,23 @@ function _awIsSend(t){
   return true;
 }
 function _awCoKey(n){return String(n||'').toLowerCase().replace(/\b(pte|ltd|llp|co|company|inc|sg|singapore|the)\b/g,'').replace(/[^a-z0-9]/g,'');}
-function _awProgressedOrderCos(){
+function _awOpenOrderCos(){
   var set={};try{(window.ORDERS||[]).forEach(function(o){
-    if(/^(in production|out for delivery|delivered)$/i.test(String(o.status||'').trim())){var k=_awCoKey(o.name);if(k)set[k]=1;}
+    var st=String(o.status||'').trim();
+    if(st===''||/^pending$/i.test(st)){var k=_awCoKey(o.name);if(k)set[k]=1;}
   });}catch(e){}
   return set;
 }
-function _awSuppressed(stageEn,company,progSet){
-  var st=(typeof normStage==='function'?normStage(stageEn||''):(stageEn||'')).trim();
-  if(/^(In Production|Delivery|Pending Payment|Paid|Lost \/ Stalled)$/.test(st))return true;
+function _awOrdersLoaded(){try{return !!(window.ORDERS&&window.ORDERS.length);}catch(e){return false;}}
+function _awHasOpenOrder(company,openSet){
   var k=_awCoKey(company);if(!k)return false;
-  if(progSet[k])return true;
-  // loose prefix match for name variants
-  for(var pk in progSet){if(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0))return true;}
+  if(openSet[k])return true;
+  for(var pk in openSet){if(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0))return true;}
   return false;
 }
-function _awDays(iso){if(!iso||iso.length<8)return '';var y=+iso.slice(0,4),m=+iso.slice(4,6)-1,d=+iso.slice(6,8);var then=new Date(y,m,d),now=new Date();return Math.max(0,Math.round((now-then)/86400000));}
+function _awDays(iso){var s=String(iso||'').replace(/\D/g,'');if(s.length<8)return '';var then=new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)),d=Math.round((new Date()-then)/86400000);return isNaN(d)?'':Math.max(0,d);}
 function getAwaiting(){
-  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],prog=_awProgressedOrderCos();
+  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],openSet=_awOpenOrderCos();
   src.forEach(function(r){
     if(!r||!r.company)return;
     var en=_artSplit(r.histEn),zh=_artSplit(r.histZh),ls=null,lc=null;
@@ -9224,7 +9223,7 @@ function getAwaiting(){
     });
     if(!ls)return;
     if(lc&&lc>=ls.iso)return;                 // a later approval exists → answered
-    if(_awSuppressed(r.stageEn,r.company,prog))return;  // already progressed → suppress
+    if(!_awHasOpenOrder(r.company,openSet))return;  // require a blank/Pending order row
     out.push({company:r.company,dmy:ls.dmy,iso:ls.iso,en:ls.en,zh:ls.zh,wa:ls.wa,days:_awDays(ls.iso),stage:(typeof normStage==='function'?normStage(r.stageEn||''):(r.stageEn||''))});
   });
   return out;
@@ -9395,7 +9394,7 @@ function renderChecks(){
       +'</select>'
       +'<button class="rc-cplist" onclick="awaitCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
     +'</div>';
-    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认':'Nothing awaiting an artwork reply'),pipeLoaded,(zhA?'来源：扫描「历史」列中我方最新一次把稿件／印件发给客户待确认（sent for approval、awaiting approval、chasing to approve…）且其后没有客户确认的公司。已排除：订单已「生产中／运输中／已交付」、阶段在「生产中」及之后、或「流失/停滞」的公司（这些视为已确认，可能经电话／WhatsApp）。显示等待天数，可按天数或公司搜索/排序。仅为估计。':"How it's derived: scans the History column for the company's latest AYG send-for-approval of artwork/printwork (sent for approval, awaiting approval, chasing to approve) with no later customer confirmation. Suppresses anything already progressed — an order In Production / Out for Delivery / Delivered, a stage at In Production or beyond, or Lost/Stalled (those imply approval, possibly by phone/WhatsApp). Shows days waiting; searchable and sortable by date or company. Estimate only."));
+    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认（空白/待处理订单均已确认稿件）':'Nothing awaiting — every blank/Pending order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示在 Orders 表中有「空白」或「Pending」状态订单、且「历史」列中我方最新一次把稿件／印件发给客户待确认、其后没有客户确认的公司。没有订单行、或订单均为「生产中／运输中／已交付」的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an order in the Orders tab with blank or Pending status AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) with no later customer confirmation. Companies with no Orders row, or whose orders are all In Production / Out for Delivery / Delivered, are excluded. Shows days waiting; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
   })();
   // ── Group 2: AYG Portal — Reference Check ──
   _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
@@ -9588,7 +9587,7 @@ function renderChecks(){
       secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
     {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_dupid','ayg_mismatch','ayg_nottally','ayg_noemail','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
-    {id:'artwork',info:true,title:(zh?'稿件确认状态（估计）':'Artwork Confirmation Status'),secs:['art_confirmed','art_awaiting']},
+    {id:'artwork',info:true,title:(zh?'稿件确认状态（估计）':'Artwork Confirmation Status'),secs:['art_awaiting','art_confirmed']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']},
     {id:'vip',title:'<span style="color:#ca8a04">\u2605</span> '+wlTx('vipGrpHd','VIP clients'),secs:['vip_follow']}
   ];
