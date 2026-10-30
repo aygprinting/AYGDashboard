@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261030-FAC2'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261030-FAC3'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9317,6 +9317,7 @@ function awaitCopyList(){
 // customer and nothing to revise, so the likely hold-up is the factory preparing the artwork.
 var FAC_STATE={q:'',sort:'old'};
 function getFactoryWaiting(){
+  if(!(CLIENTS_PIPE&&CLIENTS_PIPE.length))return [];   // needs the client history (Checks → Sync Data) to rule out awaiting / confirmed
   var aw={};try{getAwaiting().forEach(function(e){aw[_awCoKey(e.company)]=1;});}catch(e){}
   var conf={};try{getArtEvents().forEach(function(e){var k=_awCoKey(e.company),ms=_awSendIsoToMs(e.iso);if(ms!=null&&(!conf[k]||ms>conf[k]))conf[k]=ms;});}catch(e){}
   var near=function(map,k){if(map[k])return map[k];for(var pk in map){if(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0))return map[pk];}return null;};
@@ -9513,7 +9514,7 @@ function renderChecks(){
       +'</select>'
       +'<button class="rc-cplist" onclick="facCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
     +'</div>';
-    chkSection('art_factory',(zhA?'预备排版中':'Possible Waiting Artwork from Factory'),'#60a5fa',getFactoryWaiting().length,ctrl+'<div id="fac-rows"></div>',(zhA?'没有状态空白、且未在「待回复 / 待修改」中的订单':'No blank-status order outside Awaiting reply / changes'),_awOrdersLoaded()&&!!(window.ORDERS&&window.ORDERS.length),
+    chkSection('art_factory',(zhA?'预备排版中':'Possible Waiting Artwork from Factory'),'#60a5fa',getFactoryWaiting().length,ctrl+'<div id="fac-rows"></div>',(zhA?'没有状态空白、且未在「待回复 / 待修改」中的订单':'No blank-status order outside Awaiting reply / changes'),pipeLoaded&&!!(window.ORDERS&&window.ORDERS.length),
       (zhA?'来源：Orders 表中「状态」栏为空白的订单，且该公司不在「待回复 / 待修改」中、在订单日期之后也没有客户确认稿件的记录 — 稿件既不在客户手上、也不需我方修改，所以很可能在等工厂排版。显示订单收到至今的天数。仅为估计。'
           :"How it's derived: Orders-tab rows whose Status is blank, for companies that are NOT under “Awaiting reply / changes” and have no customer artwork confirmation on or after the order date — the artwork isn't with the customer and doesn't need AYG changes, so it is most likely waiting on the factory. Shows days since the order was received. Estimate only."));
   })();
