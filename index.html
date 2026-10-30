@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261029-ART6'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261030-ART7'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9099,6 +9099,10 @@ var ART_STATE={q:'',sort:'new'};
 function _artEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function _artIsConfirm(t){
   t=String(t||'');
+  // AYG ASKING for the customer's approved artwork ("AYG requested approved artwork + size",
+  // "chasing final artwork", "pending approved artwork from Eric") is a request, not an approval —
+  // drop that phrase before testing, so "approved" in it can't count as the customer confirming.
+  t=t.replace(/(request\w*|ask\w*|need\w*|chas\w*|await\w*|pending|follow(?:ed|ing)?[- ]?up(?: on| for)?|wait\w*(?: for)?)\s+(?:for\s+)?(?:the\s+|their\s+|his\s+|her\s+|customer'?s?\s+|client'?s?\s+)?(?:approved|final(?:i[sz]ed)?|confirmed)\s+(?:artwork|printwork|print ?work|proof|design|files?)/gi,' ');
   // Hard excludes — approvals that are NOT the customer confirming our printwork:
   // BCRS-side approvals, and AYG sharing/sending already-approved artwork.
   if(/approved by bcrs|bcrs[\s-]?approved|(ayg|we)\b[^.]{0,40}(shares?|sends?|sent)[^.]*approved artwork|(shares?|sends?|sent)\b[^.]{0,30}(producer|bcrs)[\s-]?approved/i.test(t))return false;
