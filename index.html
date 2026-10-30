@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261030-ART7'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261030-ART8'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9188,6 +9188,8 @@ var AWAIT_STATE={q:'',sort:'new'};
 function _awIsSend(t){
   t=String(t||'');
   if(_artIsConfirm(t))return false;
+  // AYG asked the customer FOR their (approved/final) artwork, files or size → ball is with the customer.
+  if(/(ayg|we)\s+(?:has\s+|have\s+)?(request\w*|ask\w*|chas\w*|follow\w*[- ]?up\w*|remind\w*)[^.;]{0,40}(artwork|art ?files?|design files?|print ?work|proof|ai files?|vector|稿件|排版)/i.test(t))return true;
   if(/receipt|delivery (complete|done)|arriv|payment|invoice|tracking|shipment|received/i.test(t))return false;
   if(/to bcrs|for bcrs|bcrs (approv|register|portal|re-?approval|data ?matrix|rejected)|submit[^.]*bcrs/i.test(t))return false;
   var artTok=/(print ?work|artwork|proof|mock-?up|稿件|排版|印件)/i;
@@ -9219,7 +9221,20 @@ function _awOpenOrders(){
   });}catch(e){}
   return map;
 }
-function _awOrdersLoaded(){try{return !!(window.ORDERS&&window.ORDERS.length);}catch(e){return false;}}
+function _awOrdersLoaded(){try{return !!((window.ORDERS&&window.ORDERS.length)||(typeof AUTO_MAIN!=='undefined'&&AUTO_MAIN.length));}catch(e){return false;}}
+// BCRS portal orders (Auto Main) not yet sent to the printer — status New or no AYG reference yet.
+// Added to the open-order map so a portal order that isn't in the Orders tab yet still counts.
+function _awAddPortalOrders(map){
+  try{(typeof AUTO_MAIN!=='undefined'?AUTO_MAIN:[]).forEach(function(r){
+    var st=String(r.status||'').trim(),ref=String(r.ref||'').trim();
+    if(/^x$/i.test(ref)||/^x$/i.test(st))return;                 // rejected
+    if(!(/^new$/i.test(st)||!ref))return;
+    var k=_awCoKey(r.company);if(!k)return;
+    var dk=String(r.dateKey||'');var ms=dk.length===8?new Date(+dk.slice(0,4),+dk.slice(4,6)-1,+dk.slice(6,8)).getTime():null;
+    if(!map[k])map[k]=[];map[k].push(ms);
+  });}catch(e){}
+  return map;
+}
 function _awHasRecentOpenOrder(company,map,sendMs){
   var k=_awCoKey(company);if(!k)return false;
   var dates=[];for(var pk in map){if(pk===k||(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0)))dates=dates.concat(map[pk]);}
@@ -9230,7 +9245,7 @@ function _awHasRecentOpenOrder(company,map,sendMs){
 }
 function _awDays(iso){var s=String(iso||'').replace(/\D/g,'');if(s.length<8)return '';var then=new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)),d=Math.round((new Date()-then)/86400000);return isNaN(d)?'':Math.max(0,d);}
 function getAwaiting(){
-  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],openMap=_awOpenOrders();
+  var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],openMap=_awAddPortalOrders(_awOpenOrders());
   src.forEach(function(r){
     if(!r||!r.company)return;
     var en=_artSplit(r.histEn),zh=_artSplit(r.histZh),ls=null,lc=null;
@@ -9412,7 +9427,7 @@ function renderChecks(){
       +'</select>'
       +'<button class="rc-cplist" onclick="awaitCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
     +'</div>';
-    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认（空白/待处理订单均已确认稿件）':'Nothing awaiting — every blank/Pending order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示在 Orders 表中有「空白」或「Pending」状态订单、且「历史」列中我方最新一次把稿件／印件发给客户待确认、其后没有客户确认的公司。没有订单行、或订单均为「生产中／运输中／已交付」、或该订单日期与发送稿件相差超过约一个月的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an order in the Orders tab with blank or Pending status AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) with no later customer confirmation. Companies with no Orders row, whose orders are all In Production / Out for Delivery / Delivered, or whose open order's date is more than ~1 month from the artwork send, are excluded. Shows days waiting; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
+    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认（空白/待处理订单均已确认稿件）':'Nothing awaiting — every blank/Pending order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示有未开始订单（Orders 表中「空白」或「Pending」状态，或 BCRS 门户上状态为 New／尚无 AYG 参考的订单）、且「历史」列中我方最新一次把稿件／印件发给客户待确认，或向客户索取稿件／文件，其后没有客户确认的公司。没有订单行、或订单均为「生产中／运输中／已交付」、或该订单日期与发送稿件相差超过约一个月的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an open order (Orders tab status blank or Pending, or a BCRS portal order in Auto Main still New / without an AYG reference) AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) or AYG asking the customer for their artwork/files, with no later customer confirmation. Companies with no Orders row, whose orders are all In Production / Out for Delivery / Delivered, or whose open order's date is more than ~1 month from the artwork send, are excluded. Shows days waiting; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
   })();
   // ── Group 2: AYG Portal — Reference Check ──
   _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
