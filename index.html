@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261030-ART8'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261030-ART10'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -9106,7 +9106,7 @@ function _artIsConfirm(t){
   // Hard excludes — approvals that are NOT the customer confirming our printwork:
   // BCRS-side approvals, and AYG sharing/sending already-approved artwork.
   if(/approved by bcrs|bcrs[\s-]?approved|(ayg|we)\b[^.]{0,40}(shares?|sends?|sent)[^.]*approved artwork|(shares?|sends?|sent)\b[^.]{0,30}(producer|bcrs)[\s-]?approved/i.test(t))return false;
-  var approve=/(artwork|printwork|print ?work|proof)\s*(is\s*)?(approved|confirmed|correct)|approved\s*(the\s*)?(finalised\s*)?(print ?work|artwork|proof)|please proceed|kindly proceed|can proceed|proceed with print|proceed above quote|all correct|looks good|confirmed proceed/i;
+  var approve=/(artwork|printwork|print ?work|proof)\s*(is\s*)?(approved|confirmed|correct)|approved\s*(the\s*)?(finalised\s*)?(print ?work|artwork|proof)|(please|pls|kindly|can|do) proceed|proceed with print|proceed above quote|proceed to print|all (are |is )?correct|everything (is )?correct|looks good|confirmed proceed|into production/i;
   var zhApprove=/(稿件|排版)[^。]*?(批准|确认|无误)|确认[^。]*?(开印|印刷|无误)|开印|确认开始/;
   if(!(approve.test(t)||zhApprove.test(t)))return false;
   var pending=/(ayg (sent|requested|chas|remind)|sent (the )?(finalised |final )?(print ?work|artwork)|sent for (approval|confirmation|review)|for (your|their|review|approval|confirmation)|awaiting|chasing|reminder|requested (approval|artwork)|bcrs (approv|register|rejected|re-?approval)|rejected|approved by bcrs|bcrs[\s-]?approved|producer-approved|(shares?|sends?) [^.]*approved artwork)/i;
@@ -9244,20 +9244,36 @@ function _awHasRecentOpenOrder(company,map,sendMs){
   return anyDated?false:true;                          // open order(s) exist but undated → can't rule out, keep
 }
 function _awDays(iso){var s=String(iso||'').replace(/\D/g,'');if(s.length<8)return '';var then=new Date(+s.slice(0,4),+s.slice(4,6)-1,+s.slice(6,8)),d=Math.round((new Date()-then)/86400000);return isNaN(d)?'':Math.max(0,d);}
+function _awIsChange(t){
+  t=String(t||'');
+  if(_artIsConfirm(t))return false;
+  var artTok=/(artwork|print ?work|printwork|proof|design|label|mock-?up|NIP|nutrition|barcode|稿件|排版|印件|设计|标签)/i;
+  var chgTok=/(change|amend\w*|revis\w*|adjust\w*|modif\w*|re-?do|re-?work|correction|incorrect|\bwrong\b|\bedit\b|\bfix\b|\bredo\b|修改|更改|更正|调整|改为|不对|错误|修正)/i;
+  if(!(artTok.test(t)&&chgTok.test(t)))return false;
+  if(/receipt|delivery (complete|done)|arriv|payment|invoice|tracking|shipment|received/i.test(t))return false;
+  return true;
+}
 function getAwaiting(){
   var src=[].concat(CLIENTS_PIPE||[],SUPPLIERS_PIPE||[]),out=[],openMap=_awAddPortalOrders(_awOpenOrders());
   src.forEach(function(r){
     if(!r||!r.company)return;
-    var en=_artSplit(r.histEn),zh=_artSplit(r.histZh),ls=null,lc=null;
+    var en=_artSplit(r.histEn),zh=_artSplit(r.histZh),ls=null,lk=null,lc=null;
     en.forEach(function(e,i){
       var iso=_artIso(e.dmy);
-      if(_awIsSend(e.text)){var zt=(zh[i]&&zh[i].dmy===e.dmy)?zh[i].text:((zh.filter(function(z){return z.dmy===e.dmy;})[0]||{}).text||'');ls={dmy:e.dmy,iso:iso,en:e.text,zh:zt||e.text,wa:/💬/.test(e.text)};}
+      var zt=(zh[i]&&zh[i].dmy===e.dmy)?zh[i].text:((zh.filter(function(z){return z.dmy===e.dmy;})[0]||{}).text||'');
+      var rec={dmy:e.dmy,iso:iso,en:e.text,zh:zt||e.text,wa:/💬/.test(e.text)};
+      if(_awIsSend(e.text))ls=rec;
+      if(_awIsChange(e.text))lk=rec;
       if(_artIsConfirm(e.text)){if(!lc||iso>lc)lc=iso;}
     });
-    if(!ls)return;
-    if(lc&&lc>=ls.iso)return;                 // a later approval exists → answered
-    if(!_awHasRecentOpenOrder(r.company,openMap,_awSendIsoToMs(ls.iso)))return;  // blank/Pending order within ~1 month of the send
-    out.push({company:r.company,dmy:ls.dmy,iso:ls.iso,en:ls.en,zh:ls.zh,wa:ls.wa,days:_awDays(ls.iso),stage:(typeof normStage==='function'?normStage(r.stageEn||''):(r.stageEn||''))});
+    var pend=null,ball='';
+    if(ls&&lk){if(lk.iso>=ls.iso){pend=lk;ball='ayg';}else{pend=ls;ball='customer';}}
+    else if(ls){pend=ls;ball='customer';}
+    else if(lk){pend=lk;ball='ayg';}
+    if(!pend)return;
+    if(lc&&lc>=pend.iso)return;
+    if(!_awHasRecentOpenOrder(r.company,openMap,_awSendIsoToMs(pend.iso)))return;
+    out.push({company:r.company,dmy:pend.dmy,iso:pend.iso,en:pend.en,zh:pend.zh,wa:pend.wa,days:_awDays(pend.iso),ball:ball,stage:(typeof normStage==='function'?normStage(r.stageEn||''):(r.stageEn||''))});
   });
   return out;
 }
@@ -9273,7 +9289,8 @@ function awaitRowsHtml(zh){
     return '<div onclick="selectClient(\''+cc+'\')" style="padding:7px 2px;border-top:1px solid var(--b);cursor:pointer">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
         +'<span style="font-size:12px;font-weight:700;color:var(--t);min-width:0;flex:1">'+_artEsc(e.company)+'</span>'
-        +'<span style="font-size:10px;white-space:nowrap;flex-shrink:0;color:'+dcol+'">'+(e.days!==''?e.days+(zh?' 天未回':(e.days===1?' day waiting':' days waiting')):'')+'</span>'
+        +(e.ball==='ayg'?'<span style="font-size:9px;font-weight:700;color:var(--tel);background:rgba(45,212,191,.14);padding:1px 7px;border-radius:9px;white-space:nowrap;flex-shrink:0">'+(zh?'待我方修改':'AYG to revise')+'</span>':'<span style="font-size:9px;font-weight:700;color:var(--amb);background:rgba(245,158,11,.14);padding:1px 7px;border-radius:9px;white-space:nowrap;flex-shrink:0">'+(zh?'待客户回复':'awaiting reply')+'</span>')
+        +'<span style="font-size:10px;white-space:nowrap;flex-shrink:0;color:'+dcol+'">'+(e.days!==''?e.days+(zh?' 天':(e.days===1?' day':' days')):'')+'</span>'
       +'</div>'
       +'<div style="display:flex;gap:8px;margin-top:2px;align-items:flex-start">'
         +'<span style="font-family:monospace;font-size:10px;color:var(--tel);white-space:nowrap;flex-shrink:0;min-width:52px">'+_artEsc(e.dmy)+'</span>'
@@ -9289,7 +9306,7 @@ function awaitSort(v){AWAIT_STATE.sort=v;fillAwaitRows();}
 function awaitCopyList(){
   var zh=lang==='zh',evs=_awFilter(getAwaiting());
   evs.sort(function(a,b){return AWAIT_STATE.sort==='old'?a.iso.localeCompare(b.iso):(AWAIT_STATE.sort==='az'?a.company.localeCompare(b.company):b.iso.localeCompare(a.iso));});
-  var rows=[['Company','Sent','Days waiting','Source','Stage','What we sent']].concat(evs.map(function(e){return [e.company,e.dmy,e.days,(e.wa?'WhatsApp':'Email'),e.stage,(zh?(e.zh||e.en):e.en).replace(/[\t\r\n]+/g,' ')];}));
+  var rows=[['Company','Date','Ball','Days','Source','Stage','Detail']].concat(evs.map(function(e){return [e.company,e.dmy,(e.ball==='ayg'?'AYG to revise':'Awaiting reply'),e.days,(e.wa?'WhatsApp':'Email'),e.stage,(zh?(e.zh||e.en):e.en).replace(/[\t\r\n]+/g,' ')];}));
   var tsv=rows.map(function(r){return r.join('\t');}).join('\n');
   try{navigator.clipboard.writeText(tsv);}catch(e){var ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(ta);}
 }
@@ -9427,7 +9444,7 @@ function renderChecks(){
       +'</select>'
       +'<button class="rc-cplist" onclick="awaitCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
     +'</div>';
-    chkSection('art_awaiting',(zhA?'待客户回复（估计）':'Awaiting customer reply'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待回复的稿件确认（空白/待处理订单均已确认稿件）':'Nothing awaiting — every blank/Pending order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示有未开始订单（Orders 表中「空白」或「Pending」状态，或 BCRS 门户上状态为 New／尚无 AYG 参考的订单）、且「历史」列中我方最新一次把稿件／印件发给客户待确认，或向客户索取稿件／文件，其后没有客户确认的公司。没有订单行、或订单均为「生产中／运输中／已交付」、或该订单日期与发送稿件相差超过约一个月的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an open order (Orders tab status blank or Pending, or a BCRS portal order in Auto Main still New / without an AYG reference) AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) or AYG asking the customer for their artwork/files, with no later customer confirmation. Companies with no Orders row, whose orders are all In Production / Out for Delivery / Delivered, or whose open order's date is more than ~1 month from the artwork send, are excluded. Shows days waiting; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
+    chkSection('art_awaiting',(zhA?'待回复 / 待修改（估计）':'Awaiting reply / changes'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待处理项（所有未开始订单的稿件均已确认）':'Nothing pending — every open order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示有未开始订单（Orders 表中「空白」或「Pending」状态，或 BCRS 门户上状态为 New／尚无 AYG 参考的订单）、且「历史」列中我方最新一次把稿件／印件发给客户待确认，或向客户索取稿件／文件，其后没有客户确认的公司，标记「待客户回复」（球在客户）。同时也会标出客户回来要求修改稿件、其后没有再确认的情况，标记「待我方修改」（球在我方）。没有未开始订单、或订单均为「生产中／运输中／已交付」、或订单日期与该事件相差超过约一个月的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an open order (Orders tab status blank or Pending, or a BCRS portal order in Auto Main still New / without an AYG reference) AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) or AYG asking the customer for their artwork/files, with no later customer confirmation — tagged \"awaiting reply\" (ball with the customer). It ALSO flags cases where the customer came back asking for an artwork change/edit with no later re-confirmation — tagged \"AYG to revise\" (ball with us). Companies with no open order, whose orders are all In Production / Out for Delivery / Delivered, or whose open order's date is more than ~1 month from the event, are excluded. Shows days pending; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
   })();
   // ── Group 2: AYG Portal — Reference Check ──
   _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
