@@ -1808,7 +1808,7 @@ var WATCH_IDX={};  // normalised company/alias key -> watchlist row (Active rows
 // verdicts are a SNAPSHOT taken at that moment, not a live comparison — the reference diagnostics
 // below quote it so a stale flag can be told apart from a genuinely missing order.
 var PORTAL_SYNC_NOTE='';
-var BUILD='20261030-ART10'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
+var BUILD='20261030-FAC1'; // single source of truth for the build/version stamp (Checks: Paid status Xero vs CRM, Reference no. CRM vs Xero, and AYG Operations vs Management Orders reconciliation — the latter management-only)
 var OLDMAIN_SORT={col:'',dir:'asc'}; // independent column sort for the old-history table
 var OLD_MAIN_SYNCED_AT=(function(){try{var s=localStorage.getItem('aygops-oldmain-synced-at');return s?new Date(s):null;}catch(e){return null;}})();
 var BCRS_SORT={col:'',dir:'asc'};   // active column sort for the BCRS portal table
@@ -3241,7 +3241,7 @@ function parseAndRender(buf1,buf2){
         if(ohi<0)ohi=1;
         owb.slice(ohi+1).forEach(function(row,i){
           if(!row||!row[5]||!_cv2(row[5]))return;var co=_cv2(row[5]);if(!co)return;
-          var st=normOrdStatus(_cv2(row[9]))||'Pending';
+          var st=normOrdStatus(_cv2(row[9]))||'Pending',_rawSt=_cv2(row[9])||'';
           var _stU=String(st).trim().toUpperCase();
           if(_stU==='X'||_stU==='CANCELLED')return; // 'X' or 'Cancelled' status = cancelled order -> drop from dashboard entirely
           // AYG Ops Orders columns: 0 Size,1 Area,2 SKU,3 Colour,4 Total Order,5 Company,
@@ -3254,7 +3254,7 @@ function parseAndRender(buf1,buf2){
             invoice:(_cv2(row[19])||'').slice(0,35),invoiceFull:(_cv2(row[19])||'').slice(0,300),payment:_cv2(row[20])||'',printer:'',shipper:'',
             days:_cv2(row[22])||'',comment:(_cv2(row[21])||'').slice(0,80),
             totalRmb:0,totalSgd:Math.round(_fn2(row[8])*100)/100,gst:0,totalCost:0,marginPct:0,
-            qtyPerSku:Math.round(_fn2(row[23])*100)/100,pricePerPcRmb:0,packing:_cv2(row[COL_PACK]),adhesive:_cv2(row[COL_ADH]),invoiceNo:_cv2(row[COL_INVNO])});
+            qtyPerSku:Math.round(_fn2(row[23])*100)/100,pricePerPcRmb:0,packing:_cv2(row[COL_PACK]),adhesive:_cv2(row[COL_ADH]),invoiceNo:_cv2(row[COL_INVNO]),rawStatus:_rawSt});
         });
       }
     }catch(e){console.error('staff Orders parse error:',e);}
@@ -3406,7 +3406,7 @@ function parseAndRender(buf1,buf2){
     or.slice(hi+1).forEach(function(row,i){
       if(!row[5]||!cv(row[5]))return;var co=cv(row[5]);if(!co)return;
       var st=normOrdStatus(cv(row[18]))||'Pending';
-      ORDERS.push({id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),invoiceFull:(cv(row[28])||'').slice(0,300),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100,packing:cv(row[COL_PACK]),adhesive:cv(row[COL_ADH]),invoiceNo:cv(row[COL_INVNO])});
+      ORDERS.push({rawStatus:cv(row[18])||'',id:i+1,name:co,size:cv(row[0]),area:ri(row[1]),qty:ri(row[4]),sku:ri(row[2])||1,colour:cv(row[3])||'',loc:cv(row[6]),price:Math.round(fn(row[15])*100)/100,shipping:Math.round(fn(row[11])*100)/100,profit:Math.round(fn(row[16])*100)/100,status:st,received:fd(row[19]),delivery:fd(row[20]),tracking:(cv(row[22])||'').slice(0,120),address:(cv(row[23])||'').slice(0,150),contact:cv(row[24])||'',mobile:(cv(row[25])||'').slice(0,20),invoice:(cv(row[28])||'').slice(0,35),invoiceFull:(cv(row[28])||'').slice(0,300),payment:cv(row[29])||'',printer:cv(row[34])||'',shipper:cv(row[35])||'',days:cv(row[31])||'',comment:(cv(row[30])||'').slice(0,80),totalRmb:Math.round(fn(row[8])*100)/100,totalSgd:Math.round(fn(row[10])*100)/100,gst:Math.round(fn(row[12])*100)/100,totalCost:Math.round(fn(row[13])*100)/100,marginPct:fn(row[17])*100,qtyPerSku:Math.round(fn(row[32])*100)/100,pricePerPcRmb:fn(row[7]),weight:Math.round(fn(row[36])*100)/100,packing:cv(row[COL_PACK]),adhesive:cv(row[COL_ADH]),invoiceNo:cv(row[COL_INVNO])});
     });
   });
 
@@ -9311,6 +9311,61 @@ function awaitCopyList(){
   try{navigator.clipboard.writeText(tsv);}catch(e){var ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(ta);}
 }
 
+// ── Possible Waiting Artwork from Factory (预备排版中) ─────────────────────
+// Orders-tab rows with NO status (blank) for companies that are NOT in "Awaiting reply / changes"
+// and have no customer artwork confirmation on/after the order date — nothing is with the
+// customer and nothing to revise, so the likely hold-up is the factory preparing the artwork.
+var FAC_STATE={q:'',sort:'old'};
+function getFactoryWaiting(){
+  var aw={};try{getAwaiting().forEach(function(e){aw[_awCoKey(e.company)]=1;});}catch(e){}
+  var conf={};try{getArtEvents().forEach(function(e){var k=_awCoKey(e.company),ms=_awSendIsoToMs(e.iso);if(ms!=null&&(!conf[k]||ms>conf[k]))conf[k]=ms;});}catch(e){}
+  var near=function(map,k){if(map[k])return map[k];for(var pk in map){if(pk.length>=5&&(pk.indexOf(k)===0||k.indexOf(pk)===0))return map[pk];}return null;};
+  var out=[];
+  (window.ORDERS||[]).forEach(function(o){
+    var raw=(o.rawStatus!=null)?String(o.rawStatus).trim():(o.status==='Pending'?'':'x');
+    if(raw!=='')return;                                   // only orders with no status at all
+    var k=_awCoKey(o.name);if(!k)return;
+    if(near(aw,k))return;                                 // already under Awaiting reply / changes
+    var rec=_awParseDate(o.received),c=near(conf,k);
+    if(c!=null&&rec!=null&&c>=rec)return;                 // customer already confirmed artwork for it
+    var days=rec!=null?Math.max(0,Math.round((Date.now()-rec)/86400000)):'';
+    out.push({company:o.name,size:o.size||'',qty:o.qty||0,sku:o.sku||1,received:o.received||'',ms:rec,days:days,invoice:o.invoice||''});
+  });
+  return out;
+}
+function _facFilter(evs){var q=(FAC_STATE.q||'').toLowerCase().trim();return q?evs.filter(function(e){return (e.company+' '+e.size+' '+e.qty+' '+e.received+' '+e.invoice).toLowerCase().indexOf(q)>-1;}):evs;}
+function facRowsHtml(zh){
+  var evs=_facFilter(getFactoryWaiting());
+  if(!evs.length)return '<div style="font-size:11px;color:var(--dim);padding:8px 2px">'+(zh?'无匹配':'No matches')+'</div>';
+  var sort=FAC_STATE.sort||'old';
+  evs.sort(function(a,b){if(sort==='az')return a.company.localeCompare(b.company);var x=a.ms||0,y=b.ms||0;return sort==='old'?x-y:y-x;});
+  return evs.map(function(e){
+    var cc=e.company.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var dcol=e.days>=14?'var(--red)':(e.days>=7?'var(--amb)':'var(--m)');
+    var det=[e.size,(e.qty?Number(e.qty).toLocaleString()+(zh?' 张':' pcs'):''),(e.sku>1?e.sku+' SKU':''),e.invoice].filter(Boolean).join(' · ');
+    return '<div onclick="selectClient(\''+cc+'\')" style="padding:7px 2px;border-top:1px solid var(--b);cursor:pointer">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">'
+        +'<span style="font-size:12px;font-weight:700;color:var(--t);min-width:0;flex:1">'+_artEsc(e.company)+'</span>'
+        +'<span style="font-size:9px;font-weight:700;color:#60a5fa;background:rgba(96,165,250,.14);padding:1px 7px;border-radius:9px;white-space:nowrap;flex-shrink:0">'+(zh?'预备排版中':'factory artwork?')+'</span>'
+        +'<span style="font-size:10px;white-space:nowrap;flex-shrink:0;color:'+dcol+'">'+(e.days!==''?e.days+(zh?' 天':(e.days===1?' day':' days')):'')+'</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:2px;align-items:flex-start">'
+        +'<span style="font-family:monospace;font-size:10px;color:var(--tel);white-space:nowrap;flex-shrink:0;min-width:52px">'+_artEsc(e.received||'—')+'</span>'
+        +'<span style="font-size:10.5px;color:var(--m);flex:1;min-width:0;line-height:1.5">'+_artEsc(det)+'</span>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+function fillFacRows(){try{var n=document.getElementById('fac-rows');if(n)n.innerHTML=facRowsHtml(lang==='zh');}catch(e){}}
+function facSearch(v){FAC_STATE.q=v;fillFacRows();}
+function facSort(v){FAC_STATE.sort=v;fillFacRows();}
+function facCopyList(){
+  var evs=_facFilter(getFactoryWaiting());evs.sort(function(a,b){return (a.ms||0)-(b.ms||0);});
+  var rows=[['Company','Order received','Days','Size','Quantity','SKU','Invoice / Ref']].concat(evs.map(function(e){return [e.company,e.received,e.days,e.size,e.qty,e.sku,e.invoice];}));
+  var tsv=rows.map(function(r){return r.join('\t');}).join('\n');
+  try{navigator.clipboard.writeText(tsv);}catch(e){var ta=document.createElement('textarea');ta.value=tsv;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(_){}document.body.removeChild(ta);}
+}
+
 function renderChecks(){
   var el=document.getElementById('chk-body');if(!el)return;
   var zh=lang==='zh';
@@ -9445,6 +9500,22 @@ function renderChecks(){
       +'<button class="rc-cplist" onclick="awaitCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
     +'</div>';
     chkSection('art_awaiting',(zhA?'待回复 / 待修改（估计）':'Awaiting reply / changes'),'#fbbf24',getAwaiting().length,ctrl+'<div id="await-rows"></div>',(zhA?'没有待处理项（所有未开始订单的稿件均已确认）':'Nothing pending — every open order has confirmed artwork'),(pipeLoaded&&_awOrdersLoaded()),(zhA?'来源：仅显示有未开始订单（Orders 表中「空白」或「Pending」状态，或 BCRS 门户上状态为 New／尚无 AYG 参考的订单）、且「历史」列中我方最新一次把稿件／印件发给客户待确认，或向客户索取稿件／文件，其后没有客户确认的公司，标记「待客户回复」（球在客户）。同时也会标出客户回来要求修改稿件、其后没有再确认的情况，标记「待我方修改」（球在我方）。没有未开始订单、或订单均为「生产中／运输中／已交付」、或订单日期与该事件相差超过约一个月的公司不显示。显示等待天数，可按天数或公司搜索/排序。需已同步 Orders 表。仅为估计。':"How it's derived: shows a company only if it has an open order (Orders tab status blank or Pending, or a BCRS portal order in Auto Main still New / without an AYG reference) AND its latest artwork event is an AYG send-for-approval (sent for approval, awaiting approval, chasing to approve) or AYG asking the customer for their artwork/files, with no later customer confirmation — tagged \"awaiting reply\" (ball with the customer). It ALSO flags cases where the customer came back asking for an artwork change/edit with no later re-confirmation — tagged \"AYG to revise\" (ball with us). Companies with no open order, whose orders are all In Production / Out for Delivery / Delivered, or whose open order's date is more than ~1 month from the event, are excluded. Shows days pending; searchable and sortable by date or company. Needs the Orders tab synced. Estimate only."));
+  })();
+  // ── Possible Waiting Artwork from Factory ──
+  (function(){
+    var zhA=zh;
+    var ctrl='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:4px 2px 8px">'
+      +'<input id="fac-q" oninput="facSearch(this.value)" value="'+_artEsc(FAC_STATE.q||'')+'" placeholder="'+(zhA?'搜索公司 / 尺寸 / 数量…':'Search company / size / qty…')+'" style="flex:1;min-width:160px;font-size:11px;padding:6px 10px;border-radius:9px;border:1px solid var(--b2);background:var(--s2);color:var(--t)">'
+      +'<select id="fac-sort" onchange="facSort(this.value)" style="font-size:11px;padding:6px 8px;border-radius:9px;border:1px solid var(--b2);background:var(--s2);color:var(--t)">'
+        +'<option value="old"'+(FAC_STATE.sort==='old'?' selected':'')+'>'+(zhA?'最久优先':'Longest waiting first')+'</option>'
+        +'<option value="new"'+(FAC_STATE.sort==='new'?' selected':'')+'>'+(zhA?'最新优先':'Newest first')+'</option>'
+        +'<option value="az"'+(FAC_STATE.sort==='az'?' selected':'')+'>'+(zhA?'公司 A–Z':'Company A–Z')+'</option>'
+      +'</select>'
+      +'<button class="rc-cplist" onclick="facCopyList()" title="'+(zhA?'复制全部（制表符分隔，可粘贴到 Excel）':'Copy all as tab-separated — paste into Excel')+'">⧉ '+(zhA?'复制列表':'Copy list')+'</button>'
+    +'</div>';
+    chkSection('art_factory',(zhA?'预备排版中':'Possible Waiting Artwork from Factory'),'#60a5fa',getFactoryWaiting().length,ctrl+'<div id="fac-rows"></div>',(zhA?'没有状态空白、且未在「待回复 / 待修改」中的订单':'No blank-status order outside Awaiting reply / changes'),_awOrdersLoaded()&&!!(window.ORDERS&&window.ORDERS.length),
+      (zhA?'来源：Orders 表中「状态」栏为空白的订单，且该公司不在「待回复 / 待修改」中、在订单日期之后也没有客户确认稿件的记录 — 稿件既不在客户手上、也不需我方修改，所以很可能在等工厂排版。显示订单收到至今的天数。仅为估计。'
+          :"How it's derived: Orders-tab rows whose Status is blank, for companies that are NOT under “Awaiting reply / changes” and have no customer artwork confirmation on or after the order date — the artwork isn't with the customer and doesn't need AYG changes, so it is most likely waiting on the factory. Shows days since the order was received. Estimate only."));
   })();
   // ── Group 2: AYG Portal — Reference Check ──
   _EXTRA.portal=TX.ccAygNote?'<span style="font-size:9px;color:var(--dim)">'+TX.ccAygNote+'</span>':'';
@@ -9637,7 +9708,7 @@ function renderChecks(){
       secs:['notinv','inv','xero_ref','xero_invno','xero_paid','ops_mgmt']},
     {id:'portal',title:(TX.ccAygHd||'AYG Portal — Reference Check'),secs:['ayg_dupid','ayg_mismatch','ayg_nottally','ayg_noemail','ayg_noref','ayg_reject']},
     {id:'crm',title:(zh?'CRM 与联系人':'CRM and Contacts'),secs:['behind','stage','paste','bad']},
-    {id:'artwork',info:true,title:(zh?'估计排版确认状态':'Estimated Artwork Confirmation Status'),secs:['art_awaiting','art_confirmed']},
+    {id:'artwork',info:true,title:(zh?'估计排版确认状态':'Estimated Artwork Confirmation Status'),secs:['art_awaiting','art_factory','art_confirmed']},
     {id:'watch',title:wlTx('wlGrpHd','Watchlist — flagged companies'),secs:['wl_exposure','wl_suggest']},
     {id:'vip',title:'<span style="color:#ca8a04">\u2605</span> '+wlTx('vipGrpHd','VIP clients'),secs:['vip_follow']}
   ];
