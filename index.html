@@ -5004,6 +5004,17 @@ function companyNamesMatch(lostName,quoteName){
   if(!lt.length||!qt.length)return false;
   var shorter=lt.length<=qt.length?lt:qt, longer=lt.length<=qt.length?qt:lt;
   if(!shorter.length)return false;
+  // A single leftover word is too weak to link two DIFFERENT names on its own. e.g.
+  // "ENTERPRISE GO PTE LTD" strips to just "go", which used to match "Go Regional Trading".
+  // One word only counts if both names reduce to that same word, or it is a real name
+  // (4+ letters) that STARTS the longer name ("Octopus" ~ "Octopus Asia") or starts one of
+  // its "; other name" parts ("The Drinkery Pte Ltd ; Thirsty.com.sg" ~ "Thirsty").
+  if(shorter.length===1&&longer.length>1){
+    var w1=shorter[0];if(w1.length<4)return false;
+    var longName=lt.length<=qt.length?quoteName:lostName;
+    var starts=String(longName||'').split(';').some(function(part){var pt=coreTokens(part);return pt.length&&tokensEqual(pt[0],w1);});
+    if(!starts)return false;
+  }
   // The shorter token list must appear, in order, as a contiguous run inside the longer one
   // (each position compared with plural/singular tolerance) \u2014 e.g. "field catering" inside
   // "fields catering supplies", or an exact match when both sides are the same length.
@@ -10190,14 +10201,27 @@ function applyLQF(){
   var rowsAll=buildLostClientQuoteRows();
   if(!rowsAll.length){resEl.innerHTML='<div class="dempty">'+TX.noLostQuoteMatches+'</div>';return;}
   var fq=parseInt(document.getElementById('lq-match-qps').value)||0;
+  // Target QTY/SKU for ranking: the filter box if filled, else the job being quoted (Qty ÷ SKU).
+  var _jq=parseInt((document.getElementById('q-qty')||{}).value)||0;
+  var _js=parseInt((document.getElementById('q-sku')||{}).value)||1;
+  var tq=fq>0?fq:(_jq>0?Math.round(_jq/_js):0);
+  // Rank: 1) closest area, 2) closest QTY/SKU to the job, 3) newest quote first.
+  // (Before, ties on area kept Contacts order, so clients low in the sheet never made the top 10.)
+  var _qd=function(r){var d=parseFlexDate(r.quote.quotedDate);return d?d.getTime():0;};
+  var lqSort=function(list){return list.slice().sort(function(a,b){
+    var da=Math.abs((a.quote.area||0)-lqMatchArea),db=Math.abs((b.quote.area||0)-lqMatchArea);
+    if(da!==db)return da-db;
+    if(tq>0){var qa=Math.abs((a.quote.qtyPerSku||0)-tq),qb=Math.abs((b.quote.qtyPerSku||0)-tq);if(qa!==qb)return qa-qb;}
+    return _qd(b)-_qd(a);
+  });};
   // Try colour match first, fall back to all matched lost-client quotes if fewer than 5 results
   var colF=rowsAll.filter(function(r){return normCol(r.quote.colour)===lqMatchCol;});
-  var sorted=colF.slice().sort(function(a,b){return Math.abs(a.quote.area-lqMatchArea)-Math.abs(b.quote.area-lqMatchArea);});
-  if(sorted.length<5){
-    sorted=rowsAll.slice().sort(function(a,b){return Math.abs(a.quote.area-lqMatchArea)-Math.abs(b.quote.area-lqMatchArea);});
-  }
+  var sorted=lqSort(colF);
+  if(sorted.length<5)sorted=lqSort(rowsAll);
   if(fq>0){var filtered=sorted.filter(function(r){return Math.abs((r.quote.qtyPerSku||0)-fq)<=fq*0.5;});if(filtered.length>0)sorted=filtered;}
-  var top10=sorted.slice(0,10);
+  // Show at least 10; beyond that, keep EVERY quote that matches the job's area exactly
+  // (all same-size matches, closest QTY/SKU first) instead of cutting them off at 10.
+  var top10=sorted.filter(function(r,i){return i<10||(r.quote.area||0)===lqMatchArea;});
   if(!top10.length){resEl.innerHTML='<div class="dempty">'+TX.noLostQuoteMatches+'</div>';return;}
   var hasColour=top10.some(function(r){return normCol(r.quote.colour)!==lqMatchCol;});
   var colHeader=hasColour?'<th style="color:var(--pur)">'+TX.colour+'</th>':'';
