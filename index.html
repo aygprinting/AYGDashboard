@@ -6265,6 +6265,15 @@ function renderCompStats(){
   function uniqBoth(list){var seen={},n=0;list.forEach(function(r){var k=_normCo(r.company);if(k&&!seen[k]&&isAlsoOurs(r.company)){seen[k]=1;n++;}});return n;}
   var jewelCount=uniqCompanies(JEWEL_LIST),satoCount=uniqCompanies(SATO_LIST),honsenCount=uniqCompanies(HONSEN_LIST);
   var overlap=uniqBoth(JEWEL_LIST)+uniqBoth(SATO_LIST)+uniqBoth(HONSEN_LIST);
+  // Total unique companies across ALL printers (AYG + Honsen + Jewel + Sato), deduped by
+  // normalized name so a company using several printers (or several sizes) counts once.
+  // AYG comes from its column on the Competitors sheet; falls back to live order companies.
+  var allSeen={};
+  var aygNames=AYG_COMP_LIST.length?AYG_COMP_LIST.map(function(r){return r.company;}):(typeof ORDER_COMPANIES!=='undefined'&&ORDER_COMPANIES?ORDER_COMPANIES:[]);
+  aygNames.forEach(function(n){var k=_normCo(n);if(k)allSeen[k]=1;});
+  [HONSEN_LIST,JEWEL_LIST,SATO_LIST].forEach(function(l){l.forEach(function(r){var k=_normCo(r.company);if(k)allSeen[k]=1;});});
+  var allUnique=Object.keys(allSeen).length;
+  var allZh=(typeof lang!=='undefined'&&lang==='zh');
   statsEl.innerHTML=
     statCard('comp-honsen-clients','Honsen Companies',honsenCount,'var(--blu)')+
     statCard('comp-honsen-qty','Honsen Total Qty',honsenTotal.toLocaleString(),'var(--blu)')+
@@ -6272,14 +6281,11 @@ function renderCompStats(){
     statCard('comp-jewel-qty','Jewel Total Qty',jewelTotal.toLocaleString(),'var(--amb)')+
     statCard('comp-sato-clients','Sato Companies',satoCount,'var(--pnk)')+
     statCard('comp-sato-qty','Sato Total Qty',satoTotal.toLocaleString(),'var(--pnk)')+
-    statCard('comp-overlap','Also Our Clients',overlap,'var(--grn)');
-  // Six per-competitor cards (span 3) fill the first row and half the second; widen the
-  // summary card to span the rest so the row is full and nothing is left dangling. Skipped
-  // if the user has saved their own layout, so a custom arrangement is respected.
-  if(!getSavedLayout('comp-stats')){
-    var _ov=statsEl.querySelector('[data-card-id="comp-overlap"]');
-    if(_ov)_ov.style.gridColumn='span 6';
-  }
+    statCard('comp-overlap','Also Our Clients',overlap,'var(--grn)')+
+    statCard('comp-all-unique',allZh?'全部印刷商 · 公司总数':'Total Unique Companies',allUnique,'var(--tel)',null,allZh?'AYG + Honsen + Jewel + Sato · 已去重':'AYG + Honsen + Jewel + Sato · deduped');
+  // Six per-competitor cards (span 3) fill the first row and half the second; the two
+  // summary cards (span 3 each) fill the rest of row two. Skipped if the user has saved
+  // their own layout, so a custom arrangement is respected.
   applyLayout('comp-stats');
 }
 // New-orders customer cards — three per section (AYG, Sato, Jewel), each row =
